@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct IumrahLockedIdentityCard: View {
-    let language: AppLanguage
+    let language: AppSettingsStore.Language
     let action: () -> Void
 
     var body: some View {
@@ -106,7 +106,7 @@ struct IumrahLockedIdentityCard: View {
 struct IumrahIdentitySealOverlay: View {
     let progress: CGFloat
     let showsPrompt: Bool
-    let language: AppLanguage
+    let language: AppSettingsStore.Language
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -249,7 +249,7 @@ struct IumrahIdentitySealOverlay: View {
 }
 
 struct IumrahIdentityUnlockSheet: View {
-    let language: AppLanguage
+    let language: AppSettingsStore.Language
     let onContinue: () -> Void
 
     @Environment(\.dismiss) private var dismiss
