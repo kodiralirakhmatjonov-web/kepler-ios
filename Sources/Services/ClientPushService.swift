@@ -9,8 +9,8 @@ struct ClientPushService {
         headers: [String: String],
         locale: String,
         environment: String = "production"
-    ) async throws {
-        let _: ClientPushRegistrationResponse = try await api.post(
+    ) async throws -> Bool? {
+        let response: ClientPushRegistrationResponse = try await api.post(
             "/api/catalog/hotels/client/push/devices",
             body: ClientPushRegistrationRequest(
                 deviceToken: deviceToken,
@@ -21,6 +21,7 @@ struct ClientPushService {
             ),
             headers: headers
         )
+        return response.ready
     }
 }
 

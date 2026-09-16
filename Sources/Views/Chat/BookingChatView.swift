@@ -29,8 +29,8 @@ struct BookingChatView: View {
     @State private var unseenIncomingCount = 0
     @State private var presentationByID: [String: CareMessagePresentation] = [:]
     @FocusState private var composerFocused: Bool
-    @GestureState private var timestampReveal: CGFloat = 0
     @State private var scrollViewportHeight: CGFloat = 0
+    @State private var composerPanelHeight: CGFloat = 78
     @Namespace private var sendNamespace
 
     private let bottomAnchorID = "care-chat-bottom-anchor"
@@ -62,7 +62,16 @@ struct BookingChatView: View {
                         }
                         composer(proxy: proxy)
                     }
-                    .padding(.bottom, composerFocused ? 8 : 18)
+                    .padding(.bottom, composerFocused ? 8 : 12)
+                    .background {
+                        GeometryReader { geometry in
+                            Color.clear
+                                .onAppear { composerPanelHeight = geometry.size.height }
+                                .onChange(of: geometry.size.height) { _, value in
+                                    composerPanelHeight = value
+                                }
+                        }
+                    }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(10)
                 }
@@ -178,7 +187,7 @@ struct BookingChatView: View {
                 .padding(.bottom, 16)
             }
             .scrollDismissesKeyboard(.interactively)
-            .contentMargins(.bottom, errorMessage == nil ? 82 : 132, for: .scrollContent)
+            .contentMargins(.bottom, max(86, composerPanelHeight + 10), for: .scrollContent)
             .coordinateSpace(name: scrollCoordinateSpace)
             .background {
                 GeometryReader { geometry in
@@ -201,15 +210,6 @@ struct BookingChatView: View {
                     unseenIncomingCount = 0
                 }
             }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 12, coordinateSpace: .local)
-                    .updating($timestampReveal) { value, state, _ in
-                        let dx = value.translation.width
-                        let dy = value.translation.height
-                        guard dx < 0, abs(dx) > abs(dy) * 1.2 else { return }
-                        state = min(1, max(0, -dx / 78))
-                    }
-            )
 
             if !isAtBottom && (!messages.isEmpty || pendingOutgoing != nil) {
                 Button {
@@ -260,8 +260,7 @@ struct BookingChatView: View {
                 groupEnd: meta.groupEnd,
                 showDelivery: meta.showDelivery,
                 wallpaperActive: appearance.wallpaper.isVisual,
-                timestampText: meta.timeText,
-                timestampReveal: timestampReveal
+                timestampText: meta.timeText
             )
             .id(message.id)
             .padding(.bottom, meta.groupEnd ? 8 : 2)
@@ -341,27 +340,32 @@ struct BookingChatView: View {
         HStack(alignment: .bottom) {
             Spacer(minLength: 58)
 
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(pending.body)
-                    .font(.system(size: 17))
-                    .foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, 13)
-                    .padding(.trailing, 17)
-                    .padding(.vertical, 9)
-                    .background {
-                        CareMessageBubbleShape(isMine: true, groupStart: true, groupEnd: true)
-                            .fill(outgoingAccentColor.opacity(0.98))
-                    }
+            VStack(alignment: .trailing, spacing: 0) {
+                VStack(alignment: .trailing, spacing: 5) {
+                    Text(pending.body)
+                        .font(.system(size: 16.5))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                HStack(spacing: 5) {
-                    ProgressView()
-                        .controlSize(.mini)
-                    Text(tr("Sending", "Отправляется", "Yuborilmoqda", "Юборилмоқда"))
-                        .font(.system(size: 11.5))
+                    HStack(spacing: 5) {
+                        Text(messageTimeLabel(pending.createdAt))
+                            .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                            .monospacedDigit()
+                        ProgressView()
+                            .controlSize(.mini)
+                            .tint(.white.opacity(0.76))
+                    }
+                    .foregroundStyle(.white.opacity(0.72))
                 }
-                .foregroundStyle(conversationSecondary)
-                .padding(.trailing, 9)
+                .padding(.leading, 12)
+                .padding(.trailing, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 6)
+                .background {
+                    CareMessageBubbleShape(isMine: true, groupStart: true, groupEnd: true)
+                        .fill(outgoingAccentColor.opacity(0.98))
+                }
             }
             .matchedGeometryEffect(id: "care-send-\(pending.id)", in: sendNamespace, isSource: false)
         }
@@ -379,20 +383,25 @@ struct BookingChatView: View {
                     showCareProfile = true
                 }
             } label: {
-                VStack(spacing: 2) {
-                    CareProfileAvatar(profile: nil, size: 34)
+                HStack(spacing: 8) {
+                    CareProfileAvatar(profile: careProfile, size: 30)
                         .shadow(
                             color: .black.opacity(appearance.wallpaper.isVisual ? 0.18 : 0.07),
-                            radius: 5,
+                            radius: 4,
                             y: 2
                         )
 
-                    HStack(spacing: 2) {
-                        Text("iumrah Care")
-                            .font(.system(size: 12.5, weight: .semibold))
-                            .lineLimit(1)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 7.5, weight: .bold))
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 3) {
+                            Text("iumrah Care")
+                                .font(.system(size: 14, weight: .semibold))
+                                .lineLimit(1)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 7.5, weight: .bold))
+                        }
+                        Text(tr("Support", "Поддержка", "Yordam", "Ёрдам"))
+                            .font(.system(size: 10.5, weight: .medium))
+                            .foregroundStyle(headerPrimary.opacity(0.62))
                     }
                 }
                 .foregroundStyle(headerPrimary)
@@ -455,7 +464,8 @@ struct BookingChatView: View {
                         .focused($composerFocused)
                         .font(.system(size: 16.5))
                         .textFieldStyle(.plain)
-                        .lineLimit(1...5)
+                        .lineLimit(1...4)
+                        .frame(minHeight: 24, maxHeight: 82, alignment: .center)
                         .submitLabel(.send)
                         .tint(appearance.wallpaper.isVisual ? .white : outgoingAccentColor)
                         .onSubmit {
@@ -463,7 +473,7 @@ struct BookingChatView: View {
                             Task { await send(proxy: proxy) }
                         }
                         .padding(.leading, 14)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 8)
 
                     if canSend || isSending {
                         Button {
@@ -491,7 +501,7 @@ struct BookingChatView: View {
                         .transition(.scale(scale: 0.76).combined(with: .opacity))
                     }
                 }
-                .frame(minHeight: 42)
+                .frame(minHeight: 44, maxHeight: 98, alignment: .bottom)
                 .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .onTapGesture {
                     composerFocused = true
@@ -651,7 +661,7 @@ struct BookingChatView: View {
         errorMessage = nil
         failedDraft = nil
 
-        let pending = PendingOutgoingMessage(id: UUID().uuidString, body: message)
+        let pending = PendingOutgoingMessage(id: UUID().uuidString, body: message, createdAt: Date())
         launchingOutgoing = pending
         draft = ""
 
@@ -767,9 +777,7 @@ struct BookingChatView: View {
     }
 
     private func shouldShowDelivery(for index: Int) -> Bool {
-        guard isMine(messages[index]) else { return false }
-        guard index == messages.count - 1 || !isMine(messages[index + 1]) else { return false }
-        return index == messages.lastIndex(where: { isMine($0) })
+        isMine(messages[index])
     }
 
     private func shouldShowDateSeparator(at index: Int) -> Bool {
@@ -777,34 +785,34 @@ struct BookingChatView: View {
         guard let current = parsedDate(messages[index].createdAt),
               let previous = parsedDate(messages[index - 1].createdAt) else { return false }
 
-        let calendar = Calendar.current
-        if !calendar.isDate(current, inSameDayAs: previous) { return true }
-        return current.timeIntervalSince(previous) >= 30 * 60
+        return !Calendar.current.isDate(current, inSameDayAs: previous)
     }
 
     private func dateSeparatorLabel(_ raw: String) -> String {
         guard let date = parsedDate(raw) else { return "" }
         let calendar = Calendar.current
-        let time = DateFormatter()
-        time.locale = Locale(identifier: settings.language.localeIdentifier)
-        time.dateFormat = "HH:mm"
 
         if calendar.isDateInToday(date) {
-            return "\(tr("Today", "Сегодня", "Bugun", "Бугун")), \(time.string(from: date))"
+            return tr("Today", "Сегодня", "Bugun", "Бугун")
         }
 
         if calendar.isDateInYesterday(date) {
-            return "\(tr("Yesterday", "Вчера", "Kecha", "Кеча")), \(time.string(from: date))"
+            return tr("Yesterday", "Вчера", "Kecha", "Кеча")
         }
 
         let output = DateFormatter()
         output.locale = Locale(identifier: settings.language.localeIdentifier)
-        output.setLocalizedDateFormatFromTemplate("EEE d MMM HH:mm")
+        output.setLocalizedDateFormatFromTemplate("EEE d MMM")
         return output.string(from: date)
     }
 
     private func messageTimeLabel(_ raw: String) -> String {
         guard let date = parsedDate(raw) else { return "" }
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+    }
+
+    private func messageTimeLabel(_ date: Date) -> String {
         let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
         return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
     }
@@ -963,6 +971,7 @@ private struct CareChatBottomYPreferenceKey: PreferenceKey {
 private struct PendingOutgoingMessage: Identifiable, Equatable {
     let id: String
     let body: String
+    let createdAt: Date
 }
 
 private func optimizedChatJPEG(_ data: Data) -> Data? {

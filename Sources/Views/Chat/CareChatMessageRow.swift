@@ -13,73 +13,45 @@ struct CareChatMessageRow: View {
     let showDelivery: Bool
     let wallpaperActive: Bool
     let timestampText: String
-    let timestampReveal: CGFloat
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            Text(timestampText)
-                .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                .foregroundStyle(timestampColor)
-                .lineLimit(1)
-                .opacity(timestampReveal)
-                .offset(x: 2)
-                .accessibilityHidden(true)
+        HStack(alignment: .bottom, spacing: 7) {
+            if isMine { Spacer(minLength: 58) }
 
-            messageRow
-                .offset(x: -44 * timestampReveal)
-        }
-        .frame(maxWidth: .infinity)
-        .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.92), value: timestampReveal)
-    }
+            if !isMine {
+                if groupEnd {
+                    Image("CareChatAvatar")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 28, height: 28)
+                        .clipShape(Circle())
+                        .overlay { Circle().stroke(Color.white.opacity(0.58), lineWidth: 0.6) }
+                        .transition(.scale(scale: 0.82).combined(with: .opacity))
+                } else {
+                    Color.clear.frame(width: 28, height: 1)
+                }
+            }
 
-    private var messageRow: some View {
-        VStack(alignment: isMine ? .trailing : .leading, spacing: 3) {
-            HStack(alignment: .bottom, spacing: 7) {
-                if isMine { Spacer(minLength: 58) }
+            bubbleSurface
+                .contextMenu {
+                    if !message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Button {
+                            UIPasteboard.general.string = message.body
+                        } label: {
+                            Label(tr("Copy", "Копировать", "Nusxalash", "Нусхалаш"), systemImage: "doc.on.doc")
+                        }
 
-                if !isMine {
-                    if groupEnd {
-                        Image("CareChatAvatar")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 28, height: 28)
-                            .clipShape(Circle())
-                            .overlay { Circle().stroke(Color.white.opacity(0.58), lineWidth: 0.6) }
-                            .transition(.scale(scale: 0.82).combined(with: .opacity))
-                    } else {
-                        Color.clear.frame(width: 28, height: 1)
+                        ShareLink(item: message.body) {
+                            Label(tr("Share", "Поделиться", "Ulashish", "Улашиш"), systemImage: "square.and.arrow.up")
+                        }
                     }
+                } preview: {
+                    bubbleSurface
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(10)
                 }
 
-                bubbleSurface
-                    .contextMenu {
-                        if !message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            Button {
-                                UIPasteboard.general.string = message.body
-                            } label: {
-                                Label(tr("Copy", "Копировать", "Nusxalash", "Нусхалаш"), systemImage: "doc.on.doc")
-                            }
-
-                            ShareLink(item: message.body) {
-                                Label(tr("Share", "Поделиться", "Ulashish", "Улашиш"), systemImage: "square.and.arrow.up")
-                            }
-                        }
-                    } preview: {
-                        bubbleSurface
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(10)
-                    }
-
-                if !isMine { Spacer(minLength: 58) }
-            }
-
-            if showDelivery {
-                Text(deliveryLabel)
-                    .font(.system(size: 11.5, weight: .regular))
-                    .foregroundStyle(deliveryColor)
-                    .padding(.trailing, 10)
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
-            }
+            if !isMine { Spacer(minLength: 58) }
         }
         .padding(.top, groupStart ? 5 : 0)
     }
@@ -90,7 +62,8 @@ struct CareChatMessageRow: View {
         return bubbleContent
             .padding(.leading, leadingPadding)
             .padding(.trailing, trailingPadding)
-            .padding(.vertical, verticalPadding)
+            .padding(.top, verticalPadding)
+            .padding(.bottom, metadataBottomPadding)
             .background {
                 if isMine {
                     shape.fill(outgoingBubbleColor.opacity(wallpaperActive ? 0.96 : 1))
@@ -112,47 +85,67 @@ struct CareChatMessageRow: View {
             .overlay {
                 shape.stroke(incomingStrokeColor, lineWidth: isMine ? 0 : 0.55)
             }
-            .shadow(color: bubbleShadow, radius: wallpaperActive ? 7 : 1.5, y: wallpaperActive ? 3 : 1)
+            .shadow(color: bubbleShadow, radius: wallpaperActive ? 7 : 1.25, y: wallpaperActive ? 3 : 1)
             .contentShape(shape)
             .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
     private var bubbleContent: some View {
-        VStack(alignment: .leading, spacing: message.messageType == "image" ? 7 : 0) {
-            if message.messageType == "image", let path = message.attachmentURL {
-                AuthenticatedCareChatImage(path: path, bookingID: bookingID)
-                    .frame(maxWidth: 258)
-                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        // Keep the bubble content-sized. A Spacer/maxWidth here makes short
+        // messages stretch into oversized pills, which was the main source of
+        // the uneven Telegram/iMessage comparison.
+        VStack(alignment: .trailing, spacing: 5) {
+            VStack(alignment: .leading, spacing: 6) {
+                if message.messageType == "image", let path = message.attachmentURL {
+                    AuthenticatedCareChatImage(path: path, bookingID: bookingID)
+                        .frame(maxWidth: 258)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+
+                let trimmed = message.body.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    Text(message.body)
+                        .font(.system(size: 16.5, weight: .regular))
+                        .foregroundStyle(isMine ? Color.white : Color.primary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
             }
 
-            let trimmed = message.body.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                Text(message.body)
-                    .font(.system(size: 17, weight: .regular))
-                    .foregroundStyle(isMine ? Color.white : Color.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
+            HStack(spacing: 4) {
+                Text(timestampText)
+                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+
+                if isMine && showDelivery {
+                    CareDeliveryTicks(isRead: message.readByStaff == true)
+                }
             }
+            .foregroundStyle(metadataColor)
         }
     }
 
     private var leadingPadding: CGFloat {
         let imageOnly = message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        if imageOnly { return groupEnd && !isMine ? 7 : 3 }
-        return groupEnd && !isMine ? 17 : 13
+        if imageOnly { return groupEnd && !isMine ? 7 : 4 }
+        return groupEnd && !isMine ? 16 : 12
     }
 
     private var trailingPadding: CGFloat {
         let imageOnly = message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        if imageOnly { return groupEnd && isMine ? 7 : 3 }
-        return groupEnd && isMine ? 17 : 13
+        if imageOnly { return groupEnd && isMine ? 7 : 4 }
+        return groupEnd && isMine ? 16 : 12
     }
 
     private var verticalPadding: CGFloat {
-        message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 3 : 9
+        message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 4 : 8
     }
 
+    private var metadataBottomPadding: CGFloat {
+        message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 5 : 6
+    }
 
     private var outgoingBubbleColor: Color {
         if colorScheme == .dark {
@@ -166,22 +159,12 @@ struct CareChatMessageRow: View {
     }
 
     private var bubbleShadow: Color {
-        wallpaperActive ? Color.black.opacity(0.10) : Color.black.opacity(0.025)
+        wallpaperActive ? Color.black.opacity(0.10) : Color.black.opacity(0.020)
     }
 
-    private var timestampColor: Color {
-        wallpaperActive ? .white.opacity(0.66) : .secondary
-    }
-
-    private var deliveryLabel: String {
-        if message.readByStaff == true {
-            return tr("Read", "Прочитано", "O‘qildi", "Ўқилди")
-        }
-        return tr("Delivered", "Доставлено", "Yetkazildi", "Етказилди")
-    }
-
-    private var deliveryColor: Color {
-        wallpaperActive ? .white.opacity(0.66) : .secondary
+    private var metadataColor: Color {
+        if isMine { return .white.opacity(0.72) }
+        return wallpaperActive ? .white.opacity(0.68) : .secondary
     }
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
@@ -191,6 +174,21 @@ struct CareChatMessageRow: View {
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
         }
+    }
+}
+
+private struct CareDeliveryTicks: View {
+    let isRead: Bool
+
+    var body: some View {
+        HStack(spacing: isRead ? -3.5 : 0) {
+            Image(systemName: "checkmark")
+            if isRead {
+                Image(systemName: "checkmark")
+            }
+        }
+        .font(.system(size: 9.5, weight: .bold))
+        .accessibilityLabel(isRead ? "Read" : "Delivered")
     }
 }
 

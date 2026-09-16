@@ -111,6 +111,10 @@ struct RootView: View {
                 guard phase == .active, hasCompletedOnboarding else { return }
                 Task {
                     await push.refreshAndRegisterIfAllowed()
+                    // Retry booking-scoped chat push registration whenever the app
+                    // returns to foreground. Previously a transient registration
+                    // failure could remain silent until another unrelated state change.
+                    await syncPushSubscriptions()
                     await syncClientNotifications()
                 }
             }

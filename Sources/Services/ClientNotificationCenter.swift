@@ -54,6 +54,7 @@ final class ClientNotificationCenter: ObservableObject {
     @Published private(set) var latest: ClientSystemNotification?
     @Published private(set) var lastError: String?
     @Published private(set) var dismissedHomeIDs: Set<String> = []
+    @Published private(set) var pushProviderReady: Bool?
 
     private let api = APIClient.shared
     private let installationKey = "iumrah.app.client-notification-installation.v1"
@@ -87,7 +88,7 @@ final class ClientNotificationCenter: ObservableObject {
     func sync(deviceToken: String?, accountToken: String?, hasTrip: Bool, locale: String) async {
         let headers = authorizationHeaders(accountToken)
         do {
-            let _: ClientNotificationDeviceResponse = try await api.post(
+            let response: ClientNotificationDeviceResponse = try await api.post(
                 "/api/catalog/hotels/client/notifications/devices",
                 body: ClientNotificationDeviceRegistration(
                     installationID: installationID,
@@ -99,6 +100,7 @@ final class ClientNotificationCenter: ObservableObject {
                 ),
                 headers: headers
             )
+            pushProviderReady = response.ready
             await refresh(accountToken: accountToken)
             lastError = nil
         } catch {

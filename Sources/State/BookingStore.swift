@@ -20,6 +20,8 @@ final class BookingStore: ObservableObject {
     @Published private(set) var sessions: [StoredBookingSession] = []
     @Published private(set) var chats: [String: [ChatMessage]] = [:]
     @Published private(set) var itineraries: [String: [BookingItineraryItem]] = [:]
+    @Published private(set) var pushRegistrationReady: Bool?
+    @Published private(set) var pushRegistrationError: String?
 
     private let bookingService = BookingService()
     private let packageEngine = RemotePackageEngineClient()
@@ -447,21 +449,36 @@ final class BookingStore: ObservableObject {
     func syncPushSubscriptions(deviceToken: String, locale: String) async {
         let token = deviceToken.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !token.isEmpty else { return }
+
+        var registeredAny = false
+        var observedReady: Bool?
+        var firstError: String?
+
         for session in sessions {
             let headers = clientHeaders(for: session)
             guard !headers.isEmpty else { continue }
             do {
-                try await clientPushService.register(
+                let ready = try await clientPushService.register(
                     deviceToken: token,
                     bookingID: session.id,
                     headers: headers,
                     locale: locale
                 )
+                registeredAny = true
+                if let ready {
+                    observedReady = (observedReady ?? true) && ready
+                }
             } catch {
-                // A single stale/deleted booking must not block registration for the user's other trips.
-                continue
+                // A stale/deleted booking must not block other trips, but registration
+                // failures may explain missing chat pushes and must no longer disappear silently.
+                if firstError == nil { firstError = error.localizedDescription }
             }
         }
+
+        if registeredAny {
+            pushRegistrationReady = observedReady
+        }
+        pushRegistrationError = firstError
     }
 
     func syncHotelSelectionIfNeeded(bookingID: String) async {
