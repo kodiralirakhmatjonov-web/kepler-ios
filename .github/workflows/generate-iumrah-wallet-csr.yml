@@ -1,0 +1,68 @@
+name: Generate iumrah Wallet CSR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-csr:
+    name: Generate Pass Type ID CSR
+    runs-on: macos-15
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate RSA private key and Apple-compatible CSR
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+
+          mkdir -p "$RUNNER_TEMP/iumrah-wallet-csr"
+          cd "$RUNNER_TEMP/iumrah-wallet-csr"
+
+          /usr/bin/openssl req \
+            -new \
+            -newkey rsa:2048 \
+            -nodes \
+            -sha256 \
+            -keyout iumrah-wallet-private-key.pem \
+            -out iumrah-wallet.certSigningRequest \
+            -subj "/CN=iumrah Wallet Pass/O=iumrah/C=UZ"
+
+          /usr/bin/openssl req \
+            -in iumrah-wallet.certSigningRequest \
+            -noout \
+            -verify
+
+          /usr/bin/openssl pkey \
+            -in iumrah-wallet-private-key.pem \
+            -pubout \
+            -out iumrah-wallet-public-key.pem
+
+          /usr/bin/openssl pkey \
+            -pubin \
+            -in iumrah-wallet-public-key.pem \
+            -outform DER 2>/dev/null \
+            | /usr/bin/openssl dgst -sha256 \
+            > public-key-sha256.txt
+
+          chmod 600 iumrah-wallet-private-key.pem
+          chmod 644 iumrah-wallet.certSigningRequest iumrah-wallet-public-key.pem public-key-sha256.txt
+
+          echo "CSR generated successfully."
+          echo "Upload ONLY iumrah-wallet.certSigningRequest to Apple Developer."
+          echo "Keep iumrah-wallet-private-key.pem private; it will be needed after Apple issues the certificate."
+
+      - name: Upload CSR bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: iumrah-wallet-csr
+          path: |
+            ${{ runner.temp }}/iumrah-wallet-csr/iumrah-wallet.certSigningRequest
+            ${{ runner.temp }}/iumrah-wallet-csr/iumrah-wallet-private-key.pem
+            ${{ runner.temp }}/iumrah-wallet-csr/iumrah-wallet-public-key.pem
+            ${{ runner.temp }}/iumrah-wallet-csr/public-key-sha256.txt
+          if-no-files-found: error
+          retention-days: 1
