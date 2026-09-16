@@ -58,7 +58,7 @@ struct TransferSelectionView: View {
                     .environment(\.colorScheme, isVIP ? .dark : inheritedColorScheme)
             }
         }
-        .background(pageBackground.ignoresSafeArea())
+        .background(transferPageBackground)
         .animation(.easeInOut(duration: 0.48), value: isVIP)
         .iumrahInternalNavigation(
             progress: .transfer,
@@ -77,6 +77,22 @@ struct TransferSelectionView: View {
             Text(confirmationError ?? "")
         }
         .task { await startDiscoveryIfNeeded() }
+    }
+
+    private var transferPageBackground: some View {
+        ZStack(alignment: .top) {
+            pageBackground
+                .ignoresSafeArea()
+
+            LinearGradient(
+                colors: [Color(red: 0.97, green: 0.95, blue: 0.79), Color(red: 0.98, green: 0.98, blue: 0.94), .clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 280)
+            .opacity(isVIP ? 0 : 1)
+            .ignoresSafeArea(edges: .top)
+        }
     }
 
     private var pageBackground: Color {

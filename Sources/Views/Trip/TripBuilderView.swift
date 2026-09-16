@@ -17,41 +17,48 @@ struct TripBuilderView: View {
     @State private var showsDateCalendar = false
     @State private var curatedFlights: [CuratedFlightRecommendation] = []
     @State private var isLoadingCuratedFlights = false
-    @State private var curatedDisplayMode: CuratedDisplayMode = .roundTrip
+    @State private var curatedDisplayMode: CuratedDisplayMode = .separate
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 22) {
-                IumrahGeneratorHeader(stage: .trip)
+        GeometryReader { proxy in
+            let contentWidth = max(0, proxy.size.width - (IumrahDesign.pagePadding * 2))
 
-                intro
-                routeCard
-                datesCard
-                if journey.packageFlightPath == .publishedDirect && !journey.trip.isWeekendUmrah {
-                    curatedFlightsSection
-                }
-                travelersCard
-                if journey.packageFlightPath != .publishedDirect {
-                    FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
-                }
-                packageCard
+            ScrollView {
+                VStack(spacing: 22) {
+                    IumrahGeneratorHeader(stage: .trip)
 
-                NavigationLink {
-                    PrimaryHotelView()
-                } label: {
-                    Text(L10n.text("trip_continue_hotel", settings.language))
+                    intro
+                    routeCard
+                    datesCard
+                    if journey.packageFlightPath == .publishedDirect && !journey.trip.isWeekendUmrah {
+                        curatedFlightsSection
+                    }
+                    travelersCard
+                    if journey.packageFlightPath != .publishedDirect {
+                        FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
+                    }
+                    packageCard
+
+                    NavigationLink {
+                        PrimaryHotelView()
+                    } label: {
+                        Text(L10n.text("trip_continue_hotel", settings.language))
+                    }
+                    .buttonStyle(IumrahPrimaryButtonStyle())
+                    .disabled(!canContinueFromBuilder)
+                    .opacity(canContinueFromBuilder ? 1 : 0.45)
                 }
-                .buttonStyle(IumrahPrimaryButtonStyle())
-                .disabled(!canContinueFromBuilder)
-                .opacity(canContinueFromBuilder ? 1 : 0.45)
+                .frame(width: contentWidth, alignment: .top)
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 12)
+                .padding(.bottom, 42)
+                .frame(width: proxy.size.width)
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 12)
-            .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
         .iumrahInternalNavigation(progress: .trip, showsGeneratorAmbient: true)
         .task(id: curatedFlightsQueryKey) {
+            curatedDisplayMode = .separate
             await loadCuratedFlights()
         }
         .onChange(of: routeSelectionKey) { _, _ in
@@ -63,6 +70,7 @@ struct TripBuilderView: View {
             // Package category is now the single hotel-level choice. This also
             // normalizes drafts created by builds where Standard defaulted to 4★.
             journey.selectPackageTier(journey.trip.packageTier)
+            curatedDisplayMode = .separate
 
             // Production flow is always a complete Umrah journey: the pilgrim
             // chooses the outbound first and the compatible return afterwards.
@@ -291,7 +299,7 @@ struct TripBuilderView: View {
                     journey.selectedPublishedCompleteID = published.completeID
                     journey.selectedPublishedOutboundID = published.outboundID
                     journey.selectedPublishedReturnID = published.returnID
-                    curatedDisplayMode = published.completeID == nil ? .separate : .roundTrip
+                    curatedDisplayMode = .separate
                 } else {
                     journey.packageFlightPath = .flexibleDates
                     journey.clearPublishedFlightSelection()
@@ -405,10 +413,10 @@ struct TripBuilderView: View {
 
     private var flightChoiceBody: String {
         switch settings.language {
-        case .russian: return "Выберите опубликованный прямой рейс с подходящими датами. Если даты важнее рейса, используйте гибкий календарь."
-        case .english: return "Choose a published direct flight with suitable dates. If your dates matter more than the flight, use the flexible calendar."
-        case .uzbek: return "Mos sanali e’lon qilingan to‘g‘ridan-to‘g‘ri reysni tanlang. Agar sana muhimroq bo‘lsa, moslashuvchan kalendardan foydalaning."
-        case .uzbekCyrillic: return "Мос санали эълон қилинган тўғридан-тўғри рейсни танланг. Агар сана муҳимроқ бўлса, мослашувчан календардан фойдаланинг."
+        case .russian: return "Выберите прямой рейс с подходящими датами. Если даты важнее рейса, используйте гибкий календарь."
+        case .english: return "Choose a direct flight with suitable dates. If your dates matter more than the flight, use the flexible calendar."
+        case .uzbek: return "Mos sanali to‘g‘ridan-to‘g‘ri reysni tanlang. Agar sana muhimroq bo‘lsa, moslashuvchan kalendardan foydalaning."
+        case .uzbekCyrillic: return "Мос санали тўғридан-тўғри рейсни танланг. Агар сана муҳимроқ бўлса, мослашувчан календардан фойдаланинг."
         }
     }
 
@@ -432,19 +440,19 @@ struct TripBuilderView: View {
 
     private var publishedDirectHint: String {
         switch settings.language {
-        case .russian: return "Рейсы ниже уже опубликованы iumrah. Выберите билет туда и обратно — цену авиабилета отдельно не показываем; она войдёт в итоговую цену вашего личного пакета."
-        case .english: return "The flights below are already published by iumrah. Choose your outbound and return; the airfare is not shown separately and will be included in your personal package total."
-        case .uzbek: return "Quyidagi reyslar iumrah tomonidan allaqachon e’lon qilingan. Borish va qaytish reysini tanlang — aviachipta narxi alohida ko‘rsatilmaydi, u shaxsiy paketingiz yakuniy narxiga kiradi."
-        case .uzbekCyrillic: return "Қуйидаги рейслар iumrah томонидан аллақачон эълон қилинган. Бориш ва қайтиш рейсини танланг — авиачипта нархи алоҳида кўрсатилмайди, у шахсий пакетингиз якуний нархига киради."
+        case .russian: return "Рейсы ниже найдены iumrah Scanner. Выберите билет туда и обратно — цену авиабилета отдельно не показываем; она войдёт в итоговую цену вашего личного пакета."
+        case .english: return "The flights below were found by iumrah Scanner. Choose your outbound and return; the airfare is not shown separately and will be included in your personal package total."
+        case .uzbek: return "Quyidagi reyslar iumrah Scanner yordamida topilgan. Borish va qaytish reysini tanlang — aviachipta narxi alohida ko‘rsatilmaydi, u shaxsiy paketingiz yakuniy narxiga kiradi."
+        case .uzbekCyrillic: return "Қуйидаги рейслар iumrah Scanner ёрдамида топилган. Бориш ва қайтиш рейсини танланг — авиачипта нархи алоҳида кўрсатилмайди, у шахсий пакетингиз якуний нархига киради."
         }
     }
 
     private var flexibleDatesHint: String {
         switch settings.language {
-        case .russian: return "Зелёные дни в календаре — даты опубликованных прямых рейсов, которые рекомендует iumrah AI. Выбор других дат запустит гибкий поиск после выбора отеля."
-        case .english: return "Green calendar days are published direct-flight dates recommended by iumrah AI. Choosing other dates starts flexible flight search after your hotel is selected."
-        case .uzbek: return "Kalendardagi yashil kunlar — iumrah AI tavsiya qiladigan e’lon qilingan to‘g‘ridan-to‘g‘ri reys sanalari. Boshqa sanalar mehmonxona tanlangach moslashuvchan qidiruvni ishga tushiradi."
-        case .uzbekCyrillic: return "Календардаги яшил кунлар — iumrah AI тавсия қиладиган эълон қилинган тўғридан-тўғри рейс саналари. Бошқа саналар меҳмонхона танлангач мослашувчан қидирувни ишга туширади."
+        case .russian: return "Зелёные дни в календаре — даты прямых рейсов, найденных iumrah AI. Выбор других дат запустит гибкий поиск после выбора отеля."
+        case .english: return "Green calendar days are direct-flight dates found by iumrah AI. Choosing other dates starts flexible flight search after your hotel is selected."
+        case .uzbek: return "Kalendardagi yashil kunlar — iumrah AI topgan to‘g‘ridan-to‘g‘ri reys sanalari. Boshqa sanalar mehmonxona tanlangach moslashuvchan qidiruvni ishga tushiradi."
+        case .uzbekCyrillic: return "Календардаги яшил кунлар — iumrah AI топган тўғридан-тўғри рейс саналари. Бошқа саналар меҳмонхона танлангач мослашувчан қидирувни ишга туширади."
         }
     }
 
@@ -651,20 +659,6 @@ struct TripBuilderView: View {
                     .background(Color.orange.opacity(0.12), in: Capsule())
             }
 
-            Picker(curatedModePickerLabel, selection: $curatedDisplayMode) {
-                Text(curatedSeparateModeLabel).tag(CuratedDisplayMode.separate)
-                Text(curatedRoundTripModeLabel).tag(CuratedDisplayMode.roundTrip)
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: curatedDisplayMode) { _, mode in
-                if mode == .separate {
-                    journey.selectedPublishedCompleteID = nil
-                } else {
-                    journey.selectedPublishedOutboundID = nil
-                    journey.selectedPublishedReturnID = nil
-                }
-            }
-
             if isLoadingCuratedFlights && curatedFlights.isEmpty {
                 HStack(spacing: 10) {
                     ProgressView()
@@ -675,7 +669,7 @@ struct TripBuilderView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
                 .padding(.horizontal, 4)
-            } else if curatedDisplayMode == .separate {
+            } else {
                 VStack(alignment: .leading, spacing: 17) {
                     curatedOneWayRow(
                         title: curatedOutboundRowTitle,
@@ -694,8 +688,6 @@ struct TripBuilderView: View {
                         selection: .inbound
                     )
                 }
-            } else {
-                curatedRoundTripRow
             }
         }
         .padding(17)
@@ -1159,19 +1151,19 @@ struct TripBuilderView: View {
 
     private var curatedFlightsTitle: String {
         switch settings.language {
-        case .russian: return "Актуальные прямые рейсы"
-        case .english: return "Current direct flights"
-        case .uzbek: return "Dolzarb to‘g‘ridan-to‘g‘ri reyslar"
-        case .uzbekCyrillic: return "Долзарб тўғридан-тўғри рейслар"
+        case .russian: return "Найденные прямые рейсы"
+        case .english: return "Found direct flights"
+        case .uzbek: return "Topilgan to‘g‘ridan-to‘g‘ri reyslar"
+        case .uzbekCyrillic: return "Топилган тўғридан-тўғри рейслар"
         }
     }
 
     private var curatedFlightsSubtitle: String {
         switch settings.language {
-        case .russian: return "Выберите удобные даты по опубликованным рейсам"
-        case .english: return "Choose convenient dates from published flights"
-        case .uzbek: return "E’lon qilingan reyslardan qulay sanalarni tanlang"
-        case .uzbekCyrillic: return "Эълон қилинган рейслардан қулай саналарни танланг"
+        case .russian: return "Найдено с помощью iumrah Scanner"
+        case .english: return "Found with iumrah Scanner"
+        case .uzbek: return "iumrah Scanner yordamida topildi"
+        case .uzbekCyrillic: return "iumrah Scanner ёрдамида топилди"
         }
     }
 
@@ -1267,19 +1259,19 @@ struct TripBuilderView: View {
 
     private var curatedLoadingLabel: String {
         switch settings.language {
-        case .russian: return "Загружаем опубликованные рейсы…"
-        case .english: return "Loading published flights…"
-        case .uzbek: return "E’lon qilingan reyslar yuklanmoqda…"
-        case .uzbekCyrillic: return "Эълон қилинган рейслар юкланмоқда…"
+        case .russian: return "Ищем рейсы через iumrah Scanner…"
+        case .english: return "Searching flights with iumrah Scanner…"
+        case .uzbek: return "iumrah Scanner orqali reyslar qidirilmoqda…"
+        case .uzbekCyrillic: return "iumrah Scanner орқали рейслар қидирилмоқда…"
         }
     }
 
     private var curatedEmptyRowLabel: String {
         switch settings.language {
-        case .russian: return "Пока нет опубликованных рейсов для этого направления."
-        case .english: return "No published flights for this direction yet."
-        case .uzbek: return "Bu yo‘nalish uchun hozircha e’lon qilingan reys yo‘q."
-        case .uzbekCyrillic: return "Бу йўналиш учун ҳозирча эълон қилинган рейс йўқ."
+        case .russian: return "Для этого направления пока не найдено подходящих прямых рейсов."
+        case .english: return "No suitable direct flights found for this route yet."
+        case .uzbek: return "Bu yo‘nalish uchun hozircha mos to‘g‘ridan-to‘g‘ri reys topilmadi."
+        case .uzbekCyrillic: return "Бу йўналиш учун ҳозирча мос тўғридан-тўғри рейс топилмади."
         }
     }
 
@@ -1289,19 +1281,19 @@ struct TripBuilderView: View {
             if journey.trip.returnOriginCode != journey.trip.outboundDestinationCode {
                 return "Для текущего open-jaw маршрута аэропорт прилёта и аэропорт обратного вылета разные. Используйте вкладку «В одну сторону» — там можно выбрать рейс туда и обратно отдельно."
             }
-            return "Пока нет опубликованного единого тарифа туда-обратно для этого маршрута."
+            return "Пока нет подходящей пары рейсов туда и обратно для этого маршрута."
         case .english:
             return journey.trip.returnOriginCode != journey.trip.outboundDestinationCode
                 ? "This is an open-jaw route. Use One way to choose outbound and return flights separately."
-                : "No published round-trip fare for this route yet."
+                : "No suitable outbound and return pair found for this route yet."
         case .uzbek:
             return journey.trip.returnOriginCode != journey.trip.outboundDestinationCode
                 ? "Bu open-jaw yo‘nalish. Borish va qaytish reyslarini alohida tanlash uchun Bir tomonlama bo‘limidan foydalaning."
-                : "Bu yo‘nalish uchun hozircha borib-kelish tarifi e’lon qilinmagan."
+                : "Bu yo‘nalish uchun hozircha mos borish-qaytish jufti topilmadi."
         case .uzbekCyrillic:
             return journey.trip.returnOriginCode != journey.trip.outboundDestinationCode
                 ? "Бу open-jaw йўналиш. Бориш ва қайтиш рейсларини алоҳида танлаш учун Бир томонлама бўлимидан фойдаланинг."
-                : "Бу йўналиш учун ҳозирча бориб-келиш тарифи эълон қилинмаган."
+                : "Бу йўналиш учун ҳозирча мос бориш-қайтиш жуфти топилмади."
         }
     }
 
@@ -1358,65 +1350,221 @@ struct TripBuilderView: View {
     }
 
     private var packageCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             Label(L10n.text("trip_format_title", settings.language), systemImage: "square.grid.2x2")
                 .font(.headline)
 
             ForEach(PackageTier.allCases) { tier in
-                let selected = journey.trip.packageTier == tier
-                Button {
-                    withAnimation(.easeInOut(duration: 0.20)) {
-                        journey.selectPackageTier(tier)
-                    }
-                    IumrahHaptics.selection()
-                } label: {
-                    VStack(alignment: .leading, spacing: selected ? 10 : 0) {
-                        HStack(spacing: 12) {
-                            Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                                .font(.title3)
-
-                            HStack(spacing: 7) {
-                                Text(tier.title(settings.language))
-                                    .font(.body.weight(.semibold))
-                                if tier == .standard {
-                                    Text(L10n.text("popular", settings.language))
-                                        .font(.system(size: 9, weight: .bold))
-                                        .padding(.horizontal, 7)
-                                        .frame(height: 20)
-                                        .background(Color.iumrahRaisedBackground)
-                                        .clipShape(Capsule())
-                                }
-                            }
-
-                            Spacer(minLength: 8)
-
-                            Text(tier == .economy ? "2★ · 1★" : "\(tier.primaryHotelStars)★")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.secondary)
-                        }
-
-                        if selected {
-                            Text(tier.subtitle(settings.language))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
-                    }
-                    .contentShape(Rectangle())
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, selected ? 12 : 0)
-                    .frame(minHeight: 54)
-                    .iumrahGlass(
-                        in: RoundedRectangle(cornerRadius: 18, style: .continuous),
-                        interactive: true,
-                        tint: selected ? Color.primary.opacity(0.10) : nil
-                    )
-                }
-                .buttonStyle(.plain)
+                packageTierSelectionCard(tier)
             }
         }
         .iumrahCard()
+    }
+
+    private func packageTierSelectionCard(_ tier: PackageTier) -> some View {
+        let selected = journey.trip.packageTier == tier
+        let gradient = packageTierGradient(tier)
+        let badgeTint = packageTierAccentColor(tier)
+
+        return Button {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.88)) {
+                journey.selectPackageTier(tier)
+            }
+            IumrahHaptics.selection()
+        } label: {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.white.opacity(selected ? 0.20 : 0.10))
+                            .frame(width: 48, height: 48)
+                        Image(systemName: selected ? "checkmark.circle.fill" : packageTierSymbol(tier))
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 8) {
+                            Text(tier.title(settings.language))
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                            if tier == .standard {
+                                Text(L10n.text("popular", settings.language))
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(badgeTint)
+                                    .padding(.horizontal, 9)
+                                    .frame(height: 24)
+                                    .background(Color.white.opacity(0.92), in: Capsule())
+                            }
+                        }
+
+                        Text(packageTierHeadline(tier))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.white.opacity(0.86))
+                    }
+
+                    Spacer(minLength: 10)
+
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Text(hotelLevelTitle(tier))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.white.opacity(0.92))
+                            .padding(.horizontal, 10)
+                            .frame(height: 26)
+                            .background(Color.white.opacity(0.16), in: Capsule())
+
+                        if selected {
+                            Text(packageCurrentBadge)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                }
+
+                Text(packageTierBody(tier))
+                    .font(.subheadline)
+                    .foregroundStyle(Color.white.opacity(0.84))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(packageTierBullets(tier), id: \.self) { benefit in
+                        HStack(alignment: .top, spacing: 9) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.top, 1)
+                            Text(benefit)
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(Color.white.opacity(0.86))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+
+                HStack(spacing: 10) {
+                    Text(selected ? packageSelectedFooter : packageSelectFooter)
+                        .font(.footnote.weight(.semibold))
+                    Spacer(minLength: 8)
+                    Image(systemName: selected ? "checkmark" : "arrow.right")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .frame(height: 42)
+                .background(Color.white.opacity(selected ? 0.18 : 0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(gradient, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(Color.white.opacity(selected ? 0.22 : 0.10), lineWidth: 1)
+            }
+            .shadow(color: badgeTint.opacity(selected ? 0.26 : 0.16), radius: selected ? 18 : 12, y: 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func packageTierGradient(_ tier: PackageTier) -> LinearGradient {
+        switch tier {
+        case .economy:
+            return LinearGradient(colors: [Color(red: 0.32, green: 0.56, blue: 0.34), Color(red: 0.13, green: 0.25, blue: 0.16)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .standard:
+            return LinearGradient(colors: [Color(red: 0.31, green: 0.37, blue: 0.83), Color(red: 0.13, green: 0.18, blue: 0.43)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .comfort:
+            return LinearGradient(colors: [Color(red: 0.11, green: 0.60, blue: 0.62), Color(red: 0.03, green: 0.18, blue: 0.24)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .luxury:
+            return LinearGradient(colors: [Color(red: 0.81, green: 0.63, blue: 0.24), Color(red: 0.29, green: 0.18, blue: 0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
+
+    private func packageTierAccentColor(_ tier: PackageTier) -> Color {
+        switch tier {
+        case .economy: return Color(red: 0.62, green: 0.91, blue: 0.69)
+        case .standard: return Color(red: 0.76, green: 0.80, blue: 1.0)
+        case .comfort: return Color(red: 0.69, green: 0.95, blue: 0.94)
+        case .luxury: return Color(red: 1.0, green: 0.91, blue: 0.68)
+        }
+    }
+
+    private func packageTierSymbol(_ tier: PackageTier) -> String {
+        switch tier {
+        case .economy: return "leaf.fill"
+        case .standard: return "checklist"
+        case .comfort: return "sparkles"
+        case .luxury: return "crown.fill"
+        }
+    }
+
+    private func packageTierHeadline(_ tier: PackageTier) -> String {
+        switch tier {
+        case .economy:
+            return groupSavingsText(ru: "Практичный пакет", en: "Practical package", uz: "Amaliy paket", uzCyr: "Амалий пакет")
+        case .standard:
+            return groupSavingsText(ru: "Сбалансированная база", en: "Balanced essentials", uz: "Muvozanatli asos", uzCyr: "Мувозанатли асос")
+        case .comfort:
+            return groupSavingsText(ru: "Больше ежедневного удобства", en: "More daily comfort", uz: "Har kuni ko‘proq qulaylik", uzCyr: "Ҳар куни кўпроқ қулайлик")
+        case .luxury:
+            return groupSavingsText(ru: "Максимально близко к Хараму", en: "Closest to the Haram", uz: "Haromga maksimal yaqin", uzCyr: "Ҳаромга максимал яқин")
+        }
+    }
+
+    private func packageTierBody(_ tier: PackageTier) -> String {
+        switch tier {
+        case .economy:
+            return groupSavingsText(ru: "Для тех, кто хочет сохранить бюджет и собрать полноценную поездку без лишнего. Основная цель — выгодная личная умра с базовым комфортом.", en: "For pilgrims who want to keep the budget under control and still assemble a full trip. The goal is a smart personal Umrah with essential comfort.", uz: "Budjetni nazoratda ushlab, to‘liq safar yig‘moqchi bo‘lganlar uchun. Asosiy maqsad — zarur qulayliklar bilan foydali shaxsiy umra.", uzCyr: "Бюджетни назоратда ушлаб, тўлиқ сафар йиғмоқчи бўлганлар учун. Асосий мақсад — зарур қулайликлар билан фойдали шахсий умра.")
+        case .standard:
+            return groupSavingsText(ru: "Оптимальный старт для большинства поездок: аккуратный баланс цены, расположения и привычных удобств.", en: "The best starting point for most trips: a clean balance of price, location and familiar convenience.", uz: "Ko‘pchilik safarlar uchun eng maqbul boshlanish: narx, joylashuv va odatiy qulayliklarning muvozanati.", uzCyr: "Кўпчилик сафарлар учун энг мақбул бошланиш: нарх, жойлашув ва одатий қулайликларнинг мувозанати.")
+        case .comfort:
+            return groupSavingsText(ru: "Комфортный вариант для тех, кто хочет меньше бытовой нагрузки и более приятный ежедневный ритм поездки.", en: "A comfortable option for pilgrims who want less daily friction and a smoother travel rhythm.", uz: "Kundalik tashvishlarni kamaytirib, safarni yengilroq qilishni istaganlar uchun qulay variant.", uzCyr: "Кундалик ташвишларни камайтириб, сафарни енгилроқ қилишни истаганлар учун қулай вариант.")
+        case .luxury:
+            return groupSavingsText(ru: "Премиальный формат для тех, кто хочет самый высокий уровень сервиса и максимально сократить дорогу до Харама.", en: "A premium format for pilgrims who want the highest level of service and the shortest possible walk to the Haram.", uz: "Eng yuqori xizmat va Haromgacha yo‘lni maksimal qisqartirishni istaganlar uchun premium format.", uzCyr: "Энг юқори хизмат ва Ҳаромгача йўлни максимал қисқартиришни истаганлар учун премиум формат.")
+        }
+    }
+
+    private func packageTierBullets(_ tier: PackageTier) -> [String] {
+        switch tier {
+        case .economy:
+            return [
+                groupSavingsText(ru: "Базовый уровень отеля 2★ / 1★", en: "2★ / 1★ hotel level", uz: "2★ / 1★ mehmonxona darajasi", uzCyr: "2★ / 1★ меҳмонхона даражаси"),
+                groupSavingsText(ru: "Лучше всего, если приоритет — цена", en: "Best when price is the main priority", uz: "Asosiy ustuvorlik narx bo‘lsa mos", uzCyr: "Асосий устуворлик нарх бўлса мос"),
+                groupSavingsText(ru: "Все основные этапы уже внутри одного пакета", en: "All core trip parts stay inside one package", uz: "Safarning barcha asosiy qismlari bir paketda", uzCyr: "Сафарнинг барча асосий қисмлари бир пакетда")
+            ]
+        case .standard:
+            return [
+                groupSavingsText(ru: "3★ отель как основной уровень", en: "3★ hotel as the main level", uz: "Asosiy daraja — 3★ mehmonxona", uzCyr: "Асосий даража — 3★ меҳмонхона"),
+                groupSavingsText(ru: "Хороший баланс цены и повседневного удобства", en: "A strong balance of price and comfort", uz: "Narx va qulaylikning yaxshi muvozanati", uzCyr: "Нарх ва қулайликнинг яхши мувозанати"),
+                groupSavingsText(ru: "Подходит для большинства индивидуальных поездок", en: "Suitable for most private trips", uz: "Ko‘pchilik individual safarlar uchun mos", uzCyr: "Кўпчилик индивидуал сафарлар учун мос")
+            ]
+        case .comfort:
+            return [
+                groupSavingsText(ru: "4★ уровень с более удобным проживанием", en: "4★ level with more comfortable stays", uz: "4★ daraja va qulayroq yashash", uzCyr: "4★ даража ва қулайроқ яшаш"),
+                groupSavingsText(ru: "Лучше ежедневный ритм и меньше бытовых компромиссов", en: "A smoother daily rhythm with fewer compromises", uz: "Har kuni qulayroq ritm va kamroq murosa", uzCyr: "Ҳар куни қулайроқ ритм ва камроқ муроса"),
+                groupSavingsText(ru: "Хороший выбор для семей и спокойной поездки", en: "A strong choice for families and calmer trips", uz: "Oilalar va sokin safar uchun yaxshi tanlov", uzCyr: "Оилалар ва сокин сафар учун яхши танлов")
+            ]
+        case .luxury:
+            return [
+                groupSavingsText(ru: "5★ уровень и премиальная подача", en: "5★ level and a premium feel", uz: "5★ daraja va premium tajriba", uzCyr: "5★ даража ва премиум тажриба"),
+                groupSavingsText(ru: "Максимальная близость к Хараму", en: "Maximum closeness to the Haram", uz: "Haromga maksimal yaqinlik", uzCyr: "Ҳаромга максимал яқинлик"),
+                groupSavingsText(ru: "Для тех, кто хочет сократить нагрузку в поездке", en: "For pilgrims who want the lightest trip burden", uz: "Safardagi yuklamani kamaytirishni istaganlar uchun", uzCyr: "Сафардаги юкламани камайтиришни истаганлар учун")
+            ]
+        }
+    }
+
+    private func hotelLevelTitle(_ tier: PackageTier) -> String {
+        tier == .economy ? "2★ · 1★" : "\(tier.primaryHotelStars)★"
+    }
+
+    private var packageCurrentBadge: String {
+        groupSavingsText(ru: "Текущий", en: "Current", uz: "Joriy", uzCyr: "Жорий")
+    }
+
+    private var packageSelectedFooter: String {
+        groupSavingsText(ru: "Этот уровень уже выбран", en: "This level is already selected", uz: "Bu daraja allaqachon tanlangan", uzCyr: "Бу даража аллақачон танланган")
+    }
+
+    private var packageSelectFooter: String {
+        groupSavingsText(ru: "Выбрать этот уровень", en: "Choose this level", uz: "Shu darajani tanlash", uzCyr: "Шу даражани танлаш")
     }
 
     @ViewBuilder

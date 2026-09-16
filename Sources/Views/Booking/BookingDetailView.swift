@@ -471,6 +471,10 @@ struct BookingDetailView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+            if let phase = lifecyclePhase(for: session) {
+                lifecycleTimerCard(phase)
+            }
+
             if shouldShowCheckoutEntry(for: session) {
                 NavigationLink {
                     IumrahSecurityConfirmationView(bookingID: bookingID)
@@ -570,6 +574,150 @@ struct BookingDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
+    }
+
+    @ViewBuilder
+    private func lifecycleTimerCard(_ phase: BookingDetailLifecyclePhase) -> some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = max(0, phase.deadline.timeIntervalSince(context.date))
+            let expired = remaining <= 0
+            let tint = lifecycleTimerTint(phase)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(lifecycleTimerTitle(phase, expired: expired))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(expired ? lifecycleOvertimeLabel : lifecycleCountdown(remaining))
+                            .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(tint)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    Image(systemName: phase.symbol)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(tint)
+                        .frame(width: 40, height: 40)
+                        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+
+                Text(lifecycleTimerFootnote(phase, expired: expired))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+    }
+
+    private func lifecyclePhase(for session: StoredBookingSession) -> BookingDetailLifecyclePhase? {
+        switch session.effectiveStatus.uppercased() {
+        case "NEW", "AVAILABILITY_CHECK":
+            let deadline = lifecycleDeadline(
+                explicit: session.availabilityDeadlineAt,
+                start: session.availabilityStartedAt ?? session.booking.createdAt,
+                duration: 6 * 60 * 60
+            )
+            return deadline.map { .availability($0) }
+        case "PAYMENT_PENDING":
+            if session.paymentReceivedAt != nil {
+                let deadline = lifecycleDeadline(
+                    explicit: session.paymentConfirmationDeadlineAt,
+                    start: session.paymentReceivedAt,
+                    duration: 10 * 60
+                )
+                return deadline.map { .paymentConfirmation($0) }
+            }
+            let deadline = lifecycleDeadline(
+                explicit: session.priceLockExpiresAt,
+                start: session.priceLockStartedAt,
+                duration: 30 * 60
+            )
+            return deadline.map { .priceLock($0) }
+        case "PAID", "BOOKING_CONFIRMED":
+            let deadline = lifecycleDeadline(
+                explicit: session.documentsDeadlineAt,
+                start: session.documentsStartedAt,
+                duration: 24 * 60 * 60
+            )
+            return deadline.map { .documents($0) }
+        default:
+            return nil
+        }
+    }
+
+    private func lifecycleDeadline(explicit: String?, start: String?, duration: TimeInterval) -> Date? {
+        if let explicit, let value = Self.isoDate(explicit) { return value }
+        guard let start, let value = Self.isoDate(start) else { return nil }
+        return value.addingTimeInterval(duration)
+    }
+
+    private func lifecycleTimerTint(_ phase: BookingDetailLifecyclePhase) -> Color {
+        switch phase {
+        case .availability: return .mint
+        case .priceLock: return .orange
+        case .paymentConfirmation: return .blue
+        case .documents: return .green
+        }
+    }
+
+    private func lifecycleCountdown(_ interval: TimeInterval) -> String {
+        let total = max(0, Int(interval.rounded(.down)))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+
+    private var lifecycleOvertimeLabel: String {
+        localized("Сверх срока", "Over time", "Muddatdan oshdi", "Муддатдан ошди")
+    }
+
+    private func lifecycleTimerTitle(_ phase: BookingDetailLifecyclePhase, expired: Bool) -> String {
+        switch phase {
+        case .availability:
+            return expired ? localized("Проверка занимает дольше обычного", "The check is taking longer than usual", "Tekshiruv odatdagidan uzoqroq davom etmoqda", "Текширув одатдагидан узоқроқ давом этмоқда") : localized("До максимального срока проверки", "Until the maximum check time", "Tekshiruvning maksimal muddatigacha", "Текширувнинг максимал муддатигача")
+        case .priceLock:
+            return expired ? localized("Срок фиксации цены завершён", "Price hold has ended", "Narxni saqlash muddati tugadi", "Нархни сақлаш муддати тугади") : localized("Цена зафиксирована ещё", "Price held for", "Narx yana shuncha vaqtga saqlanadi", "Нарх яна шунча вақтга сақланади")
+        case .paymentConfirmation:
+            return expired ? localized("Подтверждение занимает дольше обычного", "Confirmation is taking longer than usual", "Tasdiqlash odatdagidan uzoqroq davom etmoqda", "Тасдиқлаш одатдагидан узоқроқ давом этмоқда") : localized("Подтверждаем оплату", "Confirming payment", "To‘lov tasdiqlanmoqda", "Тўлов тасдиқланмоқда")
+        case .documents:
+            return expired ? localized("Подготовка занимает дольше обычного", "Preparation is taking longer than usual", "Tayyorlash odatdagidan uzoqroq davom etmoqda", "Тайёрлаш одатдагидан узоқроқ давом этмоқда") : localized("Плановый срок подготовки", "Planned preparation time", "Rejalashtirilgan tayyorlash muddati", "Режалаштирилган тайёрлаш муддати")
+        }
+    }
+
+    private func lifecycleTimerFootnote(_ phase: BookingDetailLifecyclePhase, expired: Bool) -> String {
+        switch phase {
+        case .availability:
+            return expired ? localized("Мы продолжаем проверку. Статус обновится автоматически, как только все компоненты будут подтверждены.", "We are continuing the check. The status will update automatically once all components are confirmed.", "Tekshiruv davom etmoqda. Barcha qismlar tasdiqlangach holat avtomatik yangilanadi.", "Текширув давом этмоқда. Барча қисмлар тасдиқлангач ҳолат автоматик янгиланади.") : localized("Обычно подтверждение занимает 1–2 часа. Можно закрыть приложение — статус обновится автоматически.", "Confirmation usually takes 1–2 hours. You can close the app — the status will update automatically.", "Tasdiqlash odatda 1–2 soat davom etadi. Ilovani yopishingiz mumkin — holat avtomatik yangilanadi.", "Тасдиқлаш одатда 1–2 соат давом этади. Иловани ёпишингиз мумкин — ҳолат автоматик янгиланади.")
+        case .priceLock:
+            return expired ? localized("Перед подтверждением оплаты iumrah повторно проверит актуальную итоговую стоимость.", "Before confirming payment, iumrah will recheck the current total price.", "To‘lovni tasdiqlashdan oldin iumrah yakuniy narxning dolzarbligini qayta tekshiradi.", "Тўловни тасдиқлашдан олдин iumrah якуний нархнинг долзарблигини қайта текширади.") : localized("Авиабилеты и некоторые другие компоненты имеют динамическую стоимость и после окончания периода могут потребовать повторной проверки.", "Flights and some other components have dynamic pricing and may require a fresh check after this period.", "Aviachiptalar va ayrim boshqa qismlar dinamik narxga ega, muddat tugagach qayta tekshiruv talab qilinishi mumkin.", "Авиачипталар ва айрим бошқа қисмлар динамик нархга эга, муддат тугагач қайта текширув талаб қилиниши мумкин.")
+        case .paymentConfirmation:
+            return localized("Оплата получена. Обычно проверка и окончательная фиксация бронирования занимают до 10 минут.", "Payment received. Verification and final booking confirmation usually take up to 10 minutes.", "To‘lov qabul qilindi. Tekshiruv va bronni yakuniy tasdiqlash odatda 10 daqiqagacha davom etadi.", "Тўлов қабул қилинди. Текширув ва бронни якуний тасдиқлаш одатда 10 дақиқагача давом этади.")
+        case .documents:
+            return localized("Обычно доступные документы готовятся в течение 24 часов. Срок визы может зависеть от доступности официальных визовых систем Саудовской Аравии и внешних ограничений.", "Available travel documents are usually prepared within 24 hours. Visa timing can depend on the availability of Saudi Arabia’s official visa systems and external restrictions.", "Mavjud safar hujjatlari odatda 24 soat ichida tayyorlanadi. Viza muddati Saudiya Arabistonining rasmiy viza tizimlari mavjudligi va tashqi cheklovlarga bog‘liq bo‘lishi mumkin.", "Мавжуд сафар ҳужжатлари одатда 24 соат ичида тайёрланади. Виза муддати Саудия Арабистонининг расмий виза тизимлари мавжудлиги ва ташқи чекловларга боғлиқ бўлиши мумкин.")
+        }
+    }
+
+    private func localized(_ ru: String, _ en: String, _ uz: String, _ uzCyr: String) -> String {
+        switch settings.language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return uzCyr
+        }
+    }
+
+    private static func isoDate(_ raw: String) -> Date? {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso.date(from: raw) { return date }
+        iso.formatOptions = [.withInternetDateTime]
+        return iso.date(from: raw)
     }
 
     private func shouldShowCheckoutEntry(for session: StoredBookingSession) -> Bool {
@@ -1680,6 +1828,30 @@ private struct BookingPullDistancePreferenceKey: PreferenceKey {
     static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
         if let next = nextValue() {
             value = next
+        }
+    }
+}
+
+
+private enum BookingDetailLifecyclePhase {
+    case availability(Date)
+    case priceLock(Date)
+    case paymentConfirmation(Date)
+    case documents(Date)
+
+    var deadline: Date {
+        switch self {
+        case .availability(let date), .priceLock(let date), .paymentConfirmation(let date), .documents(let date):
+            return date
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .availability: return "hourglass"
+        case .priceLock: return "lock.fill"
+        case .paymentConfirmation: return "checkmark.seal.fill"
+        case .documents: return "doc.text.fill"
         }
     }
 }

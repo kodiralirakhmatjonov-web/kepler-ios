@@ -520,41 +520,37 @@ private struct IumrahCelebrationParticleTile: View {
 
     var body: some View {
         let colors = paletteColors(spec.palette)
+        let primary = colors.first ?? .white
+        let secondary = colors.last ?? primary
 
         ZStack {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: colors,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            Circle()
+                .fill(primary.opacity(0.26))
+                .frame(width: 34, height: 34)
+                .blur(radius: 10)
 
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            Capsule(style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.34), .clear, Color.black.opacity(0.18)],
+                        colors: [primary.opacity(0.72), secondary.opacity(0.28)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
+                .frame(width: 20, height: 9)
+                .blur(radius: 6)
+                .offset(y: 10)
 
             Image(systemName: spec.symbol)
-                .font(.system(size: 13.5, weight: .bold))
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.28), radius: 1.5, y: 1)
+                .font(.system(size: 18, weight: .bold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(primary)
+                .shadow(color: primary.opacity(0.55), radius: 8)
+                .shadow(color: .white.opacity(0.42), radius: 2)
         }
-        .frame(width: 34, height: 34)
-        .overlay {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.7)
-        }
-        .shadow(color: colors.first?.opacity(0.42) ?? .clear, radius: 10)
-        .shadow(color: .black.opacity(0.36), radius: 5, y: 4)
+        .frame(width: 44, height: 44)
         .scaleEffect(state.scale)
-        .rotationEffect(.degrees(Double(state.spin)))
+        .rotationEffect(.degrees(Double(state.spin * 6)))
         .rotation3DEffect(
             .degrees(Double(state.tiltX)),
             axis: (x: 1, y: 0, z: 0),

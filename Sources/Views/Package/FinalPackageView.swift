@@ -544,15 +544,18 @@ struct FinalPackageView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 8)
             } else if option.isAvailable {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.down.circle")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text(changePackageBelowTitle)
-                        .font(.footnote.weight(.semibold))
+                HStack(spacing: 10) {
+                    Text(selectComparisonTitle(option))
+                        .font(.footnote.weight(.bold))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 12, weight: .bold))
                 }
-                .foregroundStyle(.white.opacity(0.84))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 8)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .frame(height: 44)
+                .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         }
         .foregroundStyle(.white)

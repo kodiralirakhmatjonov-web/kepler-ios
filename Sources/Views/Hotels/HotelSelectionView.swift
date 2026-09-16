@@ -8,6 +8,9 @@ enum HotelSelectionRole: String, Hashable {
 struct HotelSelectionView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var initialSelectionSignature: String = ""
+    @State private var didStoreInitialSelection = false
     let role: HotelSelectionRole
 
     init(role: HotelSelectionRole = .makkah) {
@@ -183,6 +186,33 @@ struct HotelSelectionView: View {
         .task {
             if role == .makkah, journey.hotels.isEmpty { await journey.loadMakkahHotels() }
             if role == .madinah, journey.madinahHotels.isEmpty { await journey.loadMadinahHotels() }
+            storeInitialSelectionIfNeeded()
         }
+        .onAppear {
+            storeInitialSelectionIfNeeded()
+        }
+        .onChange(of: currentSelectionSignature) { _, newValue in
+            guard didStoreInitialSelection else {
+                initialSelectionSignature = newValue
+                didStoreInitialSelection = true
+                return
+            }
+            guard !newValue.isEmpty, newValue != initialSelectionSignature else { return }
+            initialSelectionSignature = newValue
+            dismiss()
+        }
+    }
+
+    private var currentSelectionSignature: String {
+        let hotelID = role == .makkah ? journey.selectedHotel?.id : journey.selectedMadinahHotel?.id
+        let roomID = role == .makkah ? journey.selectedHotelRoom?.id : journey.selectedMadinahHotelRoom?.id
+        let category = role == .makkah ? journey.primaryMakkahRoomSelection : journey.primaryMadinahRoomSelection
+        return [hotelID ?? "", roomID ?? "", category?.category.rawValue ?? "", category?.inventoryRoomId ?? ""].joined(separator: "|")
+    }
+
+    private func storeInitialSelectionIfNeeded() {
+        guard !didStoreInitialSelection else { return }
+        initialSelectionSignature = currentSelectionSignature
+        didStoreInitialSelection = true
     }
 }
