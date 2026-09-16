@@ -544,18 +544,32 @@ struct FinalPackageView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 8)
             } else if option.isAvailable {
-                HStack(spacing: 10) {
-                    Text(selectComparisonTitle(option))
-                        .font(.footnote.weight(.bold))
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 12, weight: .bold))
+                Button {
+                    Task { await applyPackageTierComparison(option) }
+                } label: {
+                    HStack(spacing: 10) {
+                        if isApplyingComparison {
+                            ProgressView()
+                                .tint(.white)
+                                .controlSize(.small)
+                        }
+                        Text(selectComparisonTitle(option))
+                            .font(.footnote.weight(.bold))
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        if !isApplyingComparison {
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .frame(height: 44)
-                .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .buttonStyle(.plain)
+                .disabled(isApplyingComparison)
             }
         }
         .foregroundStyle(.white)

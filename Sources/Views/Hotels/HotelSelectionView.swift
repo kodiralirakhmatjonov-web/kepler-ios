@@ -205,9 +205,9 @@ struct HotelSelectionView: View {
 
     private var currentSelectionSignature: String {
         let hotelID = role == .makkah ? journey.selectedHotel?.id : journey.selectedMadinahHotel?.id
-        let roomID = role == .makkah ? journey.selectedHotelRoom?.id : journey.selectedMadinahHotelRoom?.id
-        let category = role == .makkah ? journey.primaryMakkahRoomSelection : journey.primaryMadinahRoomSelection
-        return [hotelID ?? "", roomID ?? "", category?.category.rawValue ?? "", category?.inventoryRoomId ?? ""].joined(separator: "|")
+        let roomID = role == .makkah ? journey.selectedRoom?.id : journey.selectedMadinahRoom?.id
+        let categoryID = role == .makkah ? journey.selectedRoomCategory?.id : journey.selectedMadinahRoomCategory?.id
+        return [hotelID ?? "", roomID ?? "", categoryID ?? ""].joined(separator: "|")
     }
 
     private func storeInitialSelectionIfNeeded() {

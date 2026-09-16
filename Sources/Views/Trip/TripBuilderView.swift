@@ -1499,26 +1499,26 @@ struct TripBuilderView: View {
     private func packageTierHeadline(_ tier: PackageTier) -> String {
         switch tier {
         case .economy:
-            return groupSavingsText(ru: "Практичный пакет", en: "Practical package", uz: "Amaliy paket", uzCyr: "Амалий пакет")
+            return groupSavingsText(ru: "Практичный пакет", en: "Practical package", uz: "Amaliy paket", uzCy: "Амалий пакет")
         case .standard:
-            return groupSavingsText(ru: "Сбалансированная база", en: "Balanced essentials", uz: "Muvozanatli asos", uzCyr: "Мувозанатли асос")
+            return groupSavingsText(ru: "Сбалансированная база", en: "Balanced essentials", uz: "Muvozanatli asos", uzCy: "Мувозанатли асос")
         case .comfort:
-            return groupSavingsText(ru: "Больше ежедневного удобства", en: "More daily comfort", uz: "Har kuni ko‘proq qulaylik", uzCyr: "Ҳар куни кўпроқ қулайлик")
+            return groupSavingsText(ru: "Больше ежедневного удобства", en: "More daily comfort", uz: "Har kuni ko‘proq qulaylik", uzCy: "Ҳар куни кўпроқ қулайлик")
         case .luxury:
-            return groupSavingsText(ru: "Максимально близко к Хараму", en: "Closest to the Haram", uz: "Haromga maksimal yaqin", uzCyr: "Ҳаромга максимал яқин")
+            return groupSavingsText(ru: "Максимально близко к Хараму", en: "Closest to the Haram", uz: "Haromga maksimal yaqin", uzCy: "Ҳаромга максимал яқин")
         }
     }
 
     private func packageTierBody(_ tier: PackageTier) -> String {
         switch tier {
         case .economy:
-            return groupSavingsText(ru: "Для тех, кто хочет сохранить бюджет и собрать полноценную поездку без лишнего. Основная цель — выгодная личная умра с базовым комфортом.", en: "For pilgrims who want to keep the budget under control and still assemble a full trip. The goal is a smart personal Umrah with essential comfort.", uz: "Budjetni nazoratda ushlab, to‘liq safar yig‘moqchi bo‘lganlar uchun. Asosiy maqsad — zarur qulayliklar bilan foydali shaxsiy umra.", uzCyr: "Бюджетни назоратда ушлаб, тўлиқ сафар йиғмоқчи бўлганлар учун. Асосий мақсад — зарур қулайликлар билан фойдали шахсий умра.")
+            return groupSavingsText(ru: "Для тех, кто хочет сохранить бюджет и собрать полноценную поездку без лишнего. Основная цель — выгодная личная умра с базовым комфортом.", en: "For pilgrims who want to keep the budget under control and still assemble a full trip. The goal is a smart personal Umrah with essential comfort.", uz: "Budjetni nazoratda ushlab, to‘liq safar yig‘moqchi bo‘lganlar uchun. Asosiy maqsad — zarur qulayliklar bilan foydali shaxsiy umra.", uzCy: "Бюджетни назоратда ушлаб, тўлиқ сафар йиғмоқчи бўлганлар учун. Асосий мақсад — зарур қулайликлар билан фойдали шахсий умра.")
         case .standard:
-            return groupSavingsText(ru: "Оптимальный старт для большинства поездок: аккуратный баланс цены, расположения и привычных удобств.", en: "The best starting point for most trips: a clean balance of price, location and familiar convenience.", uz: "Ko‘pchilik safarlar uchun eng maqbul boshlanish: narx, joylashuv va odatiy qulayliklarning muvozanati.", uzCyr: "Кўпчилик сафарлар учун энг мақбул бошланиш: нарх, жойлашув ва одатий қулайликларнинг мувозанати.")
+            return groupSavingsText(ru: "Оптимальный старт для большинства поездок: аккуратный баланс цены, расположения и привычных удобств.", en: "The best starting point for most trips: a clean balance of price, location and familiar convenience.", uz: "Ko‘pchilik safarlar uchun eng maqbul boshlanish: narx, joylashuv va odatiy qulayliklarning muvozanati.", uzCy: "Кўпчилик сафарлар учун энг мақбул бошланиш: нарх, жойлашув ва одатий қулайликларнинг мувозанати.")
         case .comfort:
-            return groupSavingsText(ru: "Комфортный вариант для тех, кто хочет меньше бытовой нагрузки и более приятный ежедневный ритм поездки.", en: "A comfortable option for pilgrims who want less daily friction and a smoother travel rhythm.", uz: "Kundalik tashvishlarni kamaytirib, safarni yengilroq qilishni istaganlar uchun qulay variant.", uzCyr: "Кундалик ташвишларни камайтириб, сафарни енгилроқ қилишни истаганлар учун қулай вариант.")
+            return groupSavingsText(ru: "Комфортный вариант для тех, кто хочет меньше бытовой нагрузки и более приятный ежедневный ритм поездки.", en: "A comfortable option for pilgrims who want less daily friction and a smoother travel rhythm.", uz: "Kundalik tashvishlarni kamaytirib, safarni yengilroq qilishni istaganlar uchun qulay variant.", uzCy: "Кундалик ташвишларни камайтириб, сафарни енгилроқ қилишни истаганлар учун қулай вариант.")
         case .luxury:
-            return groupSavingsText(ru: "Премиальный формат для тех, кто хочет самый высокий уровень сервиса и максимально сократить дорогу до Харама.", en: "A premium format for pilgrims who want the highest level of service and the shortest possible walk to the Haram.", uz: "Eng yuqori xizmat va Haromgacha yo‘lni maksimal qisqartirishni istaganlar uchun premium format.", uzCyr: "Энг юқори хизмат ва Ҳаромгача йўлни максимал қисқартиришни истаганлар учун премиум формат.")
+            return groupSavingsText(ru: "Премиальный формат для тех, кто хочет самый высокий уровень сервиса и максимально сократить дорогу до Харама.", en: "A premium format for pilgrims who want the highest level of service and the shortest possible walk to the Haram.", uz: "Eng yuqori xizmat va Haromgacha yo‘lni maksimal qisqartirishni istaganlar uchun premium format.", uzCy: "Энг юқори хизмат ва Ҳаромгача йўлни максимал қисқартиришни истаганлар учун премиум формат.")
         }
     }
 
@@ -1526,27 +1526,27 @@ struct TripBuilderView: View {
         switch tier {
         case .economy:
             return [
-                groupSavingsText(ru: "Базовый уровень отеля 2★ / 1★", en: "2★ / 1★ hotel level", uz: "2★ / 1★ mehmonxona darajasi", uzCyr: "2★ / 1★ меҳмонхона даражаси"),
-                groupSavingsText(ru: "Лучше всего, если приоритет — цена", en: "Best when price is the main priority", uz: "Asosiy ustuvorlik narx bo‘lsa mos", uzCyr: "Асосий устуворлик нарх бўлса мос"),
-                groupSavingsText(ru: "Все основные этапы уже внутри одного пакета", en: "All core trip parts stay inside one package", uz: "Safarning barcha asosiy qismlari bir paketda", uzCyr: "Сафарнинг барча асосий қисмлари бир пакетда")
+                groupSavingsText(ru: "Базовый уровень отеля 2★ / 1★", en: "2★ / 1★ hotel level", uz: "2★ / 1★ mehmonxona darajasi", uzCy: "2★ / 1★ меҳмонхона даражаси"),
+                groupSavingsText(ru: "Лучше всего, если приоритет — цена", en: "Best when price is the main priority", uz: "Asosiy ustuvorlik narx bo‘lsa mos", uzCy: "Асосий устуворлик нарх бўлса мос"),
+                groupSavingsText(ru: "Все основные этапы уже внутри одного пакета", en: "All core trip parts stay inside one package", uz: "Safarning barcha asosiy qismlari bir paketda", uzCy: "Сафарнинг барча асосий қисмлари бир пакетда")
             ]
         case .standard:
             return [
-                groupSavingsText(ru: "3★ отель как основной уровень", en: "3★ hotel as the main level", uz: "Asosiy daraja — 3★ mehmonxona", uzCyr: "Асосий даража — 3★ меҳмонхона"),
-                groupSavingsText(ru: "Хороший баланс цены и повседневного удобства", en: "A strong balance of price and comfort", uz: "Narx va qulaylikning yaxshi muvozanati", uzCyr: "Нарх ва қулайликнинг яхши мувозанати"),
-                groupSavingsText(ru: "Подходит для большинства индивидуальных поездок", en: "Suitable for most private trips", uz: "Ko‘pchilik individual safarlar uchun mos", uzCyr: "Кўпчилик индивидуал сафарлар учун мос")
+                groupSavingsText(ru: "3★ отель как основной уровень", en: "3★ hotel as the main level", uz: "Asosiy daraja — 3★ mehmonxona", uzCy: "Асосий даража — 3★ меҳмонхона"),
+                groupSavingsText(ru: "Хороший баланс цены и повседневного удобства", en: "A strong balance of price and comfort", uz: "Narx va qulaylikning yaxshi muvozanati", uzCy: "Нарх ва қулайликнинг яхши мувозанати"),
+                groupSavingsText(ru: "Подходит для большинства индивидуальных поездок", en: "Suitable for most private trips", uz: "Ko‘pchilik individual safarlar uchun mos", uzCy: "Кўпчилик индивидуал сафарлар учун мос")
             ]
         case .comfort:
             return [
-                groupSavingsText(ru: "4★ уровень с более удобным проживанием", en: "4★ level with more comfortable stays", uz: "4★ daraja va qulayroq yashash", uzCyr: "4★ даража ва қулайроқ яшаш"),
-                groupSavingsText(ru: "Лучше ежедневный ритм и меньше бытовых компромиссов", en: "A smoother daily rhythm with fewer compromises", uz: "Har kuni qulayroq ritm va kamroq murosa", uzCyr: "Ҳар куни қулайроқ ритм ва камроқ муроса"),
-                groupSavingsText(ru: "Хороший выбор для семей и спокойной поездки", en: "A strong choice for families and calmer trips", uz: "Oilalar va sokin safar uchun yaxshi tanlov", uzCyr: "Оилалар ва сокин сафар учун яхши танлов")
+                groupSavingsText(ru: "4★ уровень с более удобным проживанием", en: "4★ level with more comfortable stays", uz: "4★ daraja va qulayroq yashash", uzCy: "4★ даража ва қулайроқ яшаш"),
+                groupSavingsText(ru: "Лучше ежедневный ритм и меньше бытовых компромиссов", en: "A smoother daily rhythm with fewer compromises", uz: "Har kuni qulayroq ritm va kamroq murosa", uzCy: "Ҳар куни қулайроқ ритм ва камроқ муроса"),
+                groupSavingsText(ru: "Хороший выбор для семей и спокойной поездки", en: "A strong choice for families and calmer trips", uz: "Oilalar va sokin safar uchun yaxshi tanlov", uzCy: "Оилалар ва сокин сафар учун яхши танлов")
             ]
         case .luxury:
             return [
-                groupSavingsText(ru: "5★ уровень и премиальная подача", en: "5★ level and a premium feel", uz: "5★ daraja va premium tajriba", uzCyr: "5★ даража ва премиум тажриба"),
-                groupSavingsText(ru: "Максимальная близость к Хараму", en: "Maximum closeness to the Haram", uz: "Haromga maksimal yaqinlik", uzCyr: "Ҳаромга максимал яқинлик"),
-                groupSavingsText(ru: "Для тех, кто хочет сократить нагрузку в поездке", en: "For pilgrims who want the lightest trip burden", uz: "Safardagi yuklamani kamaytirishni istaganlar uchun", uzCyr: "Сафардаги юкламани камайтиришни истаганлар учун")
+                groupSavingsText(ru: "5★ уровень и премиальная подача", en: "5★ level and a premium feel", uz: "5★ daraja va premium tajriba", uzCy: "5★ даража ва премиум тажриба"),
+                groupSavingsText(ru: "Максимальная близость к Хараму", en: "Maximum closeness to the Haram", uz: "Haromga maksimal yaqinlik", uzCy: "Ҳаромга максимал яқинлик"),
+                groupSavingsText(ru: "Для тех, кто хочет сократить нагрузку в поездке", en: "For pilgrims who want the lightest trip burden", uz: "Safardagi yuklamani kamaytirishni istaganlar uchun", uzCy: "Сафардаги юкламани камайтиришни истаганлар учун")
             ]
         }
     }
@@ -1556,15 +1556,15 @@ struct TripBuilderView: View {
     }
 
     private var packageCurrentBadge: String {
-        groupSavingsText(ru: "Текущий", en: "Current", uz: "Joriy", uzCyr: "Жорий")
+        groupSavingsText(ru: "Текущий", en: "Current", uz: "Joriy", uzCy: "Жорий")
     }
 
     private var packageSelectedFooter: String {
-        groupSavingsText(ru: "Этот уровень уже выбран", en: "This level is already selected", uz: "Bu daraja allaqachon tanlangan", uzCyr: "Бу даража аллақачон танланган")
+        groupSavingsText(ru: "Этот уровень уже выбран", en: "This level is already selected", uz: "Bu daraja allaqachon tanlangan", uzCy: "Бу даража аллақачон танланган")
     }
 
     private var packageSelectFooter: String {
-        groupSavingsText(ru: "Выбрать этот уровень", en: "Choose this level", uz: "Shu darajani tanlash", uzCyr: "Шу даражани танлаш")
+        groupSavingsText(ru: "Выбрать этот уровень", en: "Choose this level", uz: "Shu darajani tanlash", uzCy: "Шу даражани танлаш")
     }
 
     @ViewBuilder
