@@ -83,7 +83,8 @@ const output = input
   .replaceAll('__D1_DATABASE_ID__', hotelDatabaseID)
   .replaceAll('__BOOKING_D1_DATABASE_ID__', bookingDatabase.id)
   .replaceAll('__BOOKING_D1_DATABASE_NAME__', bookingDatabase.name.replaceAll('"', '\\"'))
-  .replaceAll('__ZONE_ID__', zoneID);
+  .replaceAll('__ZONE_ID__', zoneID)
+  .replaceAll('__APPLE_WEB_CLIENT_ID__', JSON.stringify(String(process.env.APPLE_WEB_CLIENT_ID ?? '')).slice(1, -1));
 
 JSON.parse(output);
 fs.writeFileSync('wrangler.generated.jsonc', output);

@@ -143,6 +143,11 @@ final class IumrahAccountStore: ObservableObject {
         return try await service.walletPass(token: token)
     }
 
+    func publicIdentityLink() async throws -> IumrahPublicIdentityLinkResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.publicIdentityLink(token: token)
+    }
+
     func securityOverview(locale: String) async throws -> IumrahSecurityOverview {
         guard let token else { throw APIError.status(401) }
         _ = try await service.registerCurrentSession(token: token, locale: locale)

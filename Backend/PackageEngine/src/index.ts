@@ -6,6 +6,7 @@ import { curatedPrimaryHotel } from "./generator-components";
 import { searchIgnavFlights, searchIgnavFlightsForCuration } from "./ignav-flights";
 import { hotelPricingSources } from "./hotel-pricing-sources";
 import { handleClientAccountSecurity } from "./client-account-security";
+import { handlePublicIdentityRequest } from "./public-identity";
 import { cleanupExpiredFlightCache, flightCalendarResponse } from "./flight-cache";
 import { deleteCuratedFlightAdmin, listCuratedFlightsAdmin, publicCuratedFlightRecommendations, resolvePublicCuratedFlightRecommendation, saveCuratedFlightAdmin } from "./curated-flights";
 import { appleAppSiteAssociation, hotelWebFallback, publicStorefrontFlightBoard } from "./storefront";
@@ -104,6 +105,10 @@ export default {
 
     if (request.method === "GET" && (/^\/hotel\/[^/]+$/.test(url.pathname) || /^\/h\/[^/]+$/.test(url.pathname))) {
       return hotelWebFallback(url);
+    }
+
+    if (url.pathname.startsWith("/api/package/public/id/")) {
+      return handlePublicIdentityRequest(request, env, url);
     }
 
     if (url.pathname.startsWith("/api/package/client/account/")) {

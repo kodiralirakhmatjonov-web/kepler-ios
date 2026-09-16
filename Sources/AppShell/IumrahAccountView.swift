@@ -43,6 +43,7 @@ struct IumrahAccountView: View {
     @State private var showWalletPassSheet = false
     @State private var isLoadingWalletPass = false
     @State private var walletAlertMessage: String?
+    @State private var identityPublicURL: String?
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -94,11 +95,13 @@ struct IumrahAccountView: View {
             prepareIdentityRevealIfNeeded(account.iumrahID)
             await refreshNotificationStatus()
             await refreshAccountContent()
+            await refreshPublicIdentityLink()
         }
         .onChange(of: account.iumrahID) { oldValue, newValue in
             loadProfileDraftIfNeeded(force: true)
             if oldValue != newValue {
                 prepareIdentityRevealIfNeeded(newValue, force: newValue != nil && oldValue != newValue)
+                Task { await refreshPublicIdentityLink() }
             }
         }
         .sheet(isPresented: $showProfileEditor) {
@@ -307,7 +310,7 @@ struct IumrahAccountView: View {
 
                 Spacer(minLength: 4)
 
-                qrCodeView(size: 116)
+                qrCodeView(identityPublicURL ?? fallbackIdentityURL(profile.iumrahID), size: 116)
                     .padding(9)
                     .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .overlay {
@@ -375,8 +378,8 @@ struct IumrahAccountView: View {
     }
 
     @ViewBuilder
-    private func qrCodeView(size: CGFloat) -> some View {
-        if let image = makeQRCode("https://iumrah.app") {
+    private func qrCodeView(_ value: String, size: CGFloat) -> some View {
+        if let image = makeQRCode(value) {
             Image(uiImage: image)
                 .interpolation(.none)
                 .resizable()
@@ -885,17 +888,17 @@ struct IumrahAccountView: View {
 
     private var loginCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(icon: "key.fill", title: tr("Sign in", "Войти в аккаунт", "Akkauntga kirish", "Аккаунтга кириш"), subtitle: tr("Use your six-digit iumrah ID and password", "Введите шестизначный iumrah ID и пароль", "Olti xonali iumrah ID va parolni kiriting", "Олти хонали iumrah ID ва паролни киритинг"))
+            sectionHeader(icon: "key.fill", title: tr("Sign in", "Войти в аккаунт", "Akkauntga kirish", "Аккаунтга кириш"), subtitle: tr("Use your eight-digit iumrah ID and password", "Введите восьмизначный iumrah ID и пароль", "Sakkiz xonali iumrah ID va parolni kiriting", "Саккиз хонали iumrah ID ва паролни киритинг"))
 
             HStack(spacing: 11) {
                 Image(systemName: "number")
                     .foregroundStyle(.secondary)
                     .frame(width: 22)
-                TextField("000016", text: $loginID)
+                TextField("00000016", text: $loginID)
                     .keyboardType(.numberPad)
                     .font(.body.monospaced())
                     .onChange(of: loginID) { _, value in
-                        let digits = String(value.filter(\.isNumber).prefix(6))
+                        let digits = String(value.filter(\.isNumber).prefix(8))
                         if digits != value { loginID = digits }
                     }
             }
@@ -933,7 +936,7 @@ struct IumrahAccountView: View {
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
-            .disabled(loginID.filter(\.isNumber).count != 6 || loginPassword.count < 8 || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
+            .disabled(![6, 8].contains(loginID.filter(\.isNumber).count) || loginPassword.count < 8 || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
 
             HStack(spacing: 12) {
                 Rectangle().fill(Color.secondary.opacity(0.20)).frame(height: 1)
@@ -961,10 +964,10 @@ struct IumrahAccountView: View {
             }
 
             Text(tr(
-                "Apple or Google opens the same account after the sign-in method is connected to your six-digit iumrah ID in Account Security.",
-                "Apple или Google открывает тот же аккаунт после привязки способа входа к шестизначному iumrah ID в разделе «Безопасность аккаунта».",
-                "Apple yoki Google kirish usuli Akkaunt xavfsizligida olti xonali iumrah ID’ga ulangandan keyin aynan shu akkauntni ochadi.",
-                "Apple ёки Google кириш усули Аккаунт хавфсизлигида олти хонали iumrah ID’га улангандан кейин айнан шу аккаунтни очади."
+                "Apple or Google opens the same account after the sign-in method is connected to your eight-digit iumrah ID in Account Security.",
+                "Apple или Google открывает тот же аккаунт после привязки способа входа к восьмизначному iumrah ID в разделе «Безопасность аккаунта».",
+                "Apple yoki Google kirish usuli Akkaunt xavfsizligida sakkiz xonali iumrah ID’ga ulangandan keyin aynan shu akkauntni ochadi.",
+                "Apple ёки Google кириш усули Аккаунт хавфсизлигида саккиз хонали iumrah ID’га улангандан кейин айнан шу аккаунтни очади."
             ))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -1224,7 +1227,7 @@ struct IumrahAccountView: View {
         loginError = nil
         defer { isLoggingIn = false }
         do {
-            let profile = try await account.login(iumrahID: loginID, password: loginPassword)
+            let profile = try await account.login(identifier: normalizedLoginIdentifier(loginID), password: loginPassword, locale: settings.language.rawValue)
             await completeAuthenticatedLogin(profile)
             loginPassword = ""
             IumrahHaptics.success()
@@ -1291,6 +1294,24 @@ struct IumrahAccountView: View {
         }
         applyProfileToLocalSettings(profile)
         loadProfileDraftIfNeeded(force: true, profile: profile)
+        await refreshPublicIdentityLink()
+    }
+
+    @MainActor
+    private func refreshPublicIdentityLink() async {
+        guard account.isAuthenticated, let profile = account.account else {
+            identityPublicURL = nil
+            return
+        }
+        do {
+            let link = try await account.publicIdentityLink()
+            identityPublicURL = link.url
+        } catch {
+            // The signed link is a convenience layer. Keep the identity card usable even
+            // if this endpoint is temporarily unavailable; the fallback page itself does
+            // not expose private trip data without a valid signature.
+            identityPublicURL = fallbackIdentityURL(profile.iumrahID)
+        }
     }
 
     @MainActor
@@ -1394,7 +1415,18 @@ struct IumrahAccountView: View {
     private func normalizedID(_ value: String) -> String {
         let digits = value.filter(\.isNumber)
         guard !digits.isEmpty else { return value }
-        return String(repeating: "0", count: max(0, 6 - digits.count)) + String(digits.suffix(6))
+        if digits.count >= 8 { return digits }
+        return String(repeating: "0", count: 8 - digits.count) + digits
+    }
+
+    private func normalizedLoginIdentifier(_ value: String) -> String {
+        let digits = value.filter(\.isNumber)
+        guard digits.count == 6 || digits.count == 8 else { return value }
+        return normalizedID(digits)
+    }
+
+    private func fallbackIdentityURL(_ value: String) -> String {
+        "https://iumrah.app/id/\(normalizedID(value))"
     }
 
     private func prepareIdentityRevealIfNeeded(_ rawID: String?, force: Bool = false) {

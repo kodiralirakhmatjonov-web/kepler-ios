@@ -236,10 +236,10 @@ struct PilgrimCheckoutView: View {
                         .tracking(3)
                         .textSelection(.enabled)
                     Text(tr(
-                        "Your six-digit iumrah ID is permanent and stays with you for future trips.",
-                        "Ваш шестизначный iumrah ID постоянный и сохраняется для будущих поездок.",
-                        "Olti xonali iumrah ID doimiy va keyingi safarlarda ham saqlanadi.",
-                        "Олти хонали iumrah ID доимий ва кейинги сафарларда ҳам сақланади."
+                        "Your eight-digit iumrah ID is permanent and stays with you for future trips.",
+                        "Ваш восьмизначный iumrah ID постоянный и сохраняется для будущих поездок.",
+                        "Sakkiz xonali iumrah ID doimiy va keyingi safarlarda ham saqlanadi.",
+                        "Саккиз хонали iumrah ID доимий ва кейинги сафарларда ҳам сақланади."
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -405,12 +405,12 @@ struct PilgrimCheckoutView: View {
                     Image(systemName: "number")
                         .foregroundStyle(.secondary)
                         .frame(width: 22)
-                    TextField("000016", text: $existingLoginID)
+                    TextField("00000016", text: $existingLoginID)
                         .keyboardType(.numberPad)
                         .textContentType(.username)
                         .font(.body.monospaced())
                         .onChange(of: existingLoginID) { _, raw in
-                            let digits = String(raw.filter(\.isNumber).prefix(6))
+                            let digits = String(raw.filter(\.isNumber).prefix(8))
                             if digits != raw { existingLoginID = digits }
                         }
                 }
@@ -478,7 +478,7 @@ struct PilgrimCheckoutView: View {
         guard loginPassword.count >= 8 else { return false }
         switch existingLoginMethod {
         case .iumrahID:
-            return existingLoginID.filter(\.isNumber).count == 6
+            return [6, 8].contains(existingLoginID.filter(\.isNumber).count)
         case .email:
             let email = existingLoginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
             return email.contains("@") && email.contains(".")
@@ -1243,7 +1243,7 @@ struct PilgrimCheckoutView: View {
         defer { isSubmittingAccount = false }
         do {
             let identifier = existingLoginMethod == .iumrahID
-                ? existingLoginID
+                ? normalizedID(existingLoginID)
                 : existingLoginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
             _ = try await account.login(identifier: identifier, password: loginPassword, locale: settings.language.rawValue)
             bookings.setAccountToken(account.bearerToken)
@@ -1364,7 +1364,8 @@ struct PilgrimCheckoutView: View {
     private func normalizedID(_ value: String) -> String {
         let digits = value.filter(\.isNumber)
         guard !digits.isEmpty else { return value }
-        return String(repeating: "0", count: max(0, 6 - digits.count)) + String(digits.suffix(6))
+        if digits.count >= 8 { return digits }
+        return String(repeating: "0", count: 8 - digits.count) + digits
     }
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language { case .russian: return ru; case .english: return en; case .uzbek: return uz; case .uzbekCyrillic: return cyrl }

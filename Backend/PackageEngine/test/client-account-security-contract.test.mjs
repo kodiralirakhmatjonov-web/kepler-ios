@@ -8,15 +8,15 @@ const migration = fs.readFileSync(new URL("../migrations/0006_package_primary_ho
 test("Apple is a unique external key for the canonical pilgrim id", () => {
   assert.match(migration, /apple_subject TEXT PRIMARY KEY/);
   assert.match(migration, /pilgrim_id INTEGER NOT NULL UNIQUE/);
-  assert.match(source, /iumrahID: String\(Number\(pilgrim\.id\)\)\.padStart\(6, "0"\)/);
+  assert.match(source, /iumrahID: formatIumrahID\(pilgrim\.id\)/);
   assert.doesNotMatch(migration, /CREATE TABLE[^;]*apple[^;]*password/si);
 });
 
 test("Apple identity tokens are verified server-side and cannot be replayed", () => {
   assert.match(source, /RSASSA-PKCS1-v1_5/);
   assert.match(source, /claims\.iss !== "https:\/\/appleid\.apple\.com"/);
-  assert.match(source, /!audiences\.includes\(bundleID\)/);
-  assert.match(source, /claims\.nonce !== await sha256Hex\(nonce\)/);
+  assert.match(source, /configuredAudiences\.some\(\(audience\) => audiences\.includes\(audience\)\)/);
+  assert.match(source, /claims\.nonce !== nonce && claims\.nonce !== nonceDigest/);
   assert.match(source, /APPLE_TOKEN_REPLAYED/);
 });
 
@@ -111,4 +111,19 @@ test("booking activation proves possession, repairs provisional accounts and sup
   assert.match(source, /createEmailChallenge\([\s\S]*"verify_email"/);
   assert.match(source, /verifyEmailChallenge\([\s\S]*"verify_email"/);
   assert.match(source, /linkVerifiedEmail\(db, context\.pilgrimID/);
+});
+
+test("standalone email registration joins the canonical pilgrim model instead of creating a web-only user", () => {
+  assert.match(source, /\/api\/package\/client\/account\/register\/email\/start/);
+  assert.match(source, /\/api\/package\/client\/account\/register\/email\/confirm/);
+  assert.match(source, /reusableProvisionalPilgrim/);
+  assert.match(source, /LOWER\(TRIM\(COALESCE\(p\.email,''\)\)\)=\?1/);
+  assert.match(source, /email_account_created/);
+  assert.match(source, /linkVerifiedEmail\(db, pilgrimID/);
+  assert.match(source, /establishPasswordCredentials/);
+});
+
+test("social sign-in reuses one unclaimed provisional pilgrim when verified email proves ownership", () => {
+  const matches = source.match(/reusableProvisionalPilgrim\(db, (?:apple|google)\.email\)/g) ?? [];
+  assert.equal(matches.length, 2);
 });

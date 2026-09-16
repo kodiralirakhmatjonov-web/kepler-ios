@@ -252,10 +252,10 @@ struct IumrahAccountSecurityView: View {
                 )
             } else {
                 Text(tr(
-                    "Connect Apple to ID \(value.iumrahID). After that you can sign in without typing the six-digit ID or password.",
-                    "Подключите Apple к ID \(value.iumrahID). После этого можно входить без ввода шестизначного ID и пароля.",
-                    "Apple’ni \(value.iumrahID) ID’ga ulang. Shundan keyin olti xonali ID va parolsiz kirishingiz mumkin.",
-                    "Apple’ни \(value.iumrahID) ID’га уланг. Шундан кейин олти хонали ID ва паролсиз киришингиз мумкин."
+                    "Connect Apple to ID \(value.iumrahID). After that you can sign in without typing the eight-digit ID or password.",
+                    "Подключите Apple к ID \(value.iumrahID). После этого можно входить без ввода восьмизначного ID и пароля.",
+                    "Apple’ni \(value.iumrahID) ID’ga ulang. Shundan keyin sakkiz xonali ID va parolsiz kirishingiz mumkin.",
+                    "Apple’ни \(value.iumrahID) ID’га уланг. Шундан кейин саккиз хонали ID ва паролсиз киришингиз мумкин."
                 ))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -303,10 +303,10 @@ struct IumrahAccountSecurityView: View {
                 )
             } else {
                 Text(tr(
-                    "Connect Google to ID \(value.iumrahID). After that you can sign in without typing the six-digit ID or password.",
-                    "Подключите Google к ID \(value.iumrahID). После этого можно входить без ввода шестизначного ID и пароля.",
-                    "Google’ni \(value.iumrahID) ID’ga ulang. Shundan keyin olti xonali ID va parolsiz kirishingiz mumkin.",
-                    "Google’ни \(value.iumrahID) ID’га уланг. Шундан кейин олти хонали ID ва паролсиз киришингиз мумкин."
+                    "Connect Google to ID \(value.iumrahID). After that you can sign in without typing the eight-digit ID or password.",
+                    "Подключите Google к ID \(value.iumrahID). После этого можно входить без ввода восьмизначного ID и пароля.",
+                    "Google’ni \(value.iumrahID) ID’ga ulang. Shundan keyin sakkiz xonali ID va parolsiz kirishingiz mumkin.",
+                    "Google’ни \(value.iumrahID) ID’га уланг. Шундан кейин саккиз хонали ID ва паролсиз киришингиз мумкин."
                 ))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -565,10 +565,10 @@ struct IumrahAccountSecurityView: View {
     private var privacyNote: some View {
         Label(
             tr(
-                "Email, Apple, Google and your six-digit iumrah ID are secure keys to one account — never separate profiles.",
-                "Почта, Apple, Google и шестизначный iumrah ID являются защищёнными ключами к одному аккаунту, а не отдельными профилями.",
-                "Email, Apple, Google va olti xonali iumrah ID bitta akkauntning xavfsiz kalitlaridir — alohida profillar emas.",
-                "Email, Apple, Google ва олти хонали iumrah ID битта аккаунтнинг хавфсиз калитларидир — алоҳида профиллар эмас."
+                "Email, Apple, Google and your eight-digit iumrah ID are secure keys to one account — never separate profiles.",
+                "Почта, Apple, Google и восьмизначный iumrah ID являются защищёнными ключами к одному аккаунту, а не отдельными профилями.",
+                "Email, Apple, Google va sakkiz xonali iumrah ID bitta akkauntning xavfsiz kalitlaridir — alohida profillar emas.",
+                "Email, Apple, Google ва саккиз хонали iumrah ID битта аккаунтнинг хавфсиз калитларидир — алоҳида профиллар эмас."
             ),
             systemImage: "hand.raised.fill"
         )

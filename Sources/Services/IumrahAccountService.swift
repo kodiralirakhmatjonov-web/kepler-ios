@@ -163,6 +163,13 @@ struct IumrahAccountService {
         )
     }
 
+    func publicIdentityLink(token: String) async throws -> IumrahPublicIdentityLinkResponse {
+        try await api.get(
+            "/api/package/client/account/public-card",
+            headers: ["Authorization": "Bearer \(token)"]
+        )
+    }
+
     func securityOverview(token: String) async throws -> IumrahSecurityOverview {
         try await api.get(
             "/api/package/client/account/security",

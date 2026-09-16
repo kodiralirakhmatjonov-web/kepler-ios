@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS primary_hotels (
 CREATE INDEX IF NOT EXISTS idx_primary_hotels_lookup ON primary_hotels(city, star_category, position);
 
 -- Every login method resolves to the canonical integer pilgrims.id. The public
--- six-digit iumrah ID is only its zero-padded presentation (for example 16 -> 000016).
+-- eight-digit iumrah ID is only its zero-padded presentation (for example 16 -> 00000016).
 CREATE TABLE IF NOT EXISTS iumrah_client_devices (
   id TEXT PRIMARY KEY,
   pilgrim_id INTEGER NOT NULL,

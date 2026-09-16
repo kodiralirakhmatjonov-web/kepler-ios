@@ -72,6 +72,12 @@ struct IumrahAccountSessionResponse: Decodable {
     let account: IumrahAccountProfile
 }
 
+struct IumrahPublicIdentityLinkResponse: Decodable {
+    let ok: Bool
+    let iumrahID: String
+    let url: String
+}
+
 struct IumrahAccountLoginRequest: Encodable {
     let identifier: String
     let password: String

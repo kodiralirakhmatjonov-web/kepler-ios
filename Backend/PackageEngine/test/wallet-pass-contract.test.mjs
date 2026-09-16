@@ -17,13 +17,13 @@ test("Wallet pass is signed and carries the permanent iumrah ID as a QR pass", (
   assert.match(walletPass, /crypto\.subtle\.sign\("RSASSA-PKCS1-v1_5"/);
   assert.match(walletPass, /function zipStore/);
   assert.match(walletPass, /WALLET_PASS_TYPE_ID/);
-  assert.match(walletPass, /const verificationURL = "https:\/\/iumrah\.app"/);
+  assert.match(walletPass, /publicIdentityURL\(env, numericID\)/);
   assert.match(walletPass, /application\/vnd\.apple\.pkpass/);
 });
 
 test("Account ID card uses the current iumrah.app domain and native Apple Wallet UI", () => {
   assert.match(accountView, /Text\("iumrah\.app"\)/);
-  assert.match(accountView, /makeQRCode\("https:\/\/iumrah\.app"\)/);
+  assert.match(accountView, /qrCodeView\(identityPublicURL \?\? fallbackIdentityURL\(profile\.iumrahID\), size: 116\)/);
   assert.doesNotMatch(accountView, /aiumra\.app/);
   assert.match(accountView, /IumrahAddToWalletButton/);
 });

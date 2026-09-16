@@ -68,7 +68,7 @@ async function optionalVerifiedAccountID(request: Request, db: D1Like) {
   ).bind(tokenHash, new Date().toISOString()).first<{ pilgrim_id: number | string }>();
   if (!row) return null;
   const id = Number(row.pilgrim_id);
-  return Number.isFinite(id) && id > 0 ? String(Math.round(id)).padStart(6, "0") : null;
+  return Number.isFinite(id) && id > 0 ? String(Math.round(id)).padStart(8, "0") : null;
 }
 
 function requestID(now: Date) {

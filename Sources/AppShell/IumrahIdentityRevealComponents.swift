@@ -34,7 +34,7 @@ struct IumrahLockedIdentityCard: View {
                             .font(.system(size: 25, weight: .bold, design: .rounded))
                             .redacted(reason: .placeholder)
                             .foregroundStyle(.white.opacity(0.22))
-                        Text("••••••")
+                        Text("••••••••")
                             .font(.system(size: 33, weight: .bold, design: .monospaced))
                             .tracking(3)
                             .foregroundStyle(.white.opacity(0.24))
@@ -359,10 +359,10 @@ struct IumrahIdentityUnlockSheet: View {
 
     private var benefitID: String {
         switch language {
-        case .russian: return "Постоянный шестизначный iumrah ID"
-        case .english: return "Permanent six-digit iumrah ID"
-        case .uzbek: return "Doimiy olti xonali iumrah ID"
-        case .uzbekCyrillic: return "Доимий олти хонали iumrah ID"
+        case .russian: return "Постоянный восьмизначный iumrah ID"
+        case .english: return "Permanent eight-digit iumrah ID"
+        case .uzbek: return "Doimiy sakkiz xonali iumrah ID"
+        case .uzbekCyrillic: return "Доимий саккиз хонали iumrah ID"
         }
     }
 

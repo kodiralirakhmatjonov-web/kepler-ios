@@ -1,6 +1,7 @@
 import type { D1Like } from "./d1";
 import type { Env } from "./env";
 import { buildIumrahWalletPass } from "./wallet-pass";
+import { formatIumrahID, publicIdentityURL } from "./public-identity";
 
 type PilgrimRow = {
   id: number;
@@ -175,7 +176,7 @@ function accountProfile(pilgrim: PilgrimRow) {
   const lastName = cleanText(pilgrim.last_name, 120);
   const displayName = cleanText(pilgrim.display_name, 240) || [firstName, lastName].filter(Boolean).join(" ");
   return {
-    iumrahID: String(Number(pilgrim.id)).padStart(6, "0"),
+    iumrahID: formatIumrahID(pilgrim.id),
     displayName,
     firstName,
     lastName,
@@ -512,7 +513,7 @@ async function securityOverview(db: D1Like, auth: DeviceAuth) {
   ).bind(auth.pilgrimID).first<{ email_display: string; verified_at: string }>();
   return {
     ok: true,
-    iumrahID: String(auth.pilgrimID).padStart(6, "0"),
+    iumrahID: formatIumrahID(auth.pilgrimID),
     currentSessionID: auth.sessionID,
     currentDeviceIsPrimary: auth.isPrimary,
     primaryDeviceProtected: Boolean(primary),
@@ -609,7 +610,7 @@ async function appleKeys(forceRefresh = false) {
   return payload.keys;
 }
 
-async function verifyAppleIdentity(identityToken: unknown, rawNonce: unknown, bundleID: string) {
+async function verifyAppleIdentity(identityToken: unknown, rawNonce: unknown, audienceInput: string | string[]) {
   const token = cleanText(identityToken, 12_000);
   const nonce = cleanText(rawNonce, 256);
   if (!token || nonce.length < 32) throw new RouteError("APPLE_TOKEN_INVALID", 401);
@@ -637,13 +638,17 @@ async function verifyAppleIdentity(identityToken: unknown, rawNonce: unknown, bu
   );
   const now = Math.floor(Date.now() / 1000);
   const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  const configuredAudiences = (Array.isArray(audienceInput) ? audienceInput : [audienceInput])
+    .map((value) => cleanText(value, 512))
+    .filter(Boolean);
+  const nonceDigest = await sha256Hex(nonce);
   if (!verified
       || claims.iss !== "https://appleid.apple.com"
-      || !audiences.includes(bundleID)
+      || !configuredAudiences.some((audience) => audiences.includes(audience))
       || typeof claims.exp !== "number" || claims.exp <= now
       || typeof claims.iat !== "number" || claims.iat > now + 120
       || !claims.sub || claims.sub.length > 255
-      || claims.nonce !== await sha256Hex(nonce)) {
+      || (claims.nonce !== nonce && claims.nonce !== nonceDigest)) {
     throw new RouteError("APPLE_TOKEN_INVALID", 401);
   }
   return {
@@ -760,7 +765,7 @@ async function consumeGoogleAssertion(db: D1Like, identityToken: string) {
 
 async function resolveLoginPilgrimID(db: D1Like, identifierValue: unknown) {
   const identifier = cleanText(identifierValue, 254);
-  if (/^\d{6}$/.test(identifier)) return Number(identifier);
+  if (/^\d{6,8}$/.test(identifier)) return Number(identifier);
   const email = normalizeEmail(identifier);
   if (!validEmail(email)) return 0;
   const row = await db.prepare(
@@ -859,8 +864,28 @@ async function establishPasswordAccount(
   passwordValue: unknown,
   deviceValue: unknown,
 ) {
+  return establishPasswordCredentials(
+    request,
+    db,
+    context.pilgrimID,
+    context.pilgrim,
+    passwordValue,
+    deviceValue,
+    "booking_account_activated",
+  );
+}
+
+async function establishPasswordCredentials(
+  request: Request,
+  db: D1Like,
+  pilgrimID: number,
+  pilgrim: PilgrimRow,
+  passwordValue: unknown,
+  deviceValue: unknown,
+  auditEvent: string,
+) {
   if (!validPassword(passwordValue)) throw new RouteError("PASSWORD_TOO_WEAK", 400);
-  await ensureActivationAvailable(db, context.pilgrimID);
+  await ensureActivationAvailable(db, pilgrimID);
 
   const password = String(passwordValue);
   const salt = randomToken(18);
@@ -879,14 +904,14 @@ async function establishPasswordAccount(
        password_updated_at=excluded.password_updated_at,
        failed_attempts=0,
        locked_until=NULL`,
-  ).bind(context.pilgrimID, salt, passwordHash, PASSWORD_ITERATIONS, now).run();
+  ).bind(pilgrimID, salt, passwordHash, PASSWORD_ITERATIONS, now).run();
 
   const device = parseDevice(deviceValue);
-  const session = await createAccountSession(db, context.pilgrimID);
+  const session = await createAccountSession(db, pilgrimID);
   const auth: AccountAuth = {
-    pilgrimID: context.pilgrimID,
+    pilgrimID,
     tokenHash: session.tokenHash,
-    pilgrim: context.pilgrim,
+    pilgrim,
   };
   let sessionID: string;
   try {
@@ -901,12 +926,65 @@ async function establishPasswordAccount(
     `UPDATE iumrah_client_devices
      SET is_primary=CASE WHEN installation_id=?1 THEN 1 ELSE 0 END
      WHERE pilgrim_id=?2 AND revoked_at IS NULL`,
-  ).bind(device.installationID, context.pilgrimID).run();
+  ).bind(device.installationID, pilgrimID).run();
   await db.prepare("UPDATE iumrah_accounts SET last_login_at=?1 WHERE pilgrim_id=?2")
-    .bind(now, context.pilgrimID).run();
-  await audit(db, context.pilgrimID, "booking_account_activated", sessionID, sessionID);
+    .bind(now, pilgrimID).run();
+  await audit(db, pilgrimID, auditEvent, sessionID, sessionID);
 
   return { session, sessionID };
+}
+
+async function establishNewPasswordCredentials(
+  request: Request,
+  db: D1Like,
+  pilgrimID: number,
+  pilgrim: PilgrimRow,
+  passwordValue: unknown,
+  deviceValue: unknown,
+  auditEvent: string,
+) {
+  if (!validPassword(passwordValue)) throw new RouteError("PASSWORD_TOO_WEAK", 400);
+  const password = String(passwordValue);
+  const salt = randomToken(18);
+  const passwordHash = await passwordDigest(password, salt, PASSWORD_ITERATIONS);
+  const now = new Date().toISOString();
+  try {
+    await db.prepare(
+      `INSERT INTO iumrah_accounts(
+         pilgrim_id,password_salt,password_hash,password_iterations,activated_at,password_updated_at,
+         failed_attempts,locked_until,last_login_at
+       ) VALUES(?1,?2,?3,?4,?5,?5,0,NULL,NULL)`,
+    ).bind(pilgrimID, salt, passwordHash, PASSWORD_ITERATIONS, now).run();
+  } catch {
+    throw new RouteError("ACCOUNT_ALREADY_ACTIVE", 409);
+  }
+
+  const device = parseDevice(deviceValue);
+  let session: Awaited<ReturnType<typeof createAccountSession>> | null = null;
+  try {
+    session = await createAccountSession(db, pilgrimID);
+    const auth: AccountAuth = { pilgrimID, tokenHash: session.tokenHash, pilgrim };
+    const sessionID = await bindCurrentSession(db, auth, device, request);
+    await db.prepare(
+      `UPDATE iumrah_client_devices
+       SET is_primary=CASE WHEN installation_id=?1 THEN 1 ELSE 0 END
+       WHERE pilgrim_id=?2 AND revoked_at IS NULL`,
+    ).bind(device.installationID, pilgrimID).run();
+    await db.prepare("UPDATE iumrah_accounts SET last_login_at=?1 WHERE pilgrim_id=?2")
+      .bind(now, pilgrimID).run();
+    await audit(db, pilgrimID, auditEvent, sessionID, sessionID);
+    return { session, sessionID };
+  } catch (error) {
+    if (session) {
+      await db.prepare("UPDATE iumrah_account_sessions SET revoked_at=?1 WHERE token_hash=?2")
+        .bind(new Date().toISOString(), session.tokenHash).run().catch(() => undefined);
+    }
+    await db.prepare("DELETE FROM iumrah_client_devices WHERE pilgrim_id=?1 AND installation_id=?2")
+      .bind(pilgrimID, device.installationID).run().catch(() => undefined);
+    await db.prepare("DELETE FROM iumrah_accounts WHERE pilgrim_id=?1 AND password_hash=?2")
+      .bind(pilgrimID, passwordHash).run().catch(() => undefined);
+    throw error;
+  }
 }
 
 async function activateWithBookingPassword(request: Request, env: Env, db: D1Like) {
@@ -997,6 +1075,135 @@ async function confirmBookingEmailActivation(request: Request, env: Env, db: D1L
     account: accountProfile(updatedPilgrim),
     session: { token: established.session.token, expiresAt: established.session.expiresAt },
   });
+}
+
+async function startStandaloneEmailRegistration(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    email?: unknown;
+    locale?: unknown;
+  } | null;
+  const emailDisplay = cleanText(payload?.email, 254);
+  const emailNormalized = normalizeEmail(emailDisplay);
+  if (!validEmail(emailNormalized)) throw new RouteError("EMAIL_INVALID", 400);
+  const existing = await db.prepare(
+    "SELECT pilgrim_id FROM iumrah_client_account_emails WHERE email_normalized=?1 LIMIT 1",
+  ).bind(emailNormalized).first<{ pilgrim_id: number }>();
+  if (existing) throw new RouteError("EMAIL_ALREADY_CONNECTED", 409);
+  const challenge = await createEmailChallenge(
+    db,
+    env,
+    request,
+    "verify_email",
+    null,
+    emailDisplay,
+    cleanText(payload?.locale, 24),
+  );
+  return json({ ok: true, challengeID: challenge.id, expiresAt: challenge.expiresAt });
+}
+
+async function reusableProvisionalPilgrim(db: D1Like, emailNormalized: string) {
+  const result = await db.prepare(
+    `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+     FROM pilgrims p
+     WHERE LOWER(TRIM(COALESCE(p.email,'')))=?1
+       AND NOT EXISTS(SELECT 1 FROM iumrah_accounts a WHERE a.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_client_account_emails e WHERE e.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_client_apple_links a WHERE a.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_client_google_links g WHERE g.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_client_devices d WHERE d.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_account_sessions s WHERE s.pilgrim_id=p.id)
+     ORDER BY p.id ASC LIMIT 2`,
+  ).bind(emailNormalized).all<PilgrimRow>();
+  const rows = result.results ?? [];
+  return rows.length === 1 ? rows[0] : null;
+}
+
+async function confirmStandaloneEmailRegistration(request: Request, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    challengeID?: unknown;
+    code?: unknown;
+    password?: unknown;
+    firstName?: unknown;
+    lastName?: unknown;
+    device?: unknown;
+  } | null;
+  if (!validPassword(payload?.password)) throw new RouteError("PASSWORD_TOO_WEAK", 400);
+  const challenge = await verifyEmailChallenge(
+    db,
+    cleanText(payload?.challengeID, 100),
+    "verify_email",
+    cleanText(payload?.code, 12),
+  );
+  if (challenge.pilgrim_id !== null) throw new RouteError("VERIFICATION_CODE_INVALID", 400);
+
+  const emailOwner = await db.prepare(
+    "SELECT pilgrim_id FROM iumrah_client_account_emails WHERE email_normalized=?1 LIMIT 1",
+  ).bind(challenge.email_normalized).first<{ pilgrim_id: number }>();
+  if (emailOwner) throw new RouteError("EMAIL_ALREADY_CONNECTED", 409);
+
+  const firstName = cleanText(payload?.firstName, 120);
+  const lastName = cleanText(payload?.lastName, 120);
+  if (!firstName || !lastName) throw new RouteError("NAME_REQUIRED", 400);
+  const displayName = [firstName, lastName].filter(Boolean).join(" ").slice(0, 240);
+  const now = new Date().toISOString();
+  let pilgrim = await reusableProvisionalPilgrim(db, challenge.email_normalized);
+  let createdPilgrim = false;
+  if (!pilgrim) {
+    pilgrim = await db.prepare(
+      `INSERT INTO pilgrims(email,first_name,last_name,display_name,created_at,updated_at)
+       VALUES(?1,?2,?3,?4,?5,?5)
+       RETURNING id,first_name,last_name,display_name,phone,email,telegram,whatsapp`,
+    ).bind(challenge.email_display, firstName, lastName, displayName, now).first<PilgrimRow>();
+    if (!pilgrim) throw new RouteError("ACCOUNT_CREATION_FAILED", 503);
+    createdPilgrim = true;
+  } else {
+    await db.prepare(
+      `UPDATE pilgrims SET
+         first_name=CASE WHEN TRIM(COALESCE(first_name,''))='' THEN ?1 ELSE first_name END,
+         last_name=CASE WHEN TRIM(COALESCE(last_name,''))='' THEN ?2 ELSE last_name END,
+         display_name=CASE WHEN TRIM(COALESCE(display_name,''))='' THEN ?3 ELSE display_name END,
+         email=?4,updated_at=?5
+       WHERE id=?6`,
+    ).bind(firstName, lastName, displayName, challenge.email_display, now, Number(pilgrim.id)).run();
+    pilgrim = await db.prepare(
+      `SELECT id,first_name,last_name,display_name,phone,email,telegram,whatsapp
+       FROM pilgrims WHERE id=?1 LIMIT 1`,
+    ).bind(Number(pilgrim.id)).first<PilgrimRow>() ?? pilgrim;
+  }
+
+  const pilgrimID = Number(pilgrim.id);
+  await ensureActivationAvailable(db, pilgrimID);
+  try {
+    await linkVerifiedEmail(db, pilgrimID, challenge.email_display, challenge.email_normalized);
+    const established = await establishNewPasswordCredentials(
+      request,
+      db,
+      pilgrimID,
+      pilgrim,
+      payload?.password,
+      payload?.device,
+      "email_account_created",
+    );
+    const updated = await accountRow(db, pilgrimID) ?? pilgrim;
+    return json({
+      ok: true,
+      account: accountProfile(updated),
+      session: { token: established.session.token, expiresAt: established.session.expiresAt },
+    });
+  } catch (error) {
+    await db.prepare(
+      `DELETE FROM iumrah_client_account_emails
+       WHERE pilgrim_id=?1
+         AND NOT EXISTS(SELECT 1 FROM iumrah_accounts a WHERE a.pilgrim_id=?1)`,
+    ).bind(pilgrimID).run().catch(() => undefined);
+    if (createdPilgrim) {
+      await db.prepare(
+        `DELETE FROM pilgrims WHERE id=?1
+         AND NOT EXISTS(SELECT 1 FROM iumrah_accounts a WHERE a.pilgrim_id=?1)`,
+      ).bind(pilgrimID).run().catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 async function loginWithPassword(request: Request, db: D1Like) {
@@ -1134,7 +1341,7 @@ async function createEmailChallenge(
   env: Env,
   request: Request,
   purpose: "verify_email" | "reset_password",
-  pilgrimID: number,
+  pilgrimID: number | null,
   emailDisplay: string,
   locale: string,
 ) {
@@ -1180,7 +1387,7 @@ async function verifyEmailChallenge(
      FROM iumrah_client_email_challenges WHERE id=?1 AND purpose=?2 LIMIT 1`,
   ).bind(challengeID, purpose).first<{
     id: string;
-    pilgrim_id: number;
+    pilgrim_id: number | null;
     email_normalized: string;
     email_display: string;
     code_salt: string;
@@ -1192,7 +1399,7 @@ async function verifyEmailChallenge(
     consumed_at: string | null;
   }>();
   if (!row || row.consumed_at || Date.parse(row.expires_at) <= Date.now()
-      || (pilgrimID !== undefined && Number(row.pilgrim_id) !== pilgrimID)
+      || (pilgrimID !== undefined && Number(row.pilgrim_id ?? 0) !== pilgrimID)
       || !/^\d{6}$/.test(code) || Number(row.attempts) >= Number(row.max_attempts)) {
     throw new RouteError("VERIFICATION_CODE_INVALID", 400);
   }
@@ -1332,6 +1539,7 @@ async function confirmPasswordRecovery(request: Request, db: D1Like) {
     "reset_password",
     cleanText(payload?.code, 12),
   );
+  if (challenge.pilgrim_id === null) throw new RouteError("VERIFICATION_CODE_INVALID", 400);
   const salt = randomToken(18);
   const passwordHash = await passwordDigest(payload.newPassword, salt, PASSWORD_ITERATIONS);
   const now = new Date().toISOString();
@@ -1350,7 +1558,7 @@ async function confirmPasswordRecovery(request: Request, db: D1Like) {
   await audit(db, Number(challenge.pilgrim_id), "password_reset_completed", null, null);
   return json({
     ok: true,
-    iumrahID: String(Number(challenge.pilgrim_id)).padStart(6, "0"),
+    iumrahID: formatIumrahID(challenge.pilgrim_id),
     sessionsRevoked: true,
   });
 }
@@ -1365,7 +1573,7 @@ async function linkApple(request: Request, env: Env, db: D1Like) {
   const apple = await verifyAppleIdentity(
     payload?.identityToken,
     payload?.nonce,
-    env.APPLE_BUNDLE_ID ?? "com.iumrah.app",
+    [env.APPLE_BUNDLE_ID ?? "com.iumrah.app", env.APPLE_WEB_CLIENT_ID ?? ""],
   );
   await consumeAppleAssertion(db, apple.token);
   const subjectOwner = await db.prepare(
@@ -1401,7 +1609,7 @@ async function linkApple(request: Request, env: Env, db: D1Like) {
     if (!currentEmail) await linkVerifiedEmail(db, auth.pilgrimID, apple.email, apple.email);
   }
   await audit(db, auth.pilgrimID, "apple_id_linked", auth.sessionID, auth.sessionID);
-  return json({ ok: true, appleLinked: true, iumrahID: String(auth.pilgrimID).padStart(6, "0") });
+  return json({ ok: true, appleLinked: true, iumrahID: formatIumrahID(auth.pilgrimID) });
 }
 
 async function signInWithApple(request: Request, env: Env, db: D1Like) {
@@ -1413,7 +1621,7 @@ async function signInWithApple(request: Request, env: Env, db: D1Like) {
   const apple = await verifyAppleIdentity(
     payload?.identityToken,
     payload?.nonce,
-    env.APPLE_BUNDLE_ID ?? "com.iumrah.app",
+    [env.APPLE_BUNDLE_ID ?? "com.iumrah.app", env.APPLE_WEB_CLIENT_ID ?? ""],
   );
   await consumeAppleAssertion(db, apple.token);
   let row = await db.prepare(
@@ -1439,12 +1647,14 @@ async function signInWithApple(request: Request, env: Env, db: D1Like) {
       row = existingEmail;
     } else {
       const now = new Date().toISOString();
-      const created = await db.prepare(
+      const provisional = await reusableProvisionalPilgrim(db, apple.email);
+      const created = provisional ?? await db.prepare(
         `INSERT INTO pilgrims(email,created_at,updated_at)
          VALUES(?1,?2,?2)
          RETURNING id,first_name,last_name,display_name,phone,email,telegram,whatsapp`,
       ).bind(apple.email, now).first<PilgrimRow>();
       if (!created) throw new RouteError("APPLE_ACCOUNT_CREATION_FAILED", 503);
+      const createdPilgrim = !provisional;
       try {
         await linkVerifiedEmail(db, Number(created.id), apple.email, apple.email);
         const salt = randomToken(18);
@@ -1458,7 +1668,9 @@ async function signInWithApple(request: Request, env: Env, db: D1Like) {
         row = created;
         createdAccount = true;
       } catch (error) {
-        await db.prepare("DELETE FROM pilgrims WHERE id=?1").bind(Number(created.id)).run().catch(() => undefined);
+        if (createdPilgrim) {
+          await db.prepare("DELETE FROM pilgrims WHERE id=?1").bind(Number(created.id)).run().catch(() => undefined);
+        }
         const racedOwner = await db.prepare(
           `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
            FROM iumrah_client_account_emails e
@@ -1565,7 +1777,7 @@ async function linkGoogle(request: Request, env: Env, db: D1Like) {
     if (!currentEmail) await linkVerifiedEmail(db, auth.pilgrimID, google.email, google.email);
   }
   await audit(db, auth.pilgrimID, "google_id_linked", auth.sessionID, auth.sessionID);
-  return json({ ok: true, googleLinked: true, iumrahID: String(auth.pilgrimID).padStart(6, "0") });
+  return json({ ok: true, googleLinked: true, iumrahID: formatIumrahID(auth.pilgrimID) });
 }
 
 async function signInWithGoogle(request: Request, env: Env, db: D1Like) {
@@ -1603,12 +1815,14 @@ async function signInWithGoogle(request: Request, env: Env, db: D1Like) {
       row = existingEmail;
     } else {
       const now = new Date().toISOString();
-      const created = await db.prepare(
+      const provisional = await reusableProvisionalPilgrim(db, google.email);
+      const created = provisional ?? await db.prepare(
         `INSERT INTO pilgrims(email,created_at,updated_at)
          VALUES(?1,?2,?2)
          RETURNING id,first_name,last_name,display_name,phone,email,telegram,whatsapp`,
       ).bind(google.email, now).first<PilgrimRow>();
       if (!created) throw new RouteError("GOOGLE_ACCOUNT_CREATION_FAILED", 503);
+      const createdPilgrim = !provisional;
       try {
         await linkVerifiedEmail(db, Number(created.id), google.email, google.email);
         const salt = randomToken(18);
@@ -1622,7 +1836,9 @@ async function signInWithGoogle(request: Request, env: Env, db: D1Like) {
         row = created;
         createdAccount = true;
       } catch (error) {
-        await db.prepare("DELETE FROM pilgrims WHERE id=?1").bind(Number(created.id)).run().catch(() => undefined);
+        if (createdPilgrim) {
+          await db.prepare("DELETE FROM pilgrims WHERE id=?1").bind(Number(created.id)).run().catch(() => undefined);
+        }
         const racedOwner = await db.prepare(
           `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
            FROM iumrah_client_account_emails e
@@ -1936,8 +2152,22 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     if (request.method === "POST" && url.pathname === "/api/package/client/account/login") {
       return await loginWithPassword(request, db);
     }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/register/email/start") {
+      return await startStandaloneEmailRegistration(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/register/email/confirm") {
+      return await confirmStandaloneEmailRegistration(request, db);
+    }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/security/register") {
       return await register(request, db);
+    }
+    if (request.method === "GET" && url.pathname === "/api/package/client/account/public-card") {
+      const auth = await requireAccount(request, db);
+      return json({
+        ok: true,
+        iumrahID: formatIumrahID(auth.pilgrimID),
+        url: await publicIdentityURL(env, auth.pilgrimID),
+      });
     }
     if (request.method === "GET" && url.pathname === "/api/package/client/account/wallet-pass") {
       const auth = await requireAccount(request, db);

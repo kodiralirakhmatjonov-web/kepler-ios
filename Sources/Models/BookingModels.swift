@@ -364,8 +364,8 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var displayPilgrimID: String? {
         guard let raw = pilgrimID?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
         let digits = raw.filter(\.isNumber)
-        guard !digits.isEmpty, digits.count <= 6 else { return nil }
-        return String(repeating: "0", count: 6 - digits.count) + digits
+        guard !digits.isEmpty, digits.count <= 8 else { return nil }
+        return String(repeating: "0", count: 8 - digits.count) + digits
     }
 
     var displayBookingNumber: String {

@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { formatIumrahID, publicIdentityURL } from "./public-identity";
 import {
   ICON_PNG,
   ICON_2X_PNG,
@@ -402,8 +403,11 @@ export async function buildIumrahWalletPass(env: Env, profile: WalletAccountProf
   const configuration = walletConfiguration(env);
   if (!configuration) return json({ ok: false, error: "WALLET_PASS_NOT_CONFIGURED" }, 503);
 
-  const normalizedID = String(profile.iumrahID).replace(/\D/g, "").padStart(6, "0").slice(-6);
-  const verificationURL = "https://iumrah.app";
+  const normalizedID = formatIumrahID(profile.iumrahID);
+  const numericID = Number(String(profile.iumrahID).replace(/\D/g, ""));
+  const verificationURL = Number.isSafeInteger(numericID) && numericID > 0
+    ? await publicIdentityURL(env, numericID)
+    : "https://iumrah.app/account";
   const pass = {
     formatVersion: 1,
     passTypeIdentifier: configuration.passTypeIdentifier,

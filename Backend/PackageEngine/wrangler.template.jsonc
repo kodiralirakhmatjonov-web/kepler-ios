@@ -53,7 +53,9 @@
   ],
   "vars": {
     "APPLE_BUNDLE_ID": "com.iumrah.app",
+    "APPLE_WEB_CLIENT_ID": "__APPLE_WEB_CLIENT_ID__",
     "GOOGLE_SERVER_CLIENT_ID": "863185716777-8tec2kuch1qkra1f1coikpi20j6is65f.apps.googleusercontent.com",
+    "IUMRAH_PUBLIC_ID_ORIGIN": "https://iumrah.app",
     "IGNAV_MONTHLY_REQUEST_BUDGET": "3000",
     "ACCOUNT_EMAIL_FROM": "security@iumrah.app",
     "ACCOUNT_EMAIL_REPLY_TO": "support@iumrah.app",

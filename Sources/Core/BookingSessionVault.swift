@@ -41,7 +41,7 @@ enum BookingSessionVault {
 }
 
 /// One-time cleanup for the pre-account device identities. These values are no longer
-/// accepted as user identity: the permanent six-digit iumrah ID is the only account identity.
+/// accepted as user identity: the permanent eight-digit iumrah ID is the only account identity.
 enum LegacyClientIdentityCleanup {
     static func purge() {
         for account in ["client-user-id", "stable-client-id"] {
