@@ -155,6 +155,14 @@ struct IumrahAccountService {
         )
     }
 
+    func walletPass(token: String) async throws -> Data {
+        try await api.fetchData(
+            "/api/package/client/account/wallet-pass",
+            headers: ["Authorization": "Bearer \(token)"],
+            timeoutInterval: 45
+        )
+    }
+
     func securityOverview(token: String) async throws -> IumrahSecurityOverview {
         try await api.get(
             "/api/package/client/account/security",

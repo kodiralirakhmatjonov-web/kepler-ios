@@ -56,6 +56,9 @@
     "GOOGLE_SERVER_CLIENT_ID": "863185716777-8tec2kuch1qkra1f1coikpi20j6is65f.apps.googleusercontent.com",
     "IGNAV_MONTHLY_REQUEST_BUDGET": "3000",
     "ACCOUNT_EMAIL_FROM": "security@iumrah.app",
-    "ACCOUNT_EMAIL_REPLY_TO": "support@iumrah.app"
+    "ACCOUNT_EMAIL_REPLY_TO": "support@iumrah.app",
+    "WALLET_PASS_TYPE_ID": "pass.com.iumrah.id",
+    "WALLET_TEAM_ID": "2DQ678JTNG",
+    "WALLET_ORGANIZATION_NAME": "iumrah"
   }
 }

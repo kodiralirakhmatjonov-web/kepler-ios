@@ -9,6 +9,12 @@ export type Env = {
   RESEND_API_KEY?: string;
   ACCOUNT_EMAIL_FROM?: string;
   ACCOUNT_EMAIL_REPLY_TO?: string;
+  WALLET_PASS_TYPE_ID?: string;
+  WALLET_TEAM_ID?: string;
+  WALLET_ORGANIZATION_NAME?: string;
+  WALLET_CERT_PEM?: string;
+  WALLET_KEY_PEM?: string;
+  WALLET_WWDR_CERT_PEM?: string;
   HOTELS_DB?: D1Like;
   BOOKINGS_DB?: D1Like & { batch(statements: D1PreparedStatementLike[]): Promise<unknown[]> };
 };

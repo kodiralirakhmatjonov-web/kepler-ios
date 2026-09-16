@@ -414,7 +414,7 @@ struct BookingDetailView: View {
                         Text("Бронь \(session.displayBookingNumber)")
                         if let pilgrimID = session.displayPilgrimID {
                             Text("·")
-                            Text("Iumrah ID \(pilgrimID)")
+                            Text("iumrah ID \(pilgrimID)")
                         }
                     }
                     .font(.caption2.monospaced().weight(.semibold))

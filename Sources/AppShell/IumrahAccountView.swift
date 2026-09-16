@@ -4,6 +4,7 @@ import UserNotifications
 import UIKit
 import CoreImage
 import CoreImage.CIFilterBuiltins
+import PassKit
 
 struct IumrahAccountView: View {
     @EnvironmentObject private var account: IumrahAccountStore
@@ -35,35 +36,54 @@ struct IumrahAccountView: View {
     @State private var identityCardFlipped = false
     @State private var showIdentityFullscreen = false
     @State private var showLanguageSheet = false
+    @State private var showIdentityUnlockSheet = false
+    @State private var identityRevealProgress: CGFloat = 0
+    @State private var loginScrollNonce = 0
+    @State private var walletPass: PKPass?
+    @State private var showWalletPassSheet = false
+    @State private var isLoadingWalletPass = false
+    @State private var walletAlertMessage: String?
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                accountHeader
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    accountHeader
 
-                if let profile = account.account {
-                    identityCard(profile)
-                    if let active = activeTrip {
-                        activeTripCard(active)
+                    if let profile = account.account {
+                        identityCard(profile)
+                        walletSection(profile)
+                        if let active = activeTrip {
+                            activeTripCard(active)
+                        }
+                        tripsSection
+                        paymentSecuritySection
+                        profileSection(profile)
+                        settingsSection
+                        signOutButton
+                    } else {
+                        IumrahLockedIdentityCard(language: settings.language) {
+                            showIdentityUnlockSheet = true
+                        }
+                        guestCard
+                        loginCard
+                            .id("account-login")
+                        if let pending = pendingActivationTrip {
+                            activationShortcut(pending)
+                        }
+                        paymentSecuritySection
+                        guestSettingsSection
                     }
-                    tripsSection
-                    paymentSecuritySection
-                    profileSection(profile)
-                    settingsSection
-                    signOutButton
-                } else {
-                    guestCard
-                    loginCard
-                    if let pending = pendingActivationTrip {
-                        activationShortcut(pending)
-                    }
-                    paymentSecuritySection
-                    guestSettingsSection
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 12)
+                .padding(.bottom, 46)
+            }
+            .onChange(of: loginScrollNonce) { _, _ in
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.90)) {
+                    proxy.scrollTo("account-login", anchor: .top)
                 }
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 12)
-            .padding(.bottom, 46)
         }
         .background(Color.iumrahPageBackground)
         .refreshable {
@@ -71,11 +91,15 @@ struct IumrahAccountView: View {
         }
         .task {
             loadProfileDraftIfNeeded(force: false)
+            prepareIdentityRevealIfNeeded(account.iumrahID)
             await refreshNotificationStatus()
             await refreshAccountContent()
         }
-        .onChange(of: account.iumrahID) { _, _ in
+        .onChange(of: account.iumrahID) { oldValue, newValue in
             loadProfileDraftIfNeeded(force: true)
+            if oldValue != newValue {
+                prepareIdentityRevealIfNeeded(newValue, force: newValue != nil && oldValue != newValue)
+            }
         }
         .sheet(isPresented: $showProfileEditor) {
             profileEditorSheet
@@ -84,8 +108,29 @@ struct IumrahAccountView: View {
             IumrahLanguageSelectionSheet()
                 .environmentObject(settings)
         }
+        .sheet(isPresented: $showIdentityUnlockSheet) {
+            IumrahIdentityUnlockSheet(language: settings.language) {
+                loginScrollNonce += 1
+            }
+        }
+        .sheet(isPresented: $showWalletPassSheet) {
+            if let walletPass {
+                IumrahAddPassesView(pass: walletPass, isPresented: $showWalletPassSheet)
+                    .ignoresSafeArea()
+            }
+        }
         .fullScreenCover(isPresented: $showIdentityFullscreen) {
             identityFullscreenView
+        }
+        .alert("Apple Wallet", isPresented: Binding(
+            get: { walletAlertMessage != nil },
+            set: { if !$0 { walletAlertMessage = nil } }
+        )) {
+            Button(tr("OK", "OK", "OK", "OK"), role: .cancel) {
+                walletAlertMessage = nil
+            }
+        } message: {
+            Text(walletAlertMessage ?? "")
         }
     }
 
@@ -122,6 +167,13 @@ struct IumrahAccountView: View {
                     .opacity(identityCardFlipped ? 1 : 0)
             }
             .frame(height: 238)
+            .overlay {
+                IumrahIdentitySealOverlay(
+                    progress: identityRevealProgress,
+                    showsPrompt: false,
+                    language: settings.language
+                )
+            }
             .rotation3DEffect(.degrees(identityCardFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.72)
             .animation(.spring(response: 0.52, dampingFraction: 0.82), value: identityCardFlipped)
             .contentShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
@@ -161,7 +213,7 @@ struct IumrahAccountView: View {
                 .fill(Color.black)
 
             LinearGradient(
-                colors: [Color.white.opacity(0.09), .clear, Color.iumrahCareLight.opacity(0.12)],
+                colors: [Color.white.opacity(0.10), .clear, Color.white.opacity(0.035)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -175,7 +227,7 @@ struct IumrahAccountView: View {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Iumrah ID")
+                        Text("iumrah ID")
                             .font(.system(size: 25, weight: .bold, design: .rounded))
                         Text(tr("DIGITAL PILGRIM IDENTITY", "ЦИФРОВАЯ ID-КАРТА ПАЛОМНИКА", "RAQAMLI ZIYORATCHI ID", "РАҚАМЛИ ЗИЁРАТЧИ ID"))
                             .font(.system(size: 9, weight: .bold))
@@ -185,7 +237,7 @@ struct IumrahAccountView: View {
                     Spacer()
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(Color.iumrahCareLight)
+                        .foregroundStyle(Color.white.opacity(0.92))
                 }
 
                 VStack(alignment: .leading, spacing: 7) {
@@ -216,30 +268,41 @@ struct IumrahAccountView: View {
     private func identityBack(_ profile: IumrahAccountProfile) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(Color.iumrahCardBackground)
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.075), lineWidth: 1)
+                .fill(Color.black)
+
+            LinearGradient(
+                colors: [Color.white.opacity(0.08), .clear, Color.white.opacity(0.025)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
 
             HStack(spacing: 22) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Image("HeaderWordmarkLight")
+                    Image("HeaderWordmarkDark")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 142, height: 34, alignment: .leading)
                         .accessibilityLabel("Iumrah")
-                    Text(tr("Official digital identity", "Цифровая идентификация", "Raqamli identifikatsiya", "Рақамли идентификация"))
+
+                    Text(tr("Digital pilgrim identity", "Цифровая ID-карта паломника", "Raqamli ziyoratchi ID", "Рақамли зиёратчи ID"))
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.54))
+
                     Spacer(minLength: 4)
-                    Text("Iumrah ID")
+
+                    Text("iumrah ID")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.48))
+
                     Text(normalizedID(profile.iumrahID))
                         .font(.system(size: 24, weight: .bold, design: .monospaced))
                         .tracking(2)
-                    Text("aiumra.app")
+                        .foregroundStyle(.white)
+
+                    Text("iumrah.app")
                         .font(.caption.monospaced().weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.48))
                 }
 
                 Spacer(minLength: 4)
@@ -247,12 +310,19 @@ struct IumrahAccountView: View {
                 qrCodeView(size: 116)
                     .padding(9)
                     .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.black.opacity(0.08), lineWidth: 1) }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.16), lineWidth: 0.8)
+                    }
             }
             .padding(24)
         }
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .shadow(color: .black.opacity(0.08), radius: 20, y: 10)
+        .overlay {
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
     }
 
     private var identityFullscreenView: some View {
@@ -306,7 +376,7 @@ struct IumrahAccountView: View {
 
     @ViewBuilder
     private func qrCodeView(size: CGFloat) -> some View {
-        if let image = makeQRCode("https://aiumra.app") {
+        if let image = makeQRCode("https://iumrah.app") {
             Image(uiImage: image)
                 .interpolation(.none)
                 .resizable()
@@ -329,6 +399,68 @@ struct IumrahAccountView: View {
         let context = CIContext(options: nil)
         guard let cg = context.createCGImage(scaled, from: scaled.extent) else { return nil }
         return UIImage(cgImage: cg)
+    }
+
+    private func walletSection(_ profile: IumrahAccountProfile) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.black)
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "wallet.pass.fill")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tr("iumrah ID in Apple Wallet", "iumrah ID в Apple Wallet", "iumrah ID Apple Wallet’da", "iumrah ID Apple Wallet’да"))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                    Text(tr(
+                        "Keep your digital pilgrim ID and QR code available from Wallet.",
+                        "Храните цифровую ID-карту паломника и QR-код прямо в Wallet.",
+                        "Raqamli ziyoratchi ID va QR-kodni Wallet’da saqlang.",
+                        "Рақамли зиёратчи ID ва QR-кодни Wallet’да сақланг."
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("iumrah ID")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(normalizedID(profile.iumrahID))
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        .tracking(1.4)
+                }
+
+                Spacer(minLength: 10)
+
+                if isLoadingWalletPass {
+                    ProgressView()
+                        .controlSize(.regular)
+                        .frame(width: 162, height: 48)
+                } else if PKPassLibrary.isPassLibraryAvailable() {
+                    IumrahAddToWalletButton {
+                        Task { await addIdentityToWallet() }
+                    }
+                    .frame(width: 162, height: 48)
+                } else {
+                    Text(tr("Wallet unavailable", "Wallet недоступен", "Wallet mavjud emas", "Wallet мавжуд эмас"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(14)
+            .background(Color.iumrahRaisedBackground.opacity(0.60), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .iumrahCard()
     }
 
     private func activeTripCard(_ session: StoredBookingSession) -> some View {
@@ -1263,6 +1395,81 @@ struct IumrahAccountView: View {
         let digits = value.filter(\.isNumber)
         guard !digits.isEmpty else { return value }
         return String(repeating: "0", count: max(0, 6 - digits.count)) + String(digits.suffix(6))
+    }
+
+    private func prepareIdentityRevealIfNeeded(_ rawID: String?, force: Bool = false) {
+        guard let rawID, !rawID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            identityRevealProgress = 0
+            return
+        }
+
+        let id = normalizedID(rawID)
+        let key = "iumrah.identity-card.revealed.\(id)"
+        if !force, UserDefaults.standard.bool(forKey: key) {
+            identityRevealProgress = 1
+            return
+        }
+
+        identityCardFlipped = false
+        identityRevealProgress = 0
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            withAnimation(.easeInOut(duration: 1.45)) {
+                identityRevealProgress = 1
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.72) {
+                IumrahHaptics.success()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.55) {
+                UserDefaults.standard.set(true, forKey: key)
+            }
+        }
+    }
+
+    @MainActor
+    private func addIdentityToWallet() async {
+        guard !isLoadingWalletPass else { return }
+        guard PKPassLibrary.isPassLibraryAvailable() else {
+            walletAlertMessage = tr(
+                "Apple Wallet is not available on this device.",
+                "Apple Wallet недоступен на этом устройстве.",
+                "Apple Wallet bu qurilmada mavjud emas.",
+                "Apple Wallet бу қурилмада мавжуд эмас."
+            )
+            return
+        }
+
+        isLoadingWalletPass = true
+        defer { isLoadingWalletPass = false }
+
+        do {
+            let data = try await account.walletPassData()
+            let pass = try PKPass(data: data)
+            walletPass = pass
+            showWalletPassSheet = true
+            IumrahHaptics.soft()
+        } catch {
+            walletAlertMessage = walletErrorText(error)
+            IumrahHaptics.error()
+        }
+    }
+
+    private func walletErrorText(_ error: Error) -> String {
+        if case APIError.server(_, let message) = error,
+           message == "WALLET_PASS_NOT_CONFIGURED" {
+            return tr(
+                "iumrah ID for Apple Wallet is being activated on the server. Please try again later.",
+                "iumrah ID для Apple Wallet ещё активируется на сервере. Попробуйте немного позже.",
+                "Apple Wallet uchun iumrah ID serverda faollashtirilmoqda. Birozdan keyin qayta urinib ko‘ring.",
+                "Apple Wallet учун iumrah ID серверда фаоллаштирилмоқда. Бироздан кейин қайта уриниб кўринг."
+            )
+        }
+        return tr(
+            "We could not prepare the Wallet pass right now. Please try again.",
+            "Сейчас не удалось подготовить карту для Wallet. Попробуйте ещё раз.",
+            "Hozir Wallet kartasini tayyorlab bo‘lmadi. Qayta urinib ko‘ring.",
+            "Ҳозир Wallet картасини тайёрлаб бўлмади. Қайта уриниб кўринг."
+        )
     }
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {

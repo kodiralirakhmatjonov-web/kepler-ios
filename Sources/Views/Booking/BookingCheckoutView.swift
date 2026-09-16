@@ -108,7 +108,7 @@ struct BookingCheckoutView: View {
                     HStack(spacing: 8) {
                         Text("Бронь \(createdSession.displayBookingNumber)")
                         if let pilgrimID = createdSession.displayPilgrimID {
-                            Text("· Iumrah ID \(pilgrimID)")
+                            Text("· iumrah ID \(pilgrimID)")
                         }
                     }
                     .font(.caption.monospaced().weight(.semibold))

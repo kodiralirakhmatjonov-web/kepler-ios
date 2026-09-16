@@ -138,6 +138,11 @@ final class IumrahAccountStore: ObservableObject {
         IumrahAccountVault.clear()
     }
 
+    func walletPassData() async throws -> Data {
+        guard let token else { throw APIError.status(401) }
+        return try await service.walletPass(token: token)
+    }
+
     func securityOverview(locale: String) async throws -> IumrahSecurityOverview {
         guard let token else { throw APIError.status(401) }
         _ = try await service.registerCurrentSession(token: token, locale: locale)

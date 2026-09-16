@@ -1,5 +1,6 @@
 import type { D1Like } from "./d1";
 import type { Env } from "./env";
+import { buildIumrahWalletPass } from "./wallet-pass";
 
 type PilgrimRow = {
   id: number;
@@ -1937,6 +1938,10 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/security/register") {
       return await register(request, db);
+    }
+    if (request.method === "GET" && url.pathname === "/api/package/client/account/wallet-pass") {
+      const auth = await requireAccount(request, db);
+      return await buildIumrahWalletPass(env, accountProfile(auth.pilgrim));
     }
     if (request.method === "GET" && url.pathname === "/api/package/client/account/friends") {
       return await friendsDashboard(request, env, db);
