@@ -133,6 +133,7 @@ final class BookingStore: ObservableObject {
         )
         if let operational = generatorReportResult {
             session.mergeOperationalTrip(operational.trip)
+            session.mergeOperationalStatusHistory(operational.statusHistory)
             session.guide = operational.assignment?.guide
         }
 
@@ -145,6 +146,7 @@ final class BookingStore: ObservableObject {
                 generatorTrace: generatorReportResult == nil ? payload.booking.generatorTrace : nil
             ) {
                 session.mergeOperationalTrip(response.trip)
+                session.mergeOperationalStatusHistory(response.statusHistory)
                 session.guide = response.assignment?.guide
             }
         }
@@ -266,7 +268,7 @@ final class BookingStore: ObservableObject {
                     let detail = try await accountService.tripDetail(bookingID: session.id, token: accountToken)
                     mergeRemoteBooking(
                         detail.booking,
-                        operational: ClientTripResponse(ok: true, trip: detail.trip, assignment: detail.assignment),
+                        operational: ClientTripResponse(ok: true, trip: detail.trip, assignment: detail.assignment, esims: detail.esims, statusHistory: detail.statusHistory),
                         bookingID: session.id
                     )
                 }
@@ -310,6 +312,7 @@ final class BookingStore: ObservableObject {
             if let index = sessions.firstIndex(where: { $0.id == trip.bookingID }) {
                 sessions[index].booking = detail.booking
                 sessions[index].mergeOperationalTrip(detail.trip)
+                sessions[index].mergeOperationalStatusHistory(detail.statusHistory)
                 sessions[index].guide = detail.assignment?.guide ?? sessions[index].guide
                 mergeRemoteHotelSelection(detail.booking.hotelSelection, into: &sessions[index].hotelSelection)
                 mergeRemoteHotelSelection(detail.booking.madinahHotelSelection, into: &sessions[index].madinahHotelSelection)
@@ -329,6 +332,7 @@ final class BookingStore: ObservableObject {
                     guide: detail.assignment?.guide
                 )
                 restored.mergeOperationalTrip(detail.trip)
+                restored.mergeOperationalStatusHistory(detail.statusHistory)
                 sessions.append(restored)
             }
         }
@@ -348,6 +352,7 @@ final class BookingStore: ObservableObject {
         guard let index = sessions.firstIndex(where: { $0.id == bookingID }) else { return }
         sessions[index].booking = booking
         if let trip = operational?.trip { sessions[index].mergeOperationalTrip(trip) }
+        sessions[index].mergeOperationalStatusHistory(operational?.statusHistory)
         sessions[index].guide = operational?.assignment?.guide ?? sessions[index].guide
         if let profile = booking.pilgrimProfile {
             sessions[index].travelerName = profile.displayName
@@ -562,6 +567,7 @@ final class BookingStore: ObservableObject {
                 profile: updatedProfile
             ) {
                 sessions[index].mergeOperationalTrip(response.trip)
+                sessions[index].mergeOperationalStatusHistory(response.statusHistory)
                 sessions[index].guide = response.assignment?.guide ?? sessions[index].guide
             }
         }

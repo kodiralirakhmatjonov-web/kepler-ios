@@ -293,11 +293,14 @@ struct BookingsHomeView: View {
                         .foregroundStyle(future ? Color(uiColor: .secondaryLabel) : Color.primary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if index == 0, let created = createdDateText(session.booking.createdAt) {
-                        Text(created)
+                    if !future, let timestamp = lifecycleStageTimestamp(index: index, session: session, isCancelled: isCancelled),
+                       let formatted = createdDateText(timestamp) {
+                        Text(formatted)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
-                    } else if active {
+                    }
+
+                    if active {
                         Text(activeStageSubtitle(session, fallback: effectiveStage.activeSubtitle))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -461,7 +464,9 @@ struct BookingsHomeView: View {
         case "NEW", "AVAILABILITY_CHECK":
             let deadline = lifecycleDeadline(
                 explicit: session.availabilityDeadlineAt,
-                start: session.availabilityStartedAt ?? session.booking.createdAt,
+                start: session.availabilityStartedAt
+                    ?? session.latestStatusTimestamp(matching: ["availability_check", "new"])
+                    ?? session.booking.createdAt,
                 duration: 6 * 60 * 60
             )
             return .availability(deadline)
@@ -476,17 +481,49 @@ struct BookingsHomeView: View {
             }
             let deadline = lifecycleDeadline(
                 explicit: session.priceLockExpiresAt,
-                start: session.priceLockStartedAt,
+                start: session.priceLockStartedAt
+                    ?? session.latestStatusTimestamp(matching: ["payment_pending"])
+                    ?? session.booking.updatedAt,
                 duration: 30 * 60
             )
             return .priceLock(deadline)
         case "PAID", "BOOKING_CONFIRMED":
             let deadline = lifecycleDeadline(
                 explicit: session.documentsDeadlineAt,
-                start: session.documentsStartedAt,
+                start: session.documentsStartedAt
+                    ?? session.latestStatusTimestamp(matching: ["booking_confirmed", "paid"])
+                    ?? session.booking.updatedAt,
                 duration: 24 * 60 * 60
             )
             return .documents(deadline)
+        default:
+            return nil
+        }
+    }
+
+    private func lifecycleStageTimestamp(index: Int, session: StoredBookingSession, isCancelled: Bool) -> String? {
+        if index == 0 { return session.booking.createdAt }
+        if isCancelled && index == 1 {
+            return session.latestStatusTimestamp(matching: ["cancelled"]) ?? session.booking.updatedAt
+        }
+
+        switch index {
+        case 1:
+            return session.availabilityStartedAt
+                ?? session.latestStatusTimestamp(matching: ["availability_check", "new"])
+                ?? session.booking.createdAt
+        case 2:
+            return session.priceLockStartedAt
+                ?? session.latestStatusTimestamp(matching: ["payment_pending"])
+        case 3:
+            return session.documentsStartedAt
+                ?? session.latestStatusTimestamp(matching: ["booking_confirmed", "paid"])
+        case 4:
+            return session.latestStatusTimestamp(matching: ["ready_to_travel", "documents_ready"])
+        case 5:
+            return session.latestStatusTimestamp(matching: ["in_trip"])
+        case 6:
+            return session.latestStatusTimestamp(matching: ["completed"])
         default:
             return nil
         }

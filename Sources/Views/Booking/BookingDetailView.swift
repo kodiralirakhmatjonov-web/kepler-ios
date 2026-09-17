@@ -619,7 +619,9 @@ struct BookingDetailView: View {
         case "NEW", "AVAILABILITY_CHECK":
             let deadline = lifecycleDeadline(
                 explicit: session.availabilityDeadlineAt,
-                start: session.availabilityStartedAt ?? session.booking.createdAt,
+                start: session.availabilityStartedAt
+                    ?? session.latestStatusTimestamp(matching: ["availability_check", "new"])
+                    ?? session.booking.createdAt,
                 duration: 6 * 60 * 60
             )
             return deadline.map { .availability($0) }
@@ -634,14 +636,18 @@ struct BookingDetailView: View {
             }
             let deadline = lifecycleDeadline(
                 explicit: session.priceLockExpiresAt,
-                start: session.priceLockStartedAt,
+                start: session.priceLockStartedAt
+                    ?? session.latestStatusTimestamp(matching: ["payment_pending"])
+                    ?? session.booking.updatedAt,
                 duration: 30 * 60
             )
             return deadline.map { .priceLock($0) }
         case "PAID", "BOOKING_CONFIRMED":
             let deadline = lifecycleDeadline(
                 explicit: session.documentsDeadlineAt,
-                start: session.documentsStartedAt,
+                start: session.documentsStartedAt
+                    ?? session.latestStatusTimestamp(matching: ["booking_confirmed", "paid"])
+                    ?? session.booking.updatedAt,
                 duration: 24 * 60 * 60
             )
             return deadline.map { .documents($0) }

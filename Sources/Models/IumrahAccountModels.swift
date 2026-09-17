@@ -355,6 +355,7 @@ struct IumrahAccountTripDetailResponse: Decodable {
     let booking: RemoteBooking
     let assignment: ClientBookingAssignment?
     let esims: [ClientESIMProfile]?
+    let statusHistory: [BookingStatusHistoryEntry]?
 }
 
 struct IumrahAccountLinkBookingRequest: Encodable {

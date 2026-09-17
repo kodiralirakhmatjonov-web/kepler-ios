@@ -228,11 +228,19 @@ struct BookingItineraryResponse: Decodable {
     let items: [BookingItineraryItem]
 }
 
+struct BookingStatusHistoryEntry: Codable, Hashable {
+    let oldStatus: String?
+    let newStatus: String
+    let changedBy: String?
+    let createdAt: String
+}
+
 struct ClientTripResponse: Decodable {
     let ok: Bool?
     let trip: ClientTripSnapshot
     let assignment: ClientBookingAssignment?
     let esims: [ClientESIMProfile]?
+    let statusHistory: [BookingStatusHistoryEntry]?
 }
 
 struct ClientESIMProfile: Codable, Identifiable, Hashable {
@@ -342,6 +350,7 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var paymentConfirmationDeadlineAt: String? = nil
     var documentsStartedAt: String? = nil
     var documentsDeadlineAt: String? = nil
+    var statusHistory: [BookingStatusHistoryEntry]? = nil
     /// Opaque encrypted server quote retained only until the Business pricing report
     /// has been committed. It contains no client-readable supplier pricing.
     var pendingGeneratorQuoteProof: String? = nil
@@ -359,6 +368,19 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
         paymentConfirmationDeadlineAt = trip.paymentConfirmationDeadlineAt
         documentsStartedAt = trip.documentsStartedAt
         documentsDeadlineAt = trip.documentsDeadlineAt
+    }
+
+    mutating func mergeOperationalStatusHistory(_ history: [BookingStatusHistoryEntry]?) {
+        guard let history else { return }
+        statusHistory = history
+    }
+
+    func latestStatusTimestamp(matching statuses: Set<String>) -> String? {
+        let normalized = Set(statuses.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+        return statusHistory?
+            .filter { normalized.contains($0.newStatus.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) }
+            .max(by: { $0.createdAt < $1.createdAt })?
+            .createdAt
     }
 
     var displayPilgrimID: String? {
