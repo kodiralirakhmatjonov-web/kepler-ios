@@ -233,10 +233,10 @@ struct ClientTripResponse: Decodable {
     let trip: ClientTripSnapshot
     let assignment: ClientBookingAssignment?
     let esims: [ClientESIMProfile]?
-    let statusHistory: [ClientBookingStatusHistory]?
+    let statusHistory: [BookingStatusHistoryEntry]?
 }
 
-struct ClientBookingStatusHistory: Codable, Hashable {
+struct BookingStatusHistoryEntry: Codable, Hashable {
     let oldStatus: String?
     let newStatus: String
     let createdAt: String
@@ -351,12 +351,12 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var paymentConfirmationDeadlineAt: String? = nil
     var documentsStartedAt: String? = nil
     var documentsDeadlineAt: String? = nil
-    var statusHistory: [ClientBookingStatusHistory]? = nil
+    var statusHistory: [BookingStatusHistoryEntry]? = nil
     /// Opaque encrypted server quote retained only until the Business pricing report
     /// has been committed. It contains no client-readable supplier pricing.
     var pendingGeneratorQuoteProof: String? = nil
 
-    mutating func mergeOperationalTrip(_ trip: ClientTripSnapshot, statusHistory: [ClientBookingStatusHistory]? = nil) {
+    mutating func mergeOperationalTrip(_ trip: ClientTripSnapshot) {
         operationStatus = trip.status
         pilgrimID = trip.pilgrimID ?? pilgrimID
         bookingNumber = trip.bookingNumber ?? bookingNumber
@@ -369,11 +369,31 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
         paymentConfirmationDeadlineAt = trip.paymentConfirmationDeadlineAt
         documentsStartedAt = trip.documentsStartedAt
         documentsDeadlineAt = trip.documentsDeadlineAt
-        if let statusHistory { self.statusHistory = statusHistory }
     }
 
-    var orderedStatusHistory: [ClientBookingStatusHistory] {
+    mutating func mergeOperationalStatusHistory(_ history: [BookingStatusHistoryEntry]?) {
+        if let history { statusHistory = history }
+    }
+
+    var orderedStatusHistory: [BookingStatusHistoryEntry] {
         (statusHistory ?? []).sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func latestStatusTimestamp(matching statuses: Set<String>) -> String? {
+        let normalizedStatuses = Set(
+            statuses.map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            }
+        )
+
+        return orderedStatusHistory
+            .filter {
+                normalizedStatuses.contains(
+                    $0.newStatus.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                )
+            }
+            .last?
+            .createdAt
     }
 
     var displayPilgrimID: String? {

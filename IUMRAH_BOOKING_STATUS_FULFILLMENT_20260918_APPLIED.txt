@@ -1,0 +1,20 @@
+iumrah iOS booking status continuation — 2026-09-18
+
+- Continued from the supplied kepler-ios-main 4(4).zip source tree.
+- Added a full payment receipt card to Booking Status with booking number,
+  payment method, card/recipient details, platform, responsible team, date,
+  airline-ticket responsibility and refund policy access.
+- Added separate live rows for airline ticket, hotel confirmation, visa and
+  insurance, including ready/preparing state and booking reference display.
+- Added aliases for Business document kinds such as flight_ticket,
+  airline_ticket, hotel_voucher, hotel_booking and hotel_confirmation.
+- The active status CTA now opens the correct pilgrim/payment/document flow.
+- Availability uses a native iOS ProgressView, calming copy and a clear prompt
+  to complete pilgrim/passport details before availability is confirmed.
+- Added a dedicated Go to Booking control from every active status card.
+- Unified lifecycle history model names and fallbacks with the repository
+  contract tests; all 66 Node contract tests pass.
+- Marketing version: 2.0.4. Build: 20183.
+
+Validation note: Xcode is not installed in the Linux preparation environment;
+the final archive must still run through the repository macOS/TestFlight build.

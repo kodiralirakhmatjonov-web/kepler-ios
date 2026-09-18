@@ -184,15 +184,18 @@ struct IumrahTravelCompanionsView: View {
         bookings.sessions.flatMap { session in
             let checkout = checkouts[session.id]
             return (checkout?.travelers ?? []).map {
-                // BookingInput has no `hotelName`; the normalized booking model stores
-                // the selected Makkah hotel in `hotelNames`.
-                TravelerItem(bookingID: session.id, tripTitle: session.booking.hotelNames.makkah, traveler: $0)
+                TravelerItem(bookingID: session.id, tripTitle: companionTripTitle(session), traveler: $0)
             }
         }
         .sorted {
             if $0.bookingID == $1.bookingID { return $0.traveler.position < $1.traveler.position }
             return $0.tripTitle < $1.tripTitle
         }
+    }
+    private func companionTripTitle(_ session: StoredBookingSession) -> String {
+        let hotel = session.booking.hotelNames.makkah.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !hotel.isEmpty { return hotel }
+        return "\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)"
     }
     @MainActor
     private func loadTravelers() async {
