@@ -5,6 +5,12 @@ import UserNotifications
 import UIKit
 
 struct IumrahFlightsView: View {
+    let preferredBookingID: String?
+
+    init(preferredBookingID: String? = nil) {
+        self.preferredBookingID = preferredBookingID
+    }
+
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var chrome: AppChromeStore
@@ -15,7 +21,12 @@ struct IumrahFlightsView: View {
     @State private var notificationPermissionDenied = false
 
     private var accessSession: StoredBookingSession? {
-        bookings.sessions.first(where: IumrahFlightsAccess.isEligible)
+        if let preferredBookingID,
+           let preferred = bookings.sessions.first(where: { $0.id == preferredBookingID }),
+           IumrahFlightsAccess.isEligible(preferred) {
+            return preferred
+        }
+        return bookings.sessions.first(where: IumrahFlightsAccess.isEligible)
     }
 
     private var hasAccess: Bool { accessSession != nil }

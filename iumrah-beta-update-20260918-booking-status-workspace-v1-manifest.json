@@ -1,0 +1,32 @@
+{
+  "name": "iumrah-beta-update-20260918-booking-status-workspace-v1",
+  "date": "2026-09-18",
+  "base": "kepler-ios-main 4(5).zip",
+  "changed_files": [
+    "Sources/Legal/IumrahInvoiceRenderer.swift",
+    "Sources/Views/Booking/PilgrimCheckoutView.swift",
+    "Sources/Views/Tabs/BookingsHomeView.swift",
+    "Sources/Views/Flights/IumrahFlightsView.swift"
+  ],
+  "root_cause": "Pilgrim forms, payment details, receipts and travel documents lived primarily in a separate checkout screen, while Booking Status only showed progress. That split left the status timeline without the actionable data and persistent artifacts the traveler needs as the booking advances.",
+  "behavior": [
+    "The main Booking hub no longer sends traveler/payment/document action cards to the separate checkout screen; those actions switch directly to Booking Status, where the content is embedded inline.",
+    "AVAILABILITY_CHECK: Booking Status shows one traveler card per pilgrim and keeps invoice/payment requisites hidden until availability is confirmed.",
+    "PAYMENT_PENDING: the same status workspace shows traveler forms, invoice, Gift/iUmrah Balance controls, payment method/requisites and receipt upload.",
+    "PAID / BOOKING_CONFIRMED / DOCUMENTS_READY: traveler data becomes read-only and fully visible; a permanent paid-receipt card appears together with airline ticket, hotel confirmation, visa and insurance preparation rows.",
+    "READY_TO_TRAVEL / IN_TRIP: the receipt and traveler cards remain pinned and rich outbound/return flight cards are added with segment flight number, airports, local dates/times, terminals, cabin, aircraft and baggage when available.",
+    "The paid receipt can be exported through the iOS share sheet as both PDF and PNG and contains a green PAID stamp, booking/iumrah ID, payer, recipient, iumrah platform, responsible person Aziz Kodirov, route, dates and total paid.",
+    "Track flight opens the existing iumrah Flights surface focused on the current bookingID; no unverified new AeroData endpoint or credential was invented in this patch."
+  ],
+  "deployment": [
+    "No backend or Cloudflare files are changed; no PackageEngine deploy is required.",
+    "Build/TestFlight the iOS app after the patch is applied.",
+    "A full Xcode/iOS SDK build cannot run in the Linux patch environment; all 210 Swift source files were frontend-parsed successfully and the patch was overlay-tested against the supplied base archive."
+  ],
+  "sha256": {
+    "Sources/Legal/IumrahInvoiceRenderer.swift": "1b54e79c15917a67202913c20b059b096416975af625d3f0c3fd0778a4ee2cbf",
+    "Sources/Views/Booking/PilgrimCheckoutView.swift": "cab2acb477445b3d477c4c0e5c5116aaa2dbcaca2ba5095c3308038140f44209",
+    "Sources/Views/Tabs/BookingsHomeView.swift": "0f8bfd7d9afae682630747ff6094efd3f0e78b23b90043e84131b3a2da18abf3",
+    "Sources/Views/Flights/IumrahFlightsView.swift": "f611577ab959126f3a41bf0cee962741c5872e193122fa1641485b253eafdef6"
+  }
+}

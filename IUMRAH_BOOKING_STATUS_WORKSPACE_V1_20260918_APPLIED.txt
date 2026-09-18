@@ -1,0 +1,28 @@
+Iumrah Booking Status workspace v1 — 2026-09-18
+
+Implemented in Booking -> Booking Status:
+- main Booking action cards for pilgrims/payment/documents now switch to Booking Status instead of opening the separate checkout page;
+- availability check: traveler forms are visible; invoice and payment requisites stay locked/hidden;
+- payment pending: traveler forms + invoice + payment details + receipt upload are all shown inline in Booking Status;
+- after payment confirmation: full locked traveler data stays attached to the booking, and a permanent paid receipt card appears;
+- paid receipt export: PDF and PNG via the native iOS share/save sheet; green PAID stamp; payer, recipient, iumrah platform, responsible person Aziz Kodirov, booking/iumrah ID, route, dates and total;
+- documents stage: airline ticket, hotel confirmation, visa and insurance show as preparing/ready rows;
+- ready-to-travel / in-trip: rich outbound and return flight cards appear with exact segment flight number, airports, local date/time, terminal, cabin, aircraft and baggage when the stored FlightOffer contains them;
+- Track flight opens the existing iumrah Flights surface for this booking. No guessed AeroData URL/API key was added.
+
+Files changed:
+- Sources/Views/Tabs/BookingsHomeView.swift
+- Sources/Views/Booking/PilgrimCheckoutView.swift
+- Sources/Legal/IumrahInvoiceRenderer.swift
+- Sources/Views/Flights/IumrahFlightsView.swift
+
+Deployment:
+- iOS-only update. No Cloudflare/PackageEngine deploy is required.
+- Build/TestFlight after apply.
+
+Preflight performed:
+- ZIP has repository-root paths (no wrapper folder);
+- protected workflow/signing paths are absent;
+- patch overlaid onto kepler-ios-main 4(5).zip;
+- project.yml parsed;
+- all 210 Swift source files passed swiftc -frontend -parse on Linux.
