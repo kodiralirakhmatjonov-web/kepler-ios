@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CareHomeView: View {
+    private let directCarePhone = "+998508898845"
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
@@ -447,13 +448,7 @@ struct CareHomeView: View {
     // MARK: - Contact actions
 
     private var preferredPhone: String {
-        let sa = careProfile?.phoneSA.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !sa.isEmpty { return sa }
-        let cachedSA = cachedPhoneSA.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !cachedSA.isEmpty { return cachedSA }
-        let uz = careProfile?.phoneUZ.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !uz.isEmpty { return uz }
-        return cachedPhoneUZ.trimmingCharacters(in: .whitespacesAndNewlines)
+        directCarePhone
     }
 
     private var telegramURL: URL? {

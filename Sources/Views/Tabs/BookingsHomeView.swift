@@ -820,6 +820,7 @@ struct BookingsHomeView: View {
                     .foregroundStyle(.secondary)
             }
 
+            statusCardActions(session)
         }
         .padding(18)
         .background {
@@ -874,6 +875,55 @@ struct BookingsHomeView: View {
                 }
                 .padding(14)
                 .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+        }
+    }
+
+    private func statusCardActions(_ session: StoredBookingSession) -> some View {
+        VStack(spacing: 10) {
+            NavigationLink {
+                BookingDetailView(bookingID: session.id)
+                    .environmentObject(settings)
+                    .environmentObject(bookings)
+                    .environmentObject(journey)
+            } label: {
+                statusCardButtonLabel(title: openStatusTitle, isPrimary: true)
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                PilgrimCheckoutView(bookingID: session.id, presentation: .screen)
+                    .environmentObject(settings)
+                    .environmentObject(bookings)
+                    .environmentObject(account)
+            } label: {
+                statusCardButtonLabel(title: openBookingTitle, isPrimary: false)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.top, 2)
+    }
+
+    private func statusCardButtonLabel(title: String, isPrimary: Bool) -> some View {
+        HStack(spacing: 10) {
+            Text(title)
+                .font(.headline.weight(.semibold))
+            Spacer(minLength: 8)
+            Image(systemName: "arrow.right")
+                .font(.system(size: 14, weight: .bold))
+        }
+        .foregroundStyle(isPrimary ? Color.white : Color.primary)
+        .padding(.horizontal, 18)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .background(
+            isPrimary ? Color.black : Color.iumrahRaisedBackground,
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .overlay {
+            if !isPrimary {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
             }
         }
     }
@@ -1822,6 +1872,7 @@ struct BookingsHomeView: View {
     private var hotelTitle: String { localized("Отель", "Hotel", "Mehmonxona", "Меҳмонхона") }
     private var priceTitle: String { localized("На паломника", "Per pilgrim", "Bir ziyoratchiga", "Бир зиёратчига") }
     private var openBookingTitle: String { localized("Открыть бронирование", "Open booking", "Bronni ochish", "Бронни очиш") }
+    private var openStatusTitle: String { localized("Открыть статус бронирования", "Open booking status", "Bron holatini ochish", "Брон ҳолатини очиш") }
     private var statusTitle: String { localized("Статус бронирования", "Booking status", "Bron holati", "Брон ҳолати") }
     private var cancelledText: String { localized("Отменено", "Cancelled", "Bekor qilingan", "Бекор қилинган") }
 

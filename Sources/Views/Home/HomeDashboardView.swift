@@ -11,6 +11,7 @@ struct HomeDashboardView: View {
     @State private var showZiyarats = false
     @State private var showCareRequestBuilder = false
     @State private var showFlightsService = false
+    @State private var showTransferService = false
     @State private var selectedFlightPackage: StorefrontFlightPackagePreview?
     @State private var expandedHomeFAQID: String?
     @State private var showAboutProject = false
@@ -49,6 +50,9 @@ struct HomeDashboardView: View {
             .navigationDestination(isPresented: $showFlightsService) {
                 IumrahFlightsView()
             }
+            .navigationDestination(isPresented: $showTransferService) {
+                IumrahTransferServiceView()
+            }
             .navigationDestination(item: $selectedFlightPackage) { preview in
                 StorefrontUmrahPackageDetailView(preview: preview)
             }
@@ -78,6 +82,7 @@ struct HomeDashboardView: View {
 
                     IumrahHomeServicesSection(
                         language: settings.language,
+                        onTransfer: { showTransferService = true },
                         onESIM: { chrome.presentESIM() },
                         onFlights: { showFlightsService = true },
                         onZiyarats: { showZiyarats = true },

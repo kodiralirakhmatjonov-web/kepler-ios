@@ -517,9 +517,7 @@ struct CareContactInfoView: View {
     }
 
     private var preferredPhone: String {
-        let sa = profile?.phoneSA.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !sa.isEmpty { return sa }
-        return profile?.phoneUZ.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        "+998508898845"
     }
 
     private var hasTelegram: Bool {

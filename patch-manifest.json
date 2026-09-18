@@ -1,31 +1,24 @@
 {
-  "patch": "iumrah-beta-update-071-home-emotional-journey",
-  "based_on": "BETA_CLIENT_EXPERIENCE_070_APPLIED",
-  "description": "Home-only emotional Makkah/Madinah full-screen video experience with cinematic captions; removes story 02 and 06 from the Home sequence.",
-  "deployment_order": [
-    "apply_patch",
-    "build_testflight"
-  ],
+  "name": "iumrah-beta-update-20260918-booking-care-transfer-v3",
+  "applies_over": "kepler-ios-main 4(5).zip + iumrah-beta-update-20260918-booking-tabs-auth-fix-v2.zip",
   "files": [
-    {
-      "path": "Sources/Views/Home/HomeDashboardView.swift",
-      "sha256": "58efc5e9b05c9c5a623dff8d334bd465e1566fbb86297a818ff8cadf49de4ad6",
-      "bytes": 28925
-    },
-    {
-      "path": "Sources/Views/Home/HomeVideoCarousel.swift",
-      "sha256": "62a546b6d635793762918df0e9c3d09683aab9b356895ee8cee18c7e4a3be79c",
-      "bytes": 4473
-    },
-    {
-      "path": "Sources/Views/Home/HomeEmotionalJourneyView.swift",
-      "sha256": "c0a0faad7f9bf0f33a5c09a3ce1196e28ab4e89e83b661f2a74a51f5d9ea4e3d",
-      "bytes": 15645
-    },
-    {
-      "path": "BETA_HOME_EMOTIONAL_071_APPLIED.txt",
-      "sha256": "8bcf22460ee70f7b2f3bdc0f261b28b6ce385ba036c3ba852c70cad401acc131",
-      "bytes": 792
-    }
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Home/HomeAppleStoreSections.swift",
+    "Sources/Views/Tabs/BookingsHomeView.swift",
+    "Sources/Views/Booking/BookingDetailView.swift",
+    "Sources/Views/Tabs/CareHomeView.swift",
+    "Sources/Views/Chat/BookingChatView.swift",
+    "Sources/Views/Chat/CareContactInfoView.swift",
+    "Resources/Assets.xcassets/TransferCarnival.imageset/TransferCarnival.png",
+    "Resources/Assets.xcassets/TransferYukon.imageset/TransferYukon.png",
+    "Resources/Assets.xcassets/TransferMalibu.imageset/TransferMalibu.png",
+    "BETA_BOOKING_CARE_TRANSFER_REFINEMENTS_20260918_APPLIED.txt"
+  ],
+  "notes": [
+    "Returns two CTA buttons on booking status card.",
+    "Adds Transfer showcase/detail page from Home services card.",
+    "Updates Care phone to +998508898845.",
+    "Pins chat bubbles to bottom of Care conversation.",
+    "Refreshes transfer card vehicle images."
   ]
 }

@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 
 struct BookingChatView: View {
+    private let directCarePhone = "+998508898845"
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
@@ -185,6 +186,8 @@ struct BookingChatView: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
                 .padding(.bottom, 16)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: max(scrollViewportHeight - 24, 0), alignment: .bottom)
             }
             .scrollDismissesKeyboard(.interactively)
             .contentMargins(.bottom, max(86, composerPanelHeight + 10), for: .scrollContent)
@@ -880,9 +883,7 @@ struct BookingChatView: View {
     }
 
     private var preferredPhone: String {
-        let sa = careProfile?.phoneSA.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !sa.isEmpty { return sa }
-        return careProfile?.phoneUZ ?? ""
+        directCarePhone
     }
 
     private func openPhone() {
