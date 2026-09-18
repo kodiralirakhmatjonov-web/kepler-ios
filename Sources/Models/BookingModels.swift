@@ -356,7 +356,7 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     /// has been committed. It contains no client-readable supplier pricing.
     var pendingGeneratorQuoteProof: String? = nil
 
-    mutating func mergeOperationalTrip(_ trip: ClientTripSnapshot) {
+    mutating func mergeOperationalTrip(_ trip: ClientTripSnapshot, statusHistory: [BookingStatusHistoryEntry]? = nil) {
         operationStatus = trip.status
         pilgrimID = trip.pilgrimID ?? pilgrimID
         bookingNumber = trip.bookingNumber ?? bookingNumber
@@ -369,10 +369,7 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
         paymentConfirmationDeadlineAt = trip.paymentConfirmationDeadlineAt
         documentsStartedAt = trip.documentsStartedAt
         documentsDeadlineAt = trip.documentsDeadlineAt
-    }
-
-    mutating func mergeOperationalStatusHistory(_ history: [BookingStatusHistoryEntry]?) {
-        if let history { statusHistory = history }
+        if let statusHistory { self.statusHistory = statusHistory }
     }
 
     var orderedStatusHistory: [BookingStatusHistoryEntry] {
@@ -385,7 +382,6 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
                 $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             }
         )
-
         return orderedStatusHistory
             .filter {
                 normalizedStatuses.contains(

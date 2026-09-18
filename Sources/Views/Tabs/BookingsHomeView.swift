@@ -67,7 +67,7 @@ struct BookingsHomeView: View {
             await bookings.refreshAll()
             await loadActiveCheckout()
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(60))
+                try? await Task.sleep(for: .seconds(30))
                 guard !Task.isCancelled else { break }
                 await bookings.refreshAll()
                 await loadActiveCheckout()
@@ -148,12 +148,10 @@ struct BookingsHomeView: View {
                         .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
                 } else {
                     bookingProgress(session)
-                        .padding(.bottom, shouldShowFulfillmentCenter(session) ? 30 : 20)
+                        .padding(.bottom, 30)
 
-                    if shouldShowFulfillmentCenter(session) {
-                        bookingFulfillmentCenter(session, checkout: activeCheckout)
-                            .padding(.bottom, 22)
-                    }
+                    bookingStatusActionCenter(session, checkout: activeCheckout)
+                        .padding(.bottom, 38)
                 }
 
                 if activeSessions.count > 1 {
@@ -177,6 +175,21 @@ struct BookingsHomeView: View {
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
         .animation(.snappy(duration: 0.34), value: session.effectiveStatus)
+        .onAppear {
+            if shouldPreferStatusPanel(session) {
+                bookingPanel = .status
+            }
+        }
+        .onChange(of: session.effectiveStatus) { _, _ in
+            if shouldPreferStatusPanel(session) {
+                withAnimation(.snappy(duration: 0.28)) { bookingPanel = .status }
+            }
+        }
+        .onChange(of: session.paymentReceivedAt) { _, _ in
+            if shouldPreferStatusPanel(session) {
+                withAnimation(.snappy(duration: 0.28)) { bookingPanel = .status }
+            }
+        }
     }
 
     /// The top deliberately avoids another large card. Like the reference flow,
@@ -381,317 +394,6 @@ struct BookingsHomeView: View {
         .overlay { RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7) }
     }
 
-    // MARK: - Payment receipt and travel documents
-
-    private func shouldShowFulfillmentCenter(_ session: StoredBookingSession) -> Bool {
-        ["PAYMENT_PENDING", "PAID", "BOOKING_CONFIRMED", "DOCUMENTS_READY", "READY_TO_TRAVEL"]
-            .contains(session.effectiveStatus.uppercased())
-    }
-
-    private func bookingFulfillmentCenter(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                title: localized("Оплата и документы", "Payment and documents", "To‘lov va hujjatlar", "Тўлов ва ҳужжатлар"),
-                trailing: checkout.map { "\(readyStandardDocumentCount($0.documents))/4" }
-            )
-
-            Text(localized(
-                "Каждый готовый элемент появляется здесь отдельно. Ничего не потеряется — данные привязаны к вашему бронированию.",
-                "Every ready item appears here separately. Nothing is lost — everything stays linked to your booking.",
-                "Har bir tayyor element bu yerda alohida ko‘rinadi. Hech narsa yo‘qolmaydi — hammasi broningizga bog‘langan.",
-                "Ҳар бир тайёр элемент бу ерда алоҳида кўринади. Ҳеч нарса йўқолмайди — ҳаммаси бронга боғланган."
-            ))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-
-            if let checkout, let receipt = checkout.receipts.first {
-                paymentReceiptStatusCard(receipt, checkout: checkout, session: session)
-            } else {
-                waitingReceiptCard(session)
-            }
-
-            documentReadinessCard(checkout?.documents ?? [], bookingID: session.id)
-        }
-    }
-
-    private func waitingReceiptCard(_ session: StoredBookingSession) -> some View {
-        HStack(alignment: .top, spacing: 13) {
-            IumrahIconBadge(systemName: "creditcard.fill", role: .payment, size: 50, symbolSize: 19, cornerRadius: 17)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(localized("Чек об оплате", "Payment receipt", "To‘lov cheki", "Тўлов чеки"))
-                    .font(.headline)
-                Text(session.effectiveStatus.uppercased() == "PAYMENT_PENDING"
-                    ? localized("После отправки чека здесь появится подтверждение со всеми реквизитами.", "After you submit the receipt, the confirmation and payment details will appear here.", "Chek yuborilgach, tasdiq va to‘lov ma’lumotlari shu yerda ko‘rinadi.", "Чек юборилгач, тасдиқ ва тўлов маълумотлари шу ерда кўринади.")
-                    : localized("Оплата подтверждается. Чек появится здесь автоматически.", "Your payment is being confirmed. The receipt will appear here automatically.", "To‘lov tasdiqlanmoqda. Chek bu yerda avtomatik paydo bo‘ladi.", "Тўлов тасдиқланмоқда. Чек бу ерда автоматик пайдо бўлади."))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-            ProgressView()
-                .controlSize(.small)
-        }
-        .padding(17)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7) }
-    }
-
-    private func paymentReceiptStatusCard(
-        _ receipt: IumrahPaymentReceipt,
-        checkout: IumrahCheckoutResponse,
-        session: StoredBookingSession
-    ) -> some View {
-        let approved = receipt.reviewStatus.lowercased() == "approved"
-        let number = receipt.paymentMethod.lowercased() == "humo"
-            ? checkout.payment.humoCardNumber
-            : checkout.payment.visaCardNumber
-        let holder = receipt.paymentMethod.lowercased() == "humo"
-            ? checkout.payment.humoHolder
-            : checkout.payment.visaHolder
-
-        return VStack(alignment: .leading, spacing: 15) {
-            HStack(alignment: .top, spacing: 13) {
-                IumrahIconBadge(
-                    systemName: approved ? "checkmark.seal.fill" : "clock.badge.checkmark.fill",
-                    role: approved ? .success : .payment,
-                    size: 52,
-                    symbolSize: 20,
-                    cornerRadius: 17
-                )
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(localized("Чек об оплате", "Payment receipt", "To‘lov cheki", "Тўлов чеки"))
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                    Text(receiptReviewTitle(receipt.reviewStatus))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(approved ? Color.green : Color.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-
-            VStack(spacing: 10) {
-                receiptStatusFact(localized("Бронирование", "Booking", "Bron", "Брон"), session.displayBookingNumber)
-                receiptStatusFact(localized("Способ оплаты", "Payment method", "To‘lov usuli", "Тўлов усули"), receiptMethodTitle(receipt.paymentMethod))
-                if !number.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    receiptStatusFact(localized("Номер карты", "Card number", "Karta raqami", "Карта рақами"), groupedPaymentNumber(number))
-                }
-                if !holder.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    receiptStatusFact(localized("Получатель", "Recipient", "Qabul qiluvchi", "Қабул қилувчи"), holder)
-                }
-                receiptStatusFact(localized("Платформа", "Platform", "Platforma", "Платформа"), "Iumrah")
-                receiptStatusFact(localized("Ответственное лицо", "Responsible team", "Mas’ul jamoa", "Масъул жамоа"), "Iumrah Booking Operations")
-                receiptStatusFact(localized("Отправлен", "Submitted", "Yuborildi", "Юборилди"), checkoutTimestamp(receipt.createdAt))
-            }
-
-            Label(localized(
-                "Iumrah несёт ответственность за оформление и передачу авиабилета после подтверждения оплаты. Возврат и изменения регулируются условиями выбранного тарифа авиакомпании.",
-                "Iumrah is responsible for issuing and delivering the airline ticket after payment confirmation. Refunds and changes follow the selected airline fare rules.",
-                "To‘lov tasdiqlangach, aviachiptani rasmiylashtirish va yetkazish uchun Iumrah javob beradi. Qaytarish va o‘zgartirish tanlangan aviakompaniya tarifi qoidalariga bog‘liq.",
-                "Тўлов тасдиқлангач, авиачиптани расмийлаштириш ва етказиш учун Iumrah жавоб беради. Қайтариш ва ўзгартириш танланган авиакомпания тарифи қоидаларига боғлиқ."
-            ), systemImage: "shield.checkered")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-
-            NavigationLink {
-                PilgrimCheckoutView(bookingID: session.id)
-            } label: {
-                HStack {
-                    Image(systemName: "doc.text.image.fill")
-                    Text(localized("Открыть чек оплаты", "Open payment receipt", "To‘lov chekini ochish", "Тўлов чекини очиш"))
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
-                }
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(Color.iumrahPrimaryButtonText)
-                .padding(.horizontal, 16)
-                .frame(height: 52)
-                .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                IumrahPolicyDetailView(kind: .refund)
-            } label: {
-                Label(localized("Политика возврата", "Refund policy", "Qaytarish siyosati", "Қайтариш сиёсати"), systemImage: "arrow.uturn.backward.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 15)
-                    .frame(height: 50)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(17)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Color.green.opacity(0.18), lineWidth: 0.8) }
-    }
-
-    private func receiptStatusFact(_ title: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 10)
-            Text(value)
-                .font(.caption.weight(.semibold))
-                .multilineTextAlignment(.trailing)
-                .textSelection(.enabled)
-        }
-    }
-
-    private func documentReadinessCard(_ documents: [IumrahTravelDocument], bookingID: String) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                IumrahIconBadge(systemName: "doc.on.doc.fill", role: .document, size: 52, symbolSize: 20, cornerRadius: 17)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(localized("Документы поездки", "Travel documents", "Safar hujjatlari", "Сафар ҳужжатлари"))
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                    Text(localized("Готовые файлы можно открывать по одному.", "Ready files can be opened one by one.", "Tayyor fayllarni bittadan ochishingiz mumkin.", "Тайёр файлларни биттадан очишингиз мумкин."))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-
-            statusDocumentRow(
-                title: localized("Авиабилет", "Airline ticket", "Aviachipta", "Авиачипта"),
-                icon: "airplane",
-                document: firstDocument(in: documents, kinds: ["ticket", "flight_ticket", "airline_ticket"]),
-                bookingID: bookingID
-            )
-            statusDocumentRow(
-                title: localized("Подтверждение отеля", "Hotel confirmation", "Mehmonxona tasdig‘i", "Меҳмонхона тасдиғи"),
-                icon: "building.2.fill",
-                document: firstDocument(in: documents, kinds: ["voucher", "hotel_voucher", "hotel_booking", "hotel_confirmation"]),
-                bookingID: bookingID
-            )
-            statusDocumentRow(
-                title: localized("Виза", "Visa", "Viza", "Виза"),
-                icon: "checkmark.seal.fill",
-                document: firstDocument(in: documents, kinds: ["visa"]),
-                bookingID: bookingID
-            )
-            statusDocumentRow(
-                title: localized("Страховка", "Insurance", "Sug‘urta", "Суғурта"),
-                icon: "cross.case.fill",
-                document: firstDocument(in: documents, kinds: ["insurance"]),
-                bookingID: bookingID
-            )
-
-            ForEach(documents.filter { document in
-                !standardDocumentKinds.contains(document.documentKind.lowercased())
-            }) { document in
-                statusDocumentRow(title: document.title, icon: "doc.fill", document: document, bookingID: bookingID)
-            }
-        }
-        .padding(17)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7) }
-    }
-
-    @ViewBuilder
-    private func statusDocumentRow(
-        title: String,
-        icon: String,
-        document: IumrahTravelDocument?,
-        bookingID: String
-    ) -> some View {
-        if let document {
-            NavigationLink {
-                PilgrimCheckoutView(bookingID: bookingID)
-            } label: {
-                documentStatusRowLabel(title: title, icon: icon, document: document)
-            }
-            .buttonStyle(.plain)
-        } else {
-            documentStatusRowLabel(title: title, icon: icon, document: nil)
-        }
-    }
-
-    private func documentStatusRowLabel(
-        title: String,
-        icon: String,
-        document: IumrahTravelDocument?
-    ) -> some View {
-        HStack(spacing: 13) {
-            IumrahIconBadge(systemName: document == nil ? icon : "checkmark.circle.fill", role: document == nil ? .document : .success, size: 48, symbolSize: 18, cornerRadius: 16)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Text(document == nil
-                    ? localized("Готовится", "Being prepared", "Tayyorlanmoqda", "Тайёрланмоқда")
-                    : localized("Готов · можно открыть", "Ready · tap to open", "Tayyor · ochish mumkin", "Тайёр · очиш мумкин"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let reference = document?.bookingReference?.trimmingCharacters(in: .whitespacesAndNewlines), !reference.isEmpty {
-                    Text(localized("Код бронирования: ", "Booking code: ", "Bron kodi: ", "Брон коди: ") + reference)
-                        .font(.caption2.monospaced().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                }
-            }
-            Spacer(minLength: 8)
-            if document == nil {
-                ProgressView().controlSize(.small)
-            } else {
-                Image(systemName: "arrow.up.right")
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .padding(14)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-    }
-
-    private var standardDocumentKinds: Set<String> {
-        ["ticket", "flight_ticket", "airline_ticket", "voucher", "hotel_voucher", "hotel_booking", "hotel_confirmation", "visa", "insurance"]
-    }
-
-    private func firstDocument(in documents: [IumrahTravelDocument], kinds: Set<String>) -> IumrahTravelDocument? {
-        documents.first { kinds.contains($0.documentKind.lowercased()) }
-    }
-
-    private func readyStandardDocumentCount(_ documents: [IumrahTravelDocument]) -> Int {
-        [
-            Set(["ticket", "flight_ticket", "airline_ticket"]),
-            Set(["voucher", "hotel_voucher", "hotel_booking", "hotel_confirmation"]),
-            Set(["visa"]),
-            Set(["insurance"])
-        ].filter { firstDocument(in: documents, kinds: $0) != nil }.count
-    }
-
-    private func receiptMethodTitle(_ value: String) -> String {
-        switch value.lowercased() {
-        case "payme": return "PayMe"
-        case "humo": return "Humo"
-        case "visa": return "Visa"
-        default: return value.isEmpty ? "—" : value.capitalized
-        }
-    }
-
-    private func receiptReviewTitle(_ value: String) -> String {
-        switch value.lowercased() {
-        case "approved": return localized("Оплата подтверждена", "Payment confirmed", "To‘lov tasdiqlandi", "Тўлов тасдиқланди")
-        case "rejected": return localized("Нужно проверить чек", "Receipt needs attention", "Chekni tekshirish kerak", "Чекни текшириш керак")
-        default: return localized("Чек получен · проверяем", "Receipt received · reviewing", "Chek qabul qilindi · tekshirilmoqda", "Чек қабул қилинди · текширилмоқда")
-        }
-    }
-
-    private func groupedPaymentNumber(_ value: String) -> String {
-        let compact = value.filter { !$0.isWhitespace }
-        return stride(from: 0, to: compact.count, by: 4).map { start in
-            let lower = compact.index(compact.startIndex, offsetBy: start)
-            let upper = compact.index(lower, offsetBy: min(4, compact.count - start))
-            return String(compact[lower..<upper])
-        }.joined(separator: " ")
-    }
-
-    private func checkoutTimestamp(_ raw: String) -> String {
-        createdDateText(raw) ?? raw
-    }
-
     // MARK: - Booking progress
 
     private func bookingProgress(_ session: StoredBookingSession) -> some View {
@@ -718,6 +420,444 @@ struct BookingsHomeView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func bookingStatusActionCenter(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
+        let status = session.effectiveStatus.uppercased()
+
+        VStack(alignment: .leading, spacing: 16) {
+            if ["NEW", "AVAILABILITY_CHECK"].contains(status) {
+                sectionHeader(
+                    title: localized("Подготовьтесь заранее", "Prepare in advance", "Oldindan tayyorlaning", "Олдиндан тайёрланинг"),
+                    trailing: nil
+                )
+
+                NavigationLink {
+                    PilgrimCheckoutView(bookingID: session.id)
+                } label: {
+                    bookingStatusPrimaryCard(
+                        icon: "person.text.rectangle.fill",
+                        title: localized("Заполните данные паломников сейчас", "Complete pilgrim details now", "Ziyoratchilar ma’lumotlarini hozir to‘ldiring", "Зиёратчилар маълумотларини ҳозир тўлдиринг"),
+                        body: localized(
+                            "Пока мы подтверждаем наличие, можно заранее заполнить паспортные данные. После подтверждения Вы сразу перейдёте к оплате без повторного ввода.",
+                            "While we confirm availability, you can complete passport details in advance. Once availability is confirmed, you can move straight to payment without entering them again.",
+                            "Mavjudlikni tasdiqlayotganimizda pasport ma’lumotlarini oldindan to‘ldirishingiz mumkin. Tasdiqdan so‘ng qayta kiritmasdan darhol to‘lovga o‘tasiz.",
+                            "Мавжудликни тасдиқлаётганимизда паспорт маълумотларини олдиндан тўлдиришингиз мумкин. Тасдиқдан сўнг қайта киритмасдан дарҳол тўловга ўтасиз."
+                        ),
+                        action: localized("Заполнить данные", "Complete details", "Ma’lumotlarni to‘ldirish", "Маълумотларни тўлдириш")
+                    )
+                }
+                .buttonStyle(.plain)
+            } else if status == "PAYMENT_PENDING", session.paymentReceivedAt == nil {
+                sectionHeader(
+                    title: localized("Следующий шаг", "Next step", "Keyingi qadam", "Кейинги қадам"),
+                    trailing: nil
+                )
+
+                NavigationLink {
+                    PilgrimCheckoutView(bookingID: session.id)
+                } label: {
+                    bookingStatusPrimaryCard(
+                        icon: "creditcard.fill",
+                        title: localized("Оплатите и прикрепите чек", "Pay and attach the receipt", "To‘lang va chekni biriktiring", "Тўланг ва чекни бириктиринг"),
+                        body: localized(
+                            "Реквизиты, данные паломников и загрузка чека находятся в одном защищённом разделе.",
+                            "Payment details, pilgrim information and receipt upload are kept together in one protected section.",
+                            "To‘lov rekvizitlari, ziyoratchilar ma’lumotlari va chek yuklash bitta himoyalangan bo‘limda.",
+                            "Тўлов реквизитлари, зиёратчилар маълумотлари ва чек юклаш битта ҳимояланган бўлимда."
+                        ),
+                        action: localized("Открыть оплату", "Open payment", "To‘lovni ochish", "Тўловни очиш")
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                bookingStatusDeliverables(session, checkout: checkout)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func bookingStatusDeliverables(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
+        let receipt = checkout?.receipts.first
+        let documents = checkout?.documents ?? []
+        let confirmedOrLater = ["PAID", "BOOKING_CONFIRMED", "DOCUMENTS_READY", "READY_TO_TRAVEL", "IN_TRIP", "COMPLETED"].contains(session.effectiveStatus.uppercased())
+
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(
+                title: localized("Оплата и документы", "Payment & documents", "To‘lov va hujjatlar", "Тўлов ва ҳужжатлар"),
+                trailing: documents.isEmpty ? nil : localized("Готово: \(documents.count)", "Ready: \(documents.count)", "Tayyor: \(documents.count)", "Тайёр: \(documents.count)")
+            )
+
+            Text(localized(
+                "Каждый готовый элемент появляется отдельно. Вам не нужно ждать весь комплект, чтобы увидеть уже выданный билет или подтверждение отеля.",
+                "Each completed item appears separately. You do not need to wait for the full set to see a ticket or hotel confirmation that is already ready.",
+                "Har bir tayyor element alohida chiqadi. Tayyor chipta yoki mehmonxona tasdig‘ini ko‘rish uchun barcha hujjatlarni kutish shart emas.",
+                "Ҳар бир тайёр элемент алоҳида чиқади. Тайёр чипта ёки меҳмонхона тасдиғини кўриш учун барча ҳужжатларни кутиш шарт эмас."
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            NavigationLink {
+                PilgrimCheckoutView(bookingID: session.id)
+            } label: {
+                bookingStatusReceiptCard(receipt, checkout: checkout, session: session, paymentReceived: session.paymentReceivedAt != nil)
+            }
+            .buttonStyle(.plain)
+
+            bookingStatusDocumentRow(
+                kind: "ticket",
+                title: localized("Авиабилет", "Airline ticket", "Aviachipta", "Авиачипта"),
+                icon: "airplane",
+                documents: documents,
+                session: session,
+                preparationStarted: confirmedOrLater
+            )
+            bookingStatusDocumentRow(
+                kind: "voucher",
+                title: localized("Подтверждение отеля", "Hotel confirmation", "Mehmonxona tasdig‘i", "Меҳмонхона тасдиғи"),
+                icon: "building.2.fill",
+                documents: documents,
+                session: session,
+                preparationStarted: confirmedOrLater
+            )
+            bookingStatusDocumentRow(
+                kind: "visa",
+                title: localized("Виза", "Visa", "Viza", "Виза"),
+                icon: "checkmark.seal.fill",
+                documents: documents,
+                session: session,
+                preparationStarted: confirmedOrLater
+            )
+            bookingStatusDocumentRow(
+                kind: "insurance",
+                title: localized("Страховка", "Insurance", "Sug‘urta", "Суғурта"),
+                icon: "cross.case.fill",
+                documents: documents,
+                session: session,
+                preparationStarted: confirmedOrLater
+            )
+
+            ForEach(documents.filter { !["ticket", "voucher", "visa", "insurance"].contains($0.documentKind) }) { document in
+                NavigationLink {
+                    PilgrimCheckoutView(bookingID: session.id)
+                } label: {
+                    bookingStatusReadyDocumentRow(document, title: document.title, icon: "doc.fill")
+                }
+                .buttonStyle(.plain)
+            }
+
+            NavigationLink {
+                PilgrimCheckoutView(bookingID: session.id)
+            } label: {
+                HStack(spacing: 10) {
+                    Text(localized("Открыть чек и все документы", "Open receipt and all documents", "Chek va barcha hujjatlarni ochish", "Чек ва барча ҳужжатларни очиш"))
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                }
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.iumrahPrimaryButtonText)
+                .padding(.horizontal, 17)
+                .frame(height: 54)
+                .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+    }
+
+    private func bookingStatusPrimaryCard(icon: String, title: String, body: String, action: String) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 13) {
+                IumrahIconBadge(systemName: icon, role: .profile, size: 52, symbolSize: 20, cornerRadius: 17)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text(body)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+
+            HStack {
+                Text(action)
+                Spacer()
+                Image(systemName: "arrow.right")
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.iumrahPrimaryButtonText)
+            .padding(.horizontal, 16)
+            .frame(height: 52)
+            .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        }
+        .padding(18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 27, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 27, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+    }
+
+    private func bookingStatusReceiptCard(
+        _ receipt: IumrahPaymentReceipt?,
+        checkout: IumrahCheckoutResponse?,
+        session: StoredBookingSession,
+        paymentReceived: Bool
+    ) -> some View {
+        let cardNumber = bookingReceiptCardNumber(receipt, checkout: checkout)
+        let holder = bookingReceiptHolder(receipt, checkout: checkout)
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 13) {
+                IumrahIconBadge(
+                    systemName: receipt?.reviewStatus == "approved" ? "checkmark.seal.fill" : (paymentReceived || receipt != nil ? "clock.badge.checkmark.fill" : "creditcard.fill"),
+                    role: receipt?.reviewStatus == "approved" ? .success : .payment,
+                    size: 50,
+                    symbolSize: 19,
+                    cornerRadius: 16
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(localized("Чек об оплате", "Payment receipt", "To‘lov cheki", "Тўлов чеки"))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    Text(bookingReceiptStatus(receipt, paymentReceived: paymentReceived))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if let receipt, let date = createdDateText(receipt.createdAt) {
+                        Text(date)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+
+            if receipt != nil || paymentReceived {
+                Divider().overlay(Color.primary.opacity(0.05))
+
+                VStack(spacing: 9) {
+                    bookingReceiptFact(
+                        localized("Бронирование", "Booking", "Bron", "Брон"),
+                        session.displayBookingNumber
+                    )
+                    if let traveler = bookingReceiptTravelerName(checkout, session: session) {
+                        bookingReceiptFact(localized("Паломник", "Pilgrim", "Ziyoratchi", "Зиёратчи"), traveler)
+                    }
+                    if let receipt {
+                        bookingReceiptFact(
+                            localized("Способ оплаты", "Payment method", "To‘lov usuli", "Тўлов усули"),
+                            bookingReceiptPaymentMethod(receipt.paymentMethod)
+                        )
+                    }
+                    if let cardNumber, !cardNumber.isEmpty {
+                        bookingReceiptFact(
+                            localized("Номер карты", "Card number", "Karta raqami", "Карта рақами"),
+                            groupedPaymentCard(cardNumber)
+                        )
+                    }
+                    if let holder, !holder.isEmpty {
+                        bookingReceiptFact(localized("Получатель", "Recipient", "Qabul qiluvchi", "Қабул қилувчи"), holder)
+                    }
+                    bookingReceiptFact(localized("Платформа", "Platform", "Platforma", "Платформа"), "Iumrah")
+                    bookingReceiptFact(
+                        localized("Ответственное лицо", "Responsible team", "Mas’ul jamoa", "Масъул жамоа"),
+                        "Iumrah Booking Operations"
+                    )
+                }
+
+                Label(
+                    localized(
+                        "После подтверждения оплаты Iumrah отвечает за оформление и передачу авиабилета. Условия возврата и изменений зависят от тарифа авиакомпании.",
+                        "After payment confirmation, Iumrah is responsible for issuing and delivering the airline ticket. Refund and change conditions follow the airline fare rules.",
+                        "To‘lov tasdiqlangach, aviachiptani rasmiylashtirish va yetkazish uchun Iumrah javob beradi. Qaytarish va o‘zgartirish shartlari aviakompaniya tarifiga bog‘liq.",
+                        "Тўлов тасдиқлангач, авиачиптани расмийлаштириш ва етказиш учун Iumrah жавоб беради. Қайтариш ва ўзгартириш шартлари авиакомпания тарифига боғлиқ."
+                    ),
+                    systemImage: "shield.checkered"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.uturn.backward.circle.fill")
+                    Text(localized("Открыть чек и политику возврата", "Open receipt & refund policy", "Chek va qaytarish siyosatini ochish", "Чек ва қайтариш сиёсатини очиш"))
+                    Spacer(minLength: 6)
+                    Image(systemName: "arrow.up.right")
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+            }
+        }
+        .padding(14)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func bookingReceiptFact(_ title: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .multilineTextAlignment(.trailing)
+                .textSelection(.enabled)
+        }
+    }
+
+    private func bookingReceiptTravelerName(_ checkout: IumrahCheckoutResponse?, session: StoredBookingSession) -> String? {
+        if let primary = checkout?.travelers.sorted(by: { $0.position < $1.position }).first {
+            let name = [primary.firstName, primary.middleName, primary.lastName]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            if !name.isEmpty { return name }
+        }
+        let fallback = session.travelerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return fallback.isEmpty ? nil : fallback
+    }
+
+    private func bookingReceiptCardNumber(_ receipt: IumrahPaymentReceipt?, checkout: IumrahCheckoutResponse?) -> String? {
+        guard let receipt, let checkout else { return nil }
+        switch receipt.paymentMethod {
+        case "humo": return checkout.payment.humoCardNumber
+        case "visa": return checkout.payment.visaCardNumber
+        default: return nil
+        }
+    }
+
+    private func bookingReceiptHolder(_ receipt: IumrahPaymentReceipt?, checkout: IumrahCheckoutResponse?) -> String? {
+        guard let receipt, let checkout else { return nil }
+        switch receipt.paymentMethod {
+        case "humo": return checkout.payment.humoHolder
+        case "visa": return checkout.payment.visaHolder
+        default: return nil
+        }
+    }
+
+    private func bookingReceiptPaymentMethod(_ value: String) -> String {
+        switch value.lowercased() {
+        case "payme": return "PayMe"
+        case "humo": return "Humo"
+        case "visa": return "Visa"
+        default: return localized("Другой", "Other", "Boshqa", "Бошқа")
+        }
+    }
+
+    private func groupedPaymentCard(_ value: String) -> String {
+        let compact = value.replacingOccurrences(of: " ", with: "")
+        guard !compact.isEmpty else { return value }
+        return stride(from: 0, to: compact.count, by: 4).map { offset in
+            let start = compact.index(compact.startIndex, offsetBy: offset)
+            let end = compact.index(start, offsetBy: min(4, compact.distance(from: start, to: compact.endIndex)))
+            return String(compact[start..<end])
+        }.joined(separator: " ")
+    }
+
+    @ViewBuilder
+    private func bookingStatusDocumentRow(
+        kind: String,
+        title: String,
+        icon: String,
+        documents: [IumrahTravelDocument],
+        session: StoredBookingSession,
+        preparationStarted: Bool
+    ) -> some View {
+        if let document = documents.first(where: { $0.documentKind == kind }) {
+            NavigationLink {
+                PilgrimCheckoutView(bookingID: session.id)
+            } label: {
+                bookingStatusReadyDocumentRow(document, title: title, icon: icon)
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 13) {
+                IumrahIconBadge(systemName: icon, role: .document, size: 50, symbolSize: 19, cornerRadius: 16)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(preparationStarted
+                         ? localized("Готовится · появится здесь автоматически", "Being prepared · it will appear here automatically", "Tayyorlanmoqda · shu yerda avtomatik chiqadi", "Тайёрланмоқда · шу ерда автоматик чиқади")
+                         : localized("Появится после подтверждения оплаты", "Appears after payment confirmation", "To‘lov tasdiqlangach chiqadi", "Тўлов тасдиқлангач чиқади"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                if preparationStarted {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "clock")
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(14)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+    }
+
+    private func bookingStatusReadyDocumentRow(_ document: IumrahTravelDocument, title: String, icon: String) -> some View {
+        HStack(spacing: 13) {
+            IumrahIconBadge(systemName: "checkmark.circle.fill", role: .success, size: 50, symbolSize: 19, cornerRadius: 16)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(localized("Готов · доступен в документах", "Ready · available in documents", "Tayyor · hujjatlarda mavjud", "Тайёр · ҳужжатларда мавжуд"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let reference = document.bookingReference?.trimmingCharacters(in: .whitespacesAndNewlines), !reference.isEmpty {
+                    Text(localized("Код бронирования: ", "Booking code: ", "Bron kodi: ", "Брон коди: ") + reference)
+                        .font(.caption2.monospaced().weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(14)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func bookingReceiptStatus(_ receipt: IumrahPaymentReceipt?, paymentReceived: Bool) -> String {
+        guard let receipt else {
+            return paymentReceived
+                ? localized("Оплата получена · подтверждаем", "Payment received · confirming", "To‘lov qabul qilindi · tasdiqlanmoqda", "Тўлов қабул қилинди · тасдиқланмоқда")
+                : localized("Ожидаем чек оплаты", "Waiting for payment receipt", "To‘lov cheki kutilmoqda", "Тўлов чеки кутилмоқда")
+        }
+        switch receipt.reviewStatus {
+        case "approved":
+            return localized("Платёж подтверждён", "Payment verified", "To‘lov tasdiqlandi", "Тўлов тасдиқланди")
+        case "rejected":
+            return localized("Нужно загрузить новый чек", "A new receipt is required", "Yangi chek yuklash kerak", "Янги чек юклаш керак")
+        default:
+            return localized("Чек получен · проверяем оплату", "Receipt received · verifying payment", "Chek qabul qilindi · to‘lov tekshirilmoqda", "Чек қабул қилинди · тўлов текширилмоқда")
+        }
+    }
+
+    private func shouldPreferStatusPanel(_ session: StoredBookingSession) -> Bool {
+        if session.paymentReceivedAt != nil { return true }
+        return ["PAID", "BOOKING_CONFIRMED", "DOCUMENTS_READY", "READY_TO_TRAVEL", "IN_TRIP", "COMPLETED"].contains(session.effectiveStatus.uppercased())
     }
 
     private func processStep(
@@ -816,9 +956,10 @@ struct BookingsHomeView: View {
                         .fill(tint)
                         .frame(width: 34, height: 34)
                     if session.effectiveStatus.uppercased() == "AVAILABILITY_CHECK" {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(activeNodeForeground(for: session.effectiveStatus))
+                        Image(systemName: "hourglass")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(activeNodeForeground(for: session.effectiveStatus))
+                            .symbolEffect(.pulse, options: .repeating)
                     } else {
                         Image(systemName: IumrahBookingStatusVisual.symbol(for: session.effectiveStatus))
                             .font(.system(size: 14, weight: .bold))
@@ -840,21 +981,6 @@ struct BookingsHomeView: View {
             }
 
             lifecycleTimerPanel(session, tint: tint)
-
-            if session.effectiveStatus.uppercased() == "AVAILABILITY_CHECK" {
-                Label(localized(
-                    "Пока мы проверяем наличие, заполните данные и паспорт каждого паломника. После подтверждения вы сможете сразу перейти к оплате.",
-                    "While availability is being checked, fill in each pilgrim’s details and passport. Once confirmed, you can move straight to payment.",
-                    "Mavjudlik tekshirilayotganda har bir ziyoratchining ma’lumotlari va pasportini to‘ldiring. Tasdiqlangach darhol to‘lovga o‘tishingiz mumkin.",
-                    "Мавжудлик текширилаётганда ҳар бир зиёратчининг маълумотлари ва паспортини тўлдиринг. Тасдиқлангач дарҳол тўловга ўтишингиз мумкин."
-                ), systemImage: "lightbulb.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.yellow.opacity(0.13), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            }
 
             Divider()
                 .overlay(Color.primary.opacity(0.05))
@@ -883,7 +1009,7 @@ struct BookingsHomeView: View {
             }
 
             NavigationLink {
-                activeActionDestination(for: session)
+                BookingDetailView(bookingID: session.id)
             } label: {
                 HStack(spacing: 10) {
                     Text(activeActionTitle(for: session))
@@ -895,27 +1021,6 @@ struct BookingsHomeView: View {
                 .padding(.horizontal, 17)
                 .frame(height: 53)
                 .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                IumrahHaptics.selection()
-                withAnimation(.snappy(duration: 0.28)) {
-                    bookingPanel = .booking
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "rectangle.grid.1x2.fill")
-                    Text(localized("Перейти к бронированию", "Go to booking", "Bron bo‘limiga o‘tish", "Брон бўлимига ўтиш"))
-                    Spacer()
-                    Image(systemName: "arrow.right")
-                }
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 17)
-                .frame(height: 51)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.7) }
             }
             .buttonStyle(.plain)
         }
@@ -981,7 +1086,9 @@ struct BookingsHomeView: View {
         case "NEW", "AVAILABILITY_CHECK":
             let deadline = lifecycleDeadline(
                 explicit: session.availabilityDeadlineAt,
-                start: session.availabilityStartedAt ?? session.booking.createdAt,
+                start: session.availabilityStartedAt
+                    ?? session.latestStatusTimestamp(matching: ["availability_check", "new"])
+                    ?? session.booking.createdAt,
                 duration: 6 * 60 * 60
             )
             return .availability(deadline)
@@ -996,14 +1103,18 @@ struct BookingsHomeView: View {
             }
             let deadline = lifecycleDeadline(
                 explicit: session.priceLockExpiresAt,
-                start: session.priceLockStartedAt ?? session.latestStatusTimestamp(matching: ["payment_pending"]) ?? session.booking.updatedAt,
+                start: session.priceLockStartedAt
+                    ?? session.latestStatusTimestamp(matching: ["payment_pending"])
+                    ?? session.booking.updatedAt,
                 duration: 30 * 60
             )
             return .priceLock(deadline)
         case "PAID", "BOOKING_CONFIRMED":
             let deadline = lifecycleDeadline(
                 explicit: session.documentsDeadlineAt,
-                start: session.documentsStartedAt ?? session.latestStatusTimestamp(matching: ["booking_confirmed", "paid"]) ?? session.booking.updatedAt,
+                start: session.documentsStartedAt
+                    ?? session.latestStatusTimestamp(matching: ["booking_confirmed", "paid"])
+                    ?? session.booking.updatedAt,
                 duration: 24 * 60 * 60
             )
             return .documents(deadline)
@@ -1835,9 +1946,9 @@ struct BookingsHomeView: View {
         case 2:
             raw = session.priceLockStartedAt ?? transitionDate("payment_pending", session: session)
         case 3:
-            raw = session.documentsStartedAt ?? session.latestStatusTimestamp(matching: ["booking_confirmed", "paid"])
+            raw = session.documentsStartedAt ?? transitionDate("booking_confirmed", session: session)
         case 4:
-            raw = session.latestStatusTimestamp(matching: ["documents_ready", "ready_to_travel"])
+            raw = transitionDate("ready_to_travel", session: session)
         case 5:
             raw = transitionDate("in_trip", session: session)
         case 6:
@@ -1876,31 +1987,17 @@ struct BookingsHomeView: View {
 
     private func activeActionTitle(for session: StoredBookingSession) -> String {
         switch session.effectiveStatus.uppercased() {
-        case "NEW", "AVAILABILITY_CHECK":
-            return localized("Заполнить данные заранее", "Fill in details now", "Ma’lumotlarni oldindan to‘ldirish", "Маълумотларни олдиндан тўлдириш")
         case "PAYMENT_PENDING":
             if session.paymentReceivedAt != nil {
                 return localized("Открыть статус оплаты", "Open payment status", "To‘lov holatini ochish", "Тўлов ҳолатини очиш")
             }
-            return localized("Заполнить данные и оплатить", "Complete details and pay", "Ma’lumotlarni to‘ldirish va to‘lash", "Маълумотларни тўлдириш ва тўлаш")
-        case "PAID", "BOOKING_CONFIRMED":
-            return localized("Посмотреть чек и документы", "View receipt and documents", "Chek va hujjatlarni ko‘rish", "Чек ва ҳужжатларни кўриш")
+            return localized("Продолжить оплату", "Continue to payment", "To‘lovni davom ettirish", "Тўловни давом эттириш")
         case "READY_TO_TRAVEL", "DOCUMENTS_READY":
             return localized("Открыть документы", "Open documents", "Hujjatlarni ochish", "Ҳужжатларни очиш")
         case "IN_TRIP":
             return localized("Открыть поездку", "Open trip", "Safarni ochish", "Сафарни очиш")
         default:
             return openBookingTitle
-        }
-    }
-
-    @ViewBuilder
-    private func activeActionDestination(for session: StoredBookingSession) -> some View {
-        switch session.effectiveStatus.uppercased() {
-        case "NEW", "AVAILABILITY_CHECK", "PAYMENT_PENDING", "PAID", "BOOKING_CONFIRMED", "DOCUMENTS_READY", "READY_TO_TRAVEL":
-            PilgrimCheckoutView(bookingID: session.id)
-        default:
-            BookingDetailView(bookingID: session.id)
         }
     }
 

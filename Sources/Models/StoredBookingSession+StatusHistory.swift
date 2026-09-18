@@ -1,3 +1,4 @@
-// Status-history behavior now lives directly on StoredBookingSession in
-// BookingModels.swift so decoding, persistence and lifecycle fallbacks share
-// one model contract.
+import Foundation
+
+// Status-history lifecycle helpers now live on StoredBookingSession in
+// BookingModels.swift so decoding, persistence and UI fallbacks share one contract.

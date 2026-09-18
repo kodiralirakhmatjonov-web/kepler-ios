@@ -695,6 +695,12 @@ struct PilgrimCheckoutView: View {
 
             VStack(spacing: 9) {
                 receiptFact(tr("Booking", "Бронирование", "Bron", "Брон"), session?.displayBookingNumber ?? "—")
+                if let traveler = receiptTravelerName(checkout) {
+                    receiptFact(tr("Pilgrim", "Паломник", "Ziyoratchi", "Зиёратчи"), traveler)
+                }
+                if let total = session?.booking.totalUsd {
+                    receiptFact(tr("Booking total", "Сумма бронирования", "Bron summasi", "Брон суммаси"), receiptMoney(total))
+                }
                 receiptFact(tr("Payment method", "Способ оплаты", "To‘lov usuli", "Тўлов усули"), paymentTitle(receipt.paymentMethod))
                 if !number.isEmpty { receiptFact(tr("Card number", "Номер карты", "Karta raqami", "Карта рақами"), groupedCard(number)) }
                 if !holder.isEmpty { receiptFact(tr("Recipient", "Получатель", "Qabul qiluvchi", "Қабул қилувчи"), holder) }
@@ -740,6 +746,27 @@ struct PilgrimCheckoutView: View {
         }
         .padding(16)
         .background(Color.iumrahRaisedBackground.opacity(0.72), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func receiptTravelerName(_ checkout: IumrahCheckoutResponse) -> String? {
+        let fallback = session?.travelerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard let primary = checkout.travelers.sorted(by: { $0.position < $1.position }).first else {
+            return fallback.isEmpty ? nil : fallback
+        }
+        let value = [primary.firstName, primary.middleName, primary.lastName]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        if !value.isEmpty { return value }
+        return fallback.isEmpty ? nil : fallback
+    }
+
+    private func receiptMoney(_ amount: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.maximumFractionDigits = amount.rounded() == amount ? 0 : 2
+        return formatter.string(from: NSNumber(value: amount)) ?? "$\(amount)"
     }
 
     private func receiptFact(_ title: String, _ value: String) -> some View {
