@@ -113,6 +113,7 @@ struct IumrahTravelerForm: Codable, Identifiable, Hashable {
     var id: Int { position }
     let position: Int
     let travelerType: String
+    var relationship: String?
     var firstName: String
     var middleName: String
     var lastName: String
@@ -135,6 +136,7 @@ struct IumrahTravelerForm: Codable, Identifiable, Hashable {
 }
 
 struct IumrahTravelerSaveRequest: Encodable {
+    let relationship: String?
     let firstName: String
     let middleName: String
     let lastName: String
@@ -154,6 +156,7 @@ struct IumrahTravelerSaveRequest: Encodable {
     let emergencyRelation: String
 
     init(_ form: IumrahTravelerForm) {
+        relationship = form.relationship
         firstName = form.firstName
         middleName = form.middleName
         lastName = form.lastName
@@ -207,6 +210,7 @@ struct IumrahTravelDocument: Codable, Identifiable, Hashable {
     let contentType: String
     let createdAt: String
     let url: String
+    let bookingReference: String?
 }
 
 struct IumrahCheckoutResponse: Decodable {
@@ -355,7 +359,7 @@ struct IumrahAccountTripDetailResponse: Decodable {
     let booking: RemoteBooking
     let assignment: ClientBookingAssignment?
     let esims: [ClientESIMProfile]?
-    let statusHistory: [BookingStatusHistoryEntry]?
+    let statusHistory: [ClientBookingStatusHistory]?
 }
 
 struct IumrahAccountLinkBookingRequest: Encodable {

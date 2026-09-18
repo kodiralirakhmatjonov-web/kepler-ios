@@ -2,6 +2,12 @@ import Foundation
 import SwiftUI
 
 struct BookingsHomeView: View {
+    private enum BookingPanel: String, CaseIterable, Identifiable {
+        case booking
+        case status
+        var id: String { rawValue }
+    }
+
     private enum BookingScope: String, CaseIterable, Identifiable {
         case active
         case past
@@ -12,12 +18,17 @@ struct BookingsHomeView: View {
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var account: IumrahAccountStore
 
     @State private var pendingDeleteID: String?
     @State private var deleteError: String?
     @State private var showZiyarats = false
     @State private var showCareRequestBuilder = false
     @State private var bookingScope: BookingScope = .active
+    @State private var bookingPanel: BookingPanel = .booking
+    @State private var activeCheckout: IumrahCheckoutResponse?
+
+    private let accountService = IumrahAccountService()
 
     private var activeSessions: [StoredBookingSession] {
         bookings.sessions.filter { session in
@@ -48,13 +59,18 @@ struct BookingsHomeView: View {
                 pastBookingsHome
             }
         }
-        .refreshable { await bookings.refreshAll() }
+        .refreshable {
+            await bookings.refreshAll()
+            await loadActiveCheckout()
+        }
         .task {
             await bookings.refreshAll()
+            await loadActiveCheckout()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
                 guard !Task.isCancelled else { break }
                 await bookings.refreshAll()
+                await loadActiveCheckout()
             }
         }
         .confirmationDialog(
@@ -109,20 +125,31 @@ struct BookingsHomeView: View {
                 )
                 .padding(.bottom, 18)
 
+                bookingPanelPicker
+                    .padding(.bottom, 12)
+
                 bookingScopePicker
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 24)
 
                 bookingIdentity(session)
-                    .padding(.bottom, 38)
+                    .padding(.bottom, 28)
 
-                bookingProgress(session)
-                    .padding(.bottom, 38)
+                if bookingPanel == .booking {
+                    bookingTimerOverview(session)
+                        .padding(.bottom, 28)
 
-                tripPlanPreview(session)
-                    .padding(.bottom, 34)
+                    bookingActionCenter(session, checkout: activeCheckout)
+                        .padding(.bottom, 34)
 
-                tripManagement(session)
-                    .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
+                    tripPlanPreview(session)
+                        .padding(.bottom, 34)
+
+                    tripManagement(session)
+                        .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
+                } else {
+                    bookingProgress(session)
+                        .padding(.bottom, 38)
+                }
 
                 if activeSessions.count > 1 {
                     otherTrips(excluding: session.id)
@@ -215,6 +242,140 @@ struct BookingsHomeView: View {
         .background(Color.iumrahRaisedBackground, in: Capsule())
     }
 
+    private var bookingPanelPicker: some View {
+        Picker(localized("Раздел бронирования", "Booking section", "Bron bo‘limi", "Брон бўлими"), selection: $bookingPanel) {
+            Text(localized("Бронирование", "Booking", "Bron", "Брон")).tag(BookingPanel.booking)
+            Text(localized("Статус бронирования", "Booking status", "Bron holati", "Брон ҳолати")).tag(BookingPanel.status)
+        }
+        .pickerStyle(.segmented)
+        .onChange(of: bookingPanel) { _, _ in IumrahHaptics.selection() }
+    }
+
+    @ViewBuilder
+    private func bookingTimerOverview(_ session: StoredBookingSession) -> some View {
+        if lifecyclePhase(for: session) != nil {
+            VStack(alignment: .leading, spacing: 15) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            .fill(IumrahBookingStatusVisual.color(for: session.effectiveStatus).opacity(0.12))
+                            .frame(width: 48, height: 48)
+                        if ["AVAILABILITY_CHECK", "PAYMENT_PENDING", "BOOKING_CONFIRMED"].contains(session.effectiveStatus.uppercased()) {
+                            ProgressView()
+                                .tint(IumrahBookingStatusVisual.color(for: session.effectiveStatus))
+                        } else {
+                            Image(systemName: "clock.fill")
+                                .foregroundStyle(IumrahBookingStatusVisual.color(for: session.effectiveStatus))
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(localized("Работа идёт", "Work is in progress", "Jarayon davom etmoqda", "Жараён давом этмоқда"))
+                            .font(.headline)
+                        Text(localized("Вы можете закрыть приложение — статус обновится автоматически.", "You can close the app — the status will update automatically.", "Ilovani yopishingiz mumkin — holat avtomatik yangilanadi.", "Иловани ёпишингиз мумкин — ҳолат автоматик янгиланади."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                lifecycleTimerPanel(session, tint: IumrahBookingStatusVisual.color(for: session.effectiveStatus))
+            }
+            .padding(18)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7) }
+        }
+    }
+
+    private func bookingActionCenter(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
+        let completed = checkout?.travelers.filter(\.completed).count ?? 0
+        let total = checkout?.travelers.count ?? session.booking.input.travelers.totalPeople
+        let receiptReady = !(checkout?.receipts.isEmpty ?? true)
+        let documentCount = checkout?.documents.count ?? 0
+
+        return VStack(alignment: .leading, spacing: 15) {
+            sectionHeader(title: localized("Что нужно сделать", "What to do next", "Keyingi qadamlar", "Кейинги қадамлар"), trailing: nil)
+            Text(localized("Открывайте карточки по порядку. Все введённые данные сохраняются в бронировании.", "Open the cards in order. Everything you enter is saved with the booking.", "Kartalarni ketma-ket oching. Kiritilgan ma’lumotlar bronda saqlanadi.", "Карталарни кетма-кет очинг. Киритилган маълумотлар бронда сақланади."))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            NavigationLink { IumrahSecurityConfirmationView(bookingID: session.id) } label: {
+                bookingActionCard(
+                    icon: "person.text.rectangle.fill",
+                    role: .security,
+                    title: "KYC · iumrah Security",
+                    body: localized("Подтвердите личность владельца бронирования.", "Confirm the booking holder’s identity.", "Bron egasining shaxsini tasdiqlang.", "Брон эгасининг шахсини тасдиқланг."),
+                    action: localized("Проверить личность", "Confirm identity", "Shaxsni tasdiqlash", "Шахсни тасдиқлаш"),
+                    ready: false
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink { PilgrimCheckoutView(bookingID: session.id) } label: {
+                bookingActionCard(
+                    icon: "person.2.fill",
+                    role: .profile,
+                    title: localized("Кто едет с Вами", "Who is traveling with you", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"),
+                    body: localized("Заполнено анкет: \(completed) из \(total). Можно заполнить заранее во время проверки наличия.", "Forms completed: \(completed) of \(total). You can fill them in while availability is checked.", "To‘ldirilgan anketalar: \(completed)/\(total). Mavjudlik tekshirilayotganda oldindan to‘ldirish mumkin.", "Тўлдирилган анкеталар: \(completed)/\(total). Мавжудлик текширилаётганда олдиндан тўлдириш мумкин."),
+                    action: completed == total && total > 0 ? localized("Проверить анкеты", "Review forms", "Anketalarni tekshirish", "Анкеталарни текшириш") : localized("Заполнить анкеты", "Complete forms", "Anketalarni to‘ldirish", "Анкеталарни тўлдириш"),
+                    ready: completed == total && total > 0
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink { PilgrimCheckoutView(bookingID: session.id) } label: {
+                bookingActionCard(
+                    icon: "creditcard.fill",
+                    role: .payment,
+                    title: localized("Оплата", "Payment", "To‘lov", "Тўлов"),
+                    body: session.effectiveStatus.uppercased() == "AVAILABILITY_CHECK"
+                        ? localized("Пока ничего оплачивать не нужно. Оплата откроется после подтверждения наличия.", "No payment is needed yet. It will open after availability is confirmed.", "Hozircha to‘lov kerak emas. Mavjudlik tasdiqlangach ochiladi.", "Ҳозирча тўлов керак эмас. Мавжудлик тасдиқлангач очилади.")
+                        : (receiptReady ? localized("Чек получен и сохранён в бронировании.", "The receipt is received and saved with the booking.", "Chek qabul qilindi va bronda saqlandi.", "Чек қабул қилинди ва бронда сақланди.") : localized("Оплатите по реквизитам и прикрепите чек.", "Pay using the provided details and attach the receipt.", "Rekvizitlar bo‘yicha to‘lang va chekni biriktiring.", "Реквизитлар бўйича тўланг ва чекни бириктиринг.")),
+                    action: receiptReady ? localized("Открыть чек", "Open receipt", "Chekni ochish", "Чекни очиш") : localized("Перейти к оплате", "Go to payment", "To‘lovga o‘tish", "Тўловга ўтиш"),
+                    ready: receiptReady
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink { PilgrimCheckoutView(bookingID: session.id) } label: {
+                bookingActionCard(
+                    icon: "doc.on.doc.fill",
+                    role: .document,
+                    title: localized("Документы поездки", "Travel documents", "Safar hujjatlari", "Сафар ҳужжатлари"),
+                    body: documentCount > 0 ? localized("Готово документов: \(documentCount). Каждый файл доступен отдельно.", "Documents ready: \(documentCount). Each file is available separately.", "Tayyor hujjatlar: \(documentCount). Har biri alohida ochiladi.", "Тайёр ҳужжатлар: \(documentCount). Ҳар бири алоҳида очилади.") : localized("После оплаты здесь появятся авиабилет, отель и остальные готовые документы.", "After payment, your ticket, hotel confirmation and other documents will appear here.", "To‘lovdan keyin aviachipta, mehmonxona tasdig‘i va boshqa hujjatlar shu yerda chiqadi.", "Тўловдан кейин авиачипта, меҳмонхона тасдиғи ва бошқа ҳужжатлар шу ерда чиқади."),
+                    action: localized("Посмотреть документы", "View documents", "Hujjatlarni ko‘rish", "Ҳужжатларни кўриш"),
+                    ready: documentCount > 0
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func bookingActionCard(icon: String, role: IumrahIconRole, title: String, body: String, action: String, ready: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack(alignment: .top, spacing: 13) {
+                IumrahIconBadge(systemName: ready ? "checkmark.circle.fill" : icon, role: ready ? .success : role, size: 54, symbolSize: 21, cornerRadius: 18)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title).font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(.primary)
+                    Text(body).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            HStack {
+                Text(action)
+                Spacer()
+                Image(systemName: "arrow.right")
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.iumrahPrimaryButtonText)
+            .padding(.horizontal, 16)
+            .frame(height: 50)
+            .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        }
+        .padding(17)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7) }
+    }
+
     // MARK: - Booking progress
 
     private func bookingProgress(_ session: StoredBookingSession) -> some View {
@@ -293,13 +454,11 @@ struct BookingsHomeView: View {
                         .foregroundStyle(future ? Color(uiColor: .secondaryLabel) : Color.primary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if !future, let timestamp = lifecycleStageTimestamp(index: index, session: session, isCancelled: isCancelled),
-                       let formatted = createdDateText(timestamp) {
-                        Text(formatted)
+                    if let date = statusDateText(for: index, current: current, session: session, isCancelled: isCancelled) {
+                        Text(date)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
-
                     if active {
                         Text(activeStageSubtitle(session, fallback: effectiveStage.activeSubtitle))
                             .font(.subheadline)
@@ -340,9 +499,16 @@ struct BookingsHomeView: View {
                     Circle()
                         .fill(tint)
                         .frame(width: 34, height: 34)
-                    Image(systemName: IumrahBookingStatusVisual.symbol(for: session.effectiveStatus))
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(activeNodeForeground(for: session.effectiveStatus))
+                    if session.effectiveStatus.uppercased() == "AVAILABILITY_CHECK" {
+                        Image(systemName: "hourglass")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(activeNodeForeground(for: session.effectiveStatus))
+                            .symbolEffect(.pulse, options: .repeating)
+                    } else {
+                        Image(systemName: IumrahBookingStatusVisual.symbol(for: session.effectiveStatus))
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(activeNodeForeground(for: session.effectiveStatus))
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -464,9 +630,7 @@ struct BookingsHomeView: View {
         case "NEW", "AVAILABILITY_CHECK":
             let deadline = lifecycleDeadline(
                 explicit: session.availabilityDeadlineAt,
-                start: session.availabilityStartedAt
-                    ?? session.latestStatusTimestamp(matching: ["availability_check", "new"])
-                    ?? session.booking.createdAt,
+                start: session.availabilityStartedAt ?? session.booking.createdAt,
                 duration: 6 * 60 * 60
             )
             return .availability(deadline)
@@ -481,49 +645,17 @@ struct BookingsHomeView: View {
             }
             let deadline = lifecycleDeadline(
                 explicit: session.priceLockExpiresAt,
-                start: session.priceLockStartedAt
-                    ?? session.latestStatusTimestamp(matching: ["payment_pending"])
-                    ?? session.booking.updatedAt,
+                start: session.priceLockStartedAt ?? transitionDate("payment_pending", session: session) ?? session.booking.updatedAt,
                 duration: 30 * 60
             )
             return .priceLock(deadline)
         case "PAID", "BOOKING_CONFIRMED":
             let deadline = lifecycleDeadline(
                 explicit: session.documentsDeadlineAt,
-                start: session.documentsStartedAt
-                    ?? session.latestStatusTimestamp(matching: ["booking_confirmed", "paid"])
-                    ?? session.booking.updatedAt,
+                start: session.documentsStartedAt ?? transitionDate("booking_confirmed", session: session) ?? session.booking.updatedAt,
                 duration: 24 * 60 * 60
             )
             return .documents(deadline)
-        default:
-            return nil
-        }
-    }
-
-    private func lifecycleStageTimestamp(index: Int, session: StoredBookingSession, isCancelled: Bool) -> String? {
-        if index == 0 { return session.booking.createdAt }
-        if isCancelled && index == 1 {
-            return session.latestStatusTimestamp(matching: ["cancelled"]) ?? session.booking.updatedAt
-        }
-
-        switch index {
-        case 1:
-            return session.availabilityStartedAt
-                ?? session.latestStatusTimestamp(matching: ["availability_check", "new"])
-                ?? session.booking.createdAt
-        case 2:
-            return session.priceLockStartedAt
-                ?? session.latestStatusTimestamp(matching: ["payment_pending"])
-        case 3:
-            return session.documentsStartedAt
-                ?? session.latestStatusTimestamp(matching: ["booking_confirmed", "paid"])
-        case 4:
-            return session.latestStatusTimestamp(matching: ["ready_to_travel", "documents_ready"])
-        case 5:
-            return session.latestStatusTimestamp(matching: ["in_trip"])
-        case 6:
-            return session.latestStatusTimestamp(matching: ["completed"])
         default:
             return nil
         }
@@ -1292,6 +1424,16 @@ struct BookingsHomeView: View {
     }
 
     @MainActor
+    private func loadActiveCheckout() async {
+        guard let session = activeSession else {
+            activeCheckout = nil
+            return
+        }
+        let headers = account.authorizationHeaders(bookingToken: session.accessToken)
+        activeCheckout = try? await accountService.checkout(bookingID: session.id, authorizationHeaders: headers)
+    }
+
+    @MainActor
     private func deleteBooking(_ id: String) async {
         do {
             try await bookings.deleteBooking(id: id)
@@ -1322,6 +1464,36 @@ struct BookingsHomeView: View {
         formatter.locale = Locale(identifier: settings.language.localeIdentifier)
         formatter.dateFormat = "d MMM · HH:mm"
         return formatter.string(from: date)
+    }
+
+    private func transitionDate(_ status: String, session: StoredBookingSession) -> String? {
+        session.orderedStatusHistory.last(where: { $0.newStatus.lowercased() == status.lowercased() })?.createdAt
+    }
+
+    private func statusDateText(for index: Int, current: Int, session: StoredBookingSession, isCancelled: Bool) -> String? {
+        guard index <= current else { return nil }
+        let raw: String?
+        switch index {
+        case 0:
+            raw = session.booking.createdAt
+        case 1:
+            raw = isCancelled
+                ? transitionDate("cancelled", session: session)
+                : (session.availabilityStartedAt ?? transitionDate("availability_check", session: session) ?? session.booking.createdAt)
+        case 2:
+            raw = session.priceLockStartedAt ?? transitionDate("payment_pending", session: session)
+        case 3:
+            raw = session.documentsStartedAt ?? transitionDate("booking_confirmed", session: session)
+        case 4:
+            raw = transitionDate("ready_to_travel", session: session)
+        case 5:
+            raw = transitionDate("in_trip", session: session)
+        case 6:
+            raw = transitionDate("completed", session: session)
+        default:
+            raw = nil
+        }
+        return raw.flatMap(createdDateText)
     }
 
     private func formatPrice(_ amount: Double) -> String {

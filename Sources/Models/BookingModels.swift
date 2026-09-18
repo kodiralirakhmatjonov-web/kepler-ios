@@ -228,19 +228,18 @@ struct BookingItineraryResponse: Decodable {
     let items: [BookingItineraryItem]
 }
 
-struct BookingStatusHistoryEntry: Codable, Hashable {
-    let oldStatus: String?
-    let newStatus: String
-    let changedBy: String?
-    let createdAt: String
-}
-
 struct ClientTripResponse: Decodable {
     let ok: Bool?
     let trip: ClientTripSnapshot
     let assignment: ClientBookingAssignment?
     let esims: [ClientESIMProfile]?
-    let statusHistory: [BookingStatusHistoryEntry]?
+    let statusHistory: [ClientBookingStatusHistory]?
+}
+
+struct ClientBookingStatusHistory: Codable, Hashable {
+    let oldStatus: String?
+    let newStatus: String
+    let createdAt: String
 }
 
 struct ClientESIMProfile: Codable, Identifiable, Hashable {
@@ -311,7 +310,9 @@ struct ClientTripSnapshot: Decodable, Hashable {
     let confirmationNumber: String?
     let startDate: String?
     let endDate: String?
+    let createdAt: String?
     let updatedAt: String?
+    let completedAt: String?
     let availabilityStartedAt: String?
     let availabilityDeadlineAt: String?
     let priceLockStartedAt: String?
@@ -350,12 +351,12 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var paymentConfirmationDeadlineAt: String? = nil
     var documentsStartedAt: String? = nil
     var documentsDeadlineAt: String? = nil
-    var statusHistory: [BookingStatusHistoryEntry]? = nil
+    var statusHistory: [ClientBookingStatusHistory]? = nil
     /// Opaque encrypted server quote retained only until the Business pricing report
     /// has been committed. It contains no client-readable supplier pricing.
     var pendingGeneratorQuoteProof: String? = nil
 
-    mutating func mergeOperationalTrip(_ trip: ClientTripSnapshot) {
+    mutating func mergeOperationalTrip(_ trip: ClientTripSnapshot, statusHistory: [ClientBookingStatusHistory]? = nil) {
         operationStatus = trip.status
         pilgrimID = trip.pilgrimID ?? pilgrimID
         bookingNumber = trip.bookingNumber ?? bookingNumber
@@ -368,19 +369,11 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
         paymentConfirmationDeadlineAt = trip.paymentConfirmationDeadlineAt
         documentsStartedAt = trip.documentsStartedAt
         documentsDeadlineAt = trip.documentsDeadlineAt
+        if let statusHistory { self.statusHistory = statusHistory }
     }
 
-    mutating func mergeOperationalStatusHistory(_ history: [BookingStatusHistoryEntry]?) {
-        guard let history else { return }
-        statusHistory = history
-    }
-
-    func latestStatusTimestamp(matching statuses: Set<String>) -> String? {
-        let normalized = Set(statuses.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
-        return statusHistory?
-            .filter { normalized.contains($0.newStatus.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) }
-            .max(by: { $0.createdAt < $1.createdAt })?
-            .createdAt
+    var orderedStatusHistory: [ClientBookingStatusHistory] {
+        (statusHistory ?? []).sorted { $0.createdAt < $1.createdAt }
     }
 
     var displayPilgrimID: String? {

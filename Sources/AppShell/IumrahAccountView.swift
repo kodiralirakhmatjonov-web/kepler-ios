@@ -58,6 +58,7 @@ struct IumrahAccountView: View {
                             activeTripCard(active)
                         }
                         tripsSection
+                        travelCompanionsSection
                         paymentSecuritySection
                         profileSection(profile)
                         settingsSection
@@ -557,6 +558,38 @@ struct IumrahAccountView: View {
             }
         }
         .iumrahCard()
+    }
+
+    private var travelCompanionsSection: some View {
+        NavigationLink {
+            IumrahTravelCompanionsView()
+        } label: {
+            VStack(alignment: .leading, spacing: 15) {
+                HStack(alignment: .top, spacing: 13) {
+                    IumrahIconBadge(systemName: "person.2.fill", role: .profile, size: 50, symbolSize: 20, cornerRadius: 17)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(tr("Who is traveling with you", "Кто едет с Вами", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"))
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(tr("Your family and loved ones", "Ваша семья и близкие", "Oilangiz va yaqinlaringiz", "Оилангиз ва яқинларингиз"))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 17)
+                }
+
+                Text(tr("Keep each traveler’s passport details in a separate, clear card and reuse them for the booking.", "Храните данные каждого участника в отдельной понятной карточке и используйте их в бронировании.", "Har bir sayohatchi ma’lumotini alohida kartada saqlang va bronda ishlating.", "Ҳар бир саёҳатчи маълумотини алоҳида картада сақланг ва бронда ишлатинг."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .iumrahCard()
+        }
+        .buttonStyle(.plain)
     }
 
     private func profileSection(_ profile: IumrahAccountProfile) -> some View {
