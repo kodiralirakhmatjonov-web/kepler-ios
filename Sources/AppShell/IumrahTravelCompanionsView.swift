@@ -10,6 +10,7 @@ struct IumrahTravelCompanionsView: View {
     @State private var errorMessage: String?
 
     private let service = IumrahAccountService()
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 18) {
@@ -24,6 +25,7 @@ struct IumrahTravelCompanionsView: View {
                         travelerCard(item)
                     }
                 }
+
                 if let errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                         .font(.footnote)
@@ -41,6 +43,7 @@ struct IumrahTravelCompanionsView: View {
         .refreshable { await loadTravelers() }
         .task { await loadTravelers() }
     }
+
     private var introCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 13) {
@@ -54,6 +57,7 @@ struct IumrahTravelCompanionsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+
             Label(
                 tr("You can fill in passport details while availability is being checked.", "Паспортные данные можно заполнить заранее, пока мы проверяем наличие.", "Mavjudlik tekshirilayotganda pasport ma’lumotlarini oldindan to‘ldirishingiz mumkin.", "Мавжудлик текширилаётганда паспорт маълумотларини олдиндан тўлдиришингиз мумкин."),
                 systemImage: "lightbulb.fill"
@@ -66,6 +70,7 @@ struct IumrahTravelCompanionsView: View {
         }
         .iumrahCard()
     }
+
     private var loadingCard: some View {
         HStack(spacing: 14) {
             ProgressView()
@@ -81,6 +86,7 @@ struct IumrahTravelCompanionsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
     }
+
     private var emptyCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             IumrahIconBadge(systemName: "person.crop.circle.badge.plus", role: .profile, size: 52, symbolSize: 22, cornerRadius: 17)
@@ -94,10 +100,12 @@ struct IumrahTravelCompanionsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
     }
+
     private func travelerCard(_ item: TravelerItem) -> some View {
         let traveler = item.traveler
         let title = travelerName(traveler)
         let complete = traveler.completed && traveler.hasPassport
+
         return VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 13) {
@@ -127,6 +135,7 @@ struct IumrahTravelCompanionsView: View {
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(complete ? .green : .orange)
                 }
+
                 VStack(spacing: 10) {
                     factRow(
                         icon: "person.text.rectangle.fill",
@@ -141,6 +150,7 @@ struct IumrahTravelCompanionsView: View {
                 }
             }
             .padding(20)
+
             NavigationLink {
                 PilgrimCheckoutView(bookingID: item.bookingID)
             } label: {
@@ -165,6 +175,7 @@ struct IumrahTravelCompanionsView: View {
         }
         .shadow(color: .black.opacity(0.045), radius: 18, y: 8)
     }
+
     private func factRow(icon: String, title: String, value: String) -> some View {
         HStack(spacing: 11) {
             Image(systemName: icon)
@@ -180,13 +191,12 @@ struct IumrahTravelCompanionsView: View {
                 .multilineTextAlignment(.trailing)
         }
     }
+
     private var travelers: [TravelerItem] {
         bookings.sessions.flatMap { session in
             let checkout = checkouts[session.id]
             return (checkout?.travelers ?? []).map {
-                // BookingInput has no `hotelName`; the normalized booking model stores
-                // the selected Makkah hotel in `hotelNames`.
-                TravelerItem(bookingID: session.id, tripTitle: session.booking.hotelNames.makkah, traveler: $0)
+                TravelerItem(bookingID: session.id, tripTitle: session.booking.input.hotelName, traveler: $0)
             }
         }
         .sorted {
@@ -194,12 +204,14 @@ struct IumrahTravelCompanionsView: View {
             return $0.tripTitle < $1.tripTitle
         }
     }
+
     @MainActor
     private func loadTravelers() async {
         guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
+
         var loaded: [String: IumrahCheckoutResponse] = [:]
         for session in bookings.sessions {
             do {
@@ -216,6 +228,7 @@ struct IumrahTravelCompanionsView: View {
             errorMessage = tr("Travelers could not be loaded. Pull down to try again.", "Не удалось загрузить участников. Потяните экран вниз, чтобы повторить.", "Sayohatchilarni yuklab bo‘lmadi. Qayta urinish uchun pastga torting.", "Саёҳатчиларни юклаб бўлмади. Қайта уриниш учун пастга тортинг.")
         }
     }
+
     private func travelerName(_ traveler: IumrahTravelerForm) -> String {
         let value = [traveler.firstName, traveler.middleName, traveler.lastName]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -223,6 +236,7 @@ struct IumrahTravelCompanionsView: View {
             .joined(separator: " ")
         return value.isEmpty ? tr("Traveler \(traveler.position)", "Участник \(traveler.position)", "Sayohatchi \(traveler.position)", "Саёҳатчи \(traveler.position)") : value
     }
+
     private func relationshipTitle(_ value: String?, position: Int) -> String {
         switch value?.lowercased() {
         case "self": return tr("You", "Вы", "Siz", "Сиз")
@@ -237,6 +251,7 @@ struct IumrahTravelCompanionsView: View {
         default: return position == 1 ? tr("You", "Вы", "Siz", "Сиз") : tr("Traveler", "Участник поездки", "Sayohatchi", "Саёҳатчи")
         }
     }
+
     private func relationshipIcon(_ value: String?) -> String {
         switch value?.lowercased() {
         case "self": return "person.fill"
@@ -248,11 +263,13 @@ struct IumrahTravelCompanionsView: View {
         default: return "person.crop.circle.fill"
         }
     }
+
     private func maskedPassport(_ value: String) -> String {
         let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard cleaned.count > 4 else { return cleaned.isEmpty ? tr("Added", "Добавлен", "Qo‘shilgan", "Қўшилган") : cleaned }
         return "•••• \(cleaned.suffix(4))"
     }
+
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .russian: return ru

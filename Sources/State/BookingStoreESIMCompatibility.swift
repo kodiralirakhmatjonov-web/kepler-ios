@@ -27,7 +27,13 @@ extension ClientTripResponse {
     /// Source-compatible initializer for call sites created before `esims`
     /// became part of ClientTripResponse.
     init(ok: Bool?, trip: ClientTripSnapshot, assignment: ClientBookingAssignment?) {
-        self.init(ok: ok, trip: trip, assignment: assignment, esims: nil)
+        self.init(
+            ok: ok,
+            trip: trip,
+            assignment: assignment,
+            esims: nil,
+            statusHistory: nil
+        )
     }
 }
 
