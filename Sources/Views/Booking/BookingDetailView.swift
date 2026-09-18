@@ -1,11 +1,25 @@
 import SwiftUI
 
+enum BookingDetailSection: String, CaseIterable, Identifiable {
+    case booking
+    case status
+
+    var id: String { rawValue }
+}
+
 struct BookingDetailView: View {
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var account: IumrahAccountStore
     @Environment(\.dismiss) private var dismiss
 
     let bookingID: String
+    let initialSection: BookingDetailSection
+
+    @State private var selectedSection: BookingDetailSection
+    @State private var statusCheckout: IumrahCheckoutResponse?
+    @State private var statusCheckoutLoading = false
+    @State private var statusCheckoutError: String?
 
     @State private var outboundExpanded = false
     @State private var inboundExpanded = false
@@ -40,7 +54,14 @@ struct BookingDetailView: View {
     @State private var securityConfirmation: IumrahSecurityConfirmation?
 
     private let bookingService = BookingService()
+    private let accountService = IumrahAccountService()
     private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
+
+    init(bookingID: String, initialSection: BookingDetailSection = .booking) {
+        self.bookingID = bookingID
+        self.initialSection = initialSection
+        _selectedSection = State(initialValue: initialSection)
+    }
 
     var body: some View {
         Group {
@@ -57,18 +78,15 @@ struct BookingDetailView: View {
                         .frame(height: 0)
 
                         VStack(spacing: 16) {
+                            bookingSectionPicker
+
+                            if selectedSection == .booking {
                             IumrahBookingDomeCard(
                                 bookingNumber: session.displayBookingNumber,
                                 travelerName: bookingTravelerName(session),
                                 language: settings.language,
                                 isFlipped: $bookingCardFlipped
                             )
-                            statusHero(session)
-                            if shouldShowCheckoutEntry(for: session) {
-                                IumrahManualPaymentNotice()
-                                IumrahRefundPolicyCard(component: .package, compact: true)
-                                IumrahInvoiceShareCard(session: session, compact: true)
-                            }
                             bookingMetaCard(session.booking)
                             if session.booking.perPilgrimUsd >= 1800 {
                                 bookingCareBalanceCard
@@ -116,6 +134,9 @@ struct BookingDetailView: View {
 
                             careAction
                             destructiveActions
+                            } else {
+                                bookingStatusContent(session)
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, IumrahDesign.pagePadding)
@@ -157,6 +178,17 @@ struct BookingDetailView: View {
                         await loadSecurityConfirmation()
                         loadZiyaratDraft()
                         loadESIMDraft()
+                    }
+                    .task(id: selectedSection) {
+                        guard selectedSection == .status else { return }
+                        await loadStatusCheckout()
+                        while !Task.isCancelled {
+                            try? await Task.sleep(for: .seconds(30))
+                            guard !Task.isCancelled, selectedSection == .status else { break }
+                            await bookings.refreshAll()
+                            await loadStatusCheckout()
+                            await loadSecurityConfirmation()
+                        }
                     }
                     .sheet(isPresented: $showMakkahHotelChange) {
                         BookingHotelChangeView(bookingID: bookingID, role: .makkah)
@@ -265,7 +297,7 @@ struct BookingDetailView: View {
     }
 
     private func updateBookingPull(translation: CGFloat) {
-        guard !showFullscreenBookingCard else { return }
+        guard selectedSection == .booking, !showFullscreenBookingCard else { return }
 
         if !bookingPullGestureDecisionMade {
             bookingPullGestureDecisionMade = true
@@ -393,6 +425,426 @@ struct BookingDetailView: View {
         .ignoresSafeArea()
     }
 
+    private var bookingSectionPicker: some View {
+        Picker(bookingSectionAccessibilityTitle, selection: $selectedSection) {
+            Text(localized("Бронирование", "Booking", "Bron", "Брон"))
+                .tag(BookingDetailSection.booking)
+            Text(localized("Статус бронирования", "Booking status", "Bron holati", "Брон ҳолати"))
+                .tag(BookingDetailSection.status)
+        }
+        .pickerStyle(.segmented)
+        .onChange(of: selectedSection) { _, newValue in
+            bookingPullTranslation = 0
+            bookingPullArmed = false
+            if newValue == .status {
+                Task { await loadStatusCheckout() }
+            }
+        }
+    }
+
+    private var bookingSectionAccessibilityTitle: String {
+        localized("Раздел бронирования", "Booking section", "Bron bo‘limi", "Брон бўлими")
+    }
+
+    @ViewBuilder
+    private func bookingStatusContent(_ session: StoredBookingSession) -> some View {
+        let status = session.effectiveStatus.uppercased()
+
+        VStack(spacing: 16) {
+            statusHero(session)
+
+            if statusCheckoutLoading && statusCheckout == nil {
+                statusLoadingCard
+            }
+
+            switch status {
+            case "NEW", "AVAILABILITY_CHECK":
+                availabilityStatusActions(session)
+            case "PAYMENT_PENDING":
+                if session.paymentReceivedAt != nil || statusCheckout?.receipts.first != nil {
+                    paymentReviewStatus(session)
+                } else {
+                    paymentPendingStatusActions(session)
+                }
+            case "PAID", "BOOKING_CONFIRMED":
+                paymentConfirmedStatus(session)
+                documentsStatusCard(session, title: localized("Документы готовятся", "Documents are being prepared", "Hujjatlar tayyorlanmoqda", "Ҳужжатлар тайёрланмоқда"))
+            case "DOCUMENTS_READY", "READY_TO_TRAVEL":
+                readyToTravelStatus(session)
+                documentsStatusCard(session, title: localized("Ваши документы", "Your documents", "Hujjatlaringiz", "Ҳужжатларингиз"))
+            case "IN_TRIP":
+                inTripStatus(session)
+                documentsStatusCard(session, title: localized("Документы поездки", "Trip documents", "Safar hujjatlari", "Сафар ҳужжатлари"))
+            case "COMPLETED":
+                completedStatus(session)
+                documentsStatusCard(session, title: localized("Документы поездки", "Trip documents", "Safar hujjatlari", "Сафар ҳужжатлари"))
+            case "CANCELLED":
+                cancelledStatus(session)
+            default:
+                genericStatusCard(session)
+            }
+
+            if let statusCheckoutError, statusCheckout == nil {
+                Label(statusCheckoutError, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var statusLoadingCard: some View {
+        HStack(spacing: 13) {
+            ProgressView()
+            VStack(alignment: .leading, spacing: 3) {
+                Text(localized("Обновляем статус", "Updating status", "Holat yangilanmoqda", "Ҳолат янгиланмоқда"))
+                    .font(.subheadline.weight(.semibold))
+                Text(localized("Получаем актуальные данные бронирования.", "Fetching the latest booking details.", "Bronning eng so‘nggi ma’lumotlari olinmoqda.", "Броннинг энг сўнгги маълумотлари олинмоқда."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func availabilityStatusActions(_ session: StoredBookingSession) -> some View {
+        let travelers = statusCheckout?.travelers ?? []
+        let ready = travelers.filter { $0.completed && $0.hasPassport }.count
+        let total = max(session.booking.input.travelers.totalPeople, travelers.count)
+        let progress = total > 0 ? "\(ready)/\(total)" : "—"
+
+        return statusActionCard(
+            icon: "person.2.fill",
+            role: .profile,
+            eyebrow: localized("Можно подготовить заранее", "You can prepare in advance", "Oldindan tayyorlash mumkin", "Олдиндан тайёрлаш мумкин"),
+            title: localized("Кто едет с Вами", "Who is traveling with you", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"),
+            body: localized(
+                "Пока мы проверяем наличие, заполните паспортные данные паломников. После подтверждения брони они уже будут сохранены и повторно вводить их не придётся.",
+                "While we check availability, complete the pilgrims’ passport details. They will already be saved when the booking is confirmed, so you will not need to enter them again.",
+                "Mavjudlikni tekshirayotganimizda ziyoratchilarning pasport ma’lumotlarini to‘ldiring. Bron tasdiqlanganda ular saqlangan bo‘ladi va qayta kiritish shart emas.",
+                "Мавжудликни текшираётганимизда зиёратчиларнинг паспорт маълумотларини тўлдиринг. Брон тасдиқланганда улар сақланган бўлади ва қайта киритиш шарт эмас."
+            ),
+            meta: localized("Готово: \(progress)", "Ready: \(progress)", "Tayyor: \(progress)", "Тайёр: \(progress)"),
+            action: ready == total && total > 0
+                ? localized("Проверить данные", "Review details", "Ma’lumotlarni tekshirish", "Маълумотларни текшириш")
+                : localized("Заполнить данные", "Complete details", "Ma’lumotlarni to‘ldirish", "Маълумотларни тўлдириш"),
+            destination: AnyView(PilgrimCheckoutView(bookingID: session.id))
+        )
+    }
+
+    @ViewBuilder
+    private func paymentPendingStatusActions(_ session: StoredBookingSession) -> some View {
+        let travelers = statusCheckout?.travelers ?? []
+        let expected = max(session.booking.input.travelers.totalPeople, travelers.count)
+        let readyTravelers = travelers.filter { $0.completed && $0.hasPassport }.count
+        let travelersReady = expected > 0 && readyTravelers >= expected
+        let identityReady = securityConfirmation?.isConfirmed == true
+
+        VStack(alignment: .leading, spacing: 14) {
+            statusSectionHeader(
+                localized("Что нужно сделать сейчас", "What you need to do now", "Hozir nima qilish kerak", "Ҳозир нима қилиш керак"),
+                subtitle: localized("Показываем только незавершённые действия.", "Only unfinished actions are shown.", "Faqat tugallanmagan amallar ko‘rsatiladi.", "Фақат тугалланмаган амаллар кўрсатилади.")
+            )
+
+            if !identityReady {
+                statusActionCard(
+                    icon: securityConfirmationIcon,
+                    role: .security,
+                    eyebrow: localized("Шаг 1", "Step 1", "1-qadam", "1-қадам"),
+                    title: securityConfirmationDisplayTitle,
+                    body: localized("Подтвердите владельца бронирования в iumrah Security.", "Confirm the booking owner in iumrah Security.", "Bron egasini iumrah Security orqali tasdiqlang.", "Брон эгасини iumrah Security орқали тасдиқланг."),
+                    meta: nil,
+                    action: localized("Открыть iumrah Security", "Open iumrah Security", "iumrah Security’ni ochish", "iumrah Security’ни очиш"),
+                    destination: AnyView(IumrahSecurityConfirmationView(bookingID: bookingID).environmentObject(settings).environmentObject(bookings))
+                )
+            }
+
+            if !travelersReady {
+                statusActionCard(
+                    icon: "person.text.rectangle.fill",
+                    role: .profile,
+                    eyebrow: identityReady ? localized("Следующий шаг", "Next step", "Keyingi qadam", "Кейинги қадам") : localized("Шаг 2", "Step 2", "2-qadam", "2-қадам"),
+                    title: localized("Данные паломников", "Pilgrim details", "Ziyoratchilar ma’lumotlari", "Зиёратчилар маълумотлари"),
+                    body: localized("Заполните только данные, необходимые для авиабилета и отеля.", "Complete only the details required for the flight and hotel.", "Faqat aviachipta va mehmonxona uchun kerakli ma’lumotlarni to‘ldiring.", "Фақат авиачипта ва меҳмонхона учун керакли маълумотларни тўлдиринг."),
+                    meta: localized("Готово: \(readyTravelers)/\(expected)", "Ready: \(readyTravelers)/\(expected)", "Tayyor: \(readyTravelers)/\(expected)", "Тайёр: \(readyTravelers)/\(expected)"),
+                    action: localized("Заполнить данные", "Complete details", "Ma’lumotlarni to‘ldirish", "Маълумотларни тўлдириш"),
+                    destination: AnyView(PilgrimCheckoutView(bookingID: session.id))
+                )
+            }
+
+            statusActionCard(
+                icon: "creditcard.fill",
+                role: .payment,
+                eyebrow: localized("Оплата", "Payment", "To‘lov", "Тўлов"),
+                title: localized("Оплатить и прикрепить чек", "Pay and attach the receipt", "To‘lash va chekni biriktirish", "Тўлаш ва чекни бириктириш"),
+                body: localized("После отправки чека реквизиты исчезнут со страницы статуса — останется только проверка оплаты.", "After you submit the receipt, payment details disappear from the status page and only verification remains.", "Chek yuborilgach to‘lov rekvizitlari status sahifasidan yo‘qoladi va faqat tekshiruv qoladi.", "Чек юборилгач тўлов реквизитлари статус саҳифасидан йўқолади ва фақат текширув қолади."),
+                meta: nil,
+                action: localized("Перейти к оплате", "Continue to payment", "To‘lovga o‘tish", "Тўловга ўтиш"),
+                destination: AnyView(PilgrimCheckoutView(bookingID: session.id))
+            )
+        }
+    }
+
+    private func paymentReviewStatus(_ session: StoredBookingSession) -> some View {
+        let receipt = statusCheckout?.receipts.first
+        return statusActionCard(
+            icon: "checkmark.seal.fill",
+            role: .payment,
+            eyebrow: localized("Чек получен", "Receipt received", "Chek qabul qilindi", "Чек қабул қилинди"),
+            title: localized("Проверяем оплату", "Verifying payment", "To‘lov tekshirilmoqda", "Тўлов текширилмоқда"),
+            body: localized("Вам ничего делать не нужно. Мы проверим платёж и автоматически обновим статус бронирования.", "You do not need to do anything. We will verify the payment and update the booking status automatically.", "Sizdan hech qanday amal talab qilinmaydi. To‘lovni tekshirib, bron holatini avtomatik yangilaymiz.", "Сиздан ҳеч қандай амал талаб қилинмайди. Тўловни текшириб, брон ҳолатини автоматик янгилаймиз."),
+            meta: receipt.map { statusReceiptMeta($0) },
+            action: localized("Открыть чек", "Open receipt", "Chekni ochish", "Чекни очиш"),
+            destination: AnyView(PilgrimCheckoutView(bookingID: session.id))
+        )
+    }
+
+    private func paymentConfirmedStatus(_ session: StoredBookingSession) -> some View {
+        statusInfoCard(
+            icon: "checkmark.circle.fill",
+            role: .success,
+            title: localized("Оплата подтверждена", "Payment confirmed", "To‘lov tasdiqlandi", "Тўлов тасдиқланди"),
+            body: localized("Бронирование оплачено. Сейчас команда готовит и выдаёт документы по мере их готовности.", "The booking is paid. The team is now preparing and issuing documents as each one becomes ready.", "Bron to‘langan. Endi jamoa hujjatlarni tayyorlaydi va har biri tayyor bo‘lishi bilan chiqaradi.", "Брон тўланган. Энди жамоа ҳужжатларни тайёрлайди ва ҳар бири тайёр бўлиши билан чиқаради.")
+        )
+    }
+
+    private func readyToTravelStatus(_ session: StoredBookingSession) -> some View {
+        statusInfoCard(
+            icon: "checkmark.seal.fill",
+            role: .success,
+            title: localized("Бронирование готово", "Booking is ready", "Bron tayyor", "Брон тайёр"),
+            body: localized("Основные документы поездки готовы. Откройте нужный документ ниже перед поездкой.", "The main trip documents are ready. Open any document you need below before travel.", "Safarning asosiy hujjatlari tayyor. Safardan oldin kerakli hujjatni quyidan oching.", "Сафарнинг асосий ҳужжатлари тайёр. Сафардан олдин керакли ҳужжатни қуйидан очинг.")
+        )
+    }
+
+    private func inTripStatus(_ session: StoredBookingSession) -> some View {
+        statusInfoCard(
+            icon: "location.fill",
+            role: .location,
+            title: localized("Вы в поездке", "You are on your trip", "Siz safardasiz", "Сиз сафардасиз"),
+            body: localized("Все выданные документы остаются доступны здесь на протяжении поездки.", "All issued documents remain available here throughout the trip.", "Berilgan barcha hujjatlar safar davomida shu yerda qoladi.", "Берилган барча ҳужжатлар сафар давомида шу ерда қолади.")
+        )
+    }
+
+    private func completedStatus(_ session: StoredBookingSession) -> some View {
+        statusInfoCard(
+            icon: "checkmark.circle.fill",
+            role: .success,
+            title: localized("Поездка завершена", "Trip completed", "Safar yakunlandi", "Сафар якунланди"),
+            body: localized("Спасибо, что путешествовали с iumrah. Документы поездки остаются доступны ниже.", "Thank you for traveling with iumrah. Your trip documents remain available below.", "iumrah bilan safar qilganingiz uchun rahmat. Safar hujjatlari quyida saqlanadi.", "iumrah билан сафар қилганингиз учун раҳмат. Сафар ҳужжатлари қуйида сақланади.")
+        )
+    }
+
+    private func cancelledStatus(_ session: StoredBookingSession) -> some View {
+        statusInfoCard(
+            icon: "xmark.circle.fill",
+            role: .destructive,
+            title: localized("Бронирование отменено", "Booking cancelled", "Bron bekor qilindi", "Брон бекор қилинди"),
+            body: localized("Если у Вас есть вопросы по оплате или возврату, обратитесь в iumrah Care.", "If you have questions about payment or refunds, contact iumrah Care.", "To‘lov yoki qaytarish bo‘yicha savollaringiz bo‘lsa, iumrah Care bilan bog‘laning.", "Тўлов ёки қайтариш бўйича саволларингиз бўлса, iumrah Care билан боғланинг.")
+        )
+    }
+
+    private func genericStatusCard(_ session: StoredBookingSession) -> some View {
+        statusInfoCard(
+            icon: statusIcon(session.effectiveStatus),
+            role: IumrahBookingStatusVisual.role(for: session.effectiveStatus),
+            title: L10n.status(session.effectiveStatus, settings.language),
+            body: localized("Статус обновляется автоматически.", "The status updates automatically.", "Holat avtomatik yangilanadi.", "Ҳолат автоматик янгиланади.")
+        )
+    }
+
+    private func statusSectionHeader(_ title: String, subtitle: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 23, weight: .bold, design: .rounded))
+            if let subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func statusActionCard(
+        icon: String,
+        role: IumrahIconRole,
+        eyebrow: String,
+        title: String,
+        body: String,
+        meta: String?,
+        action: String,
+        destination: AnyView
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 13) {
+                IumrahIconBadge(systemName: icon, role: role, size: 52, symbolSize: 20, cornerRadius: 17)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(eyebrow)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(title)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text(body)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let meta {
+                        Text(meta)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 2)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+
+            NavigationLink(destination: destination) {
+                HStack(spacing: 10) {
+                    Text(action)
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.iumrahPrimaryButtonText)
+                .padding(.horizontal, 17)
+                .frame(height: 54)
+                .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+        }
+    }
+
+    private func statusInfoCard(icon: String, role: IumrahIconRole, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 13) {
+            IumrahIconBadge(systemName: icon, role: role, size: 50, symbolSize: 19, cornerRadius: 16)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                Text(body)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+        }
+    }
+
+    private func documentsStatusCard(_ session: StoredBookingSession, title: String) -> some View {
+        let documents = statusCheckout?.documents ?? []
+        return VStack(alignment: .leading, spacing: 14) {
+            statusSectionHeader(title, subtitle: localized("Готовые документы появляются по одному сразу после выдачи.", "Ready documents appear one by one as soon as they are issued.", "Tayyor hujjatlar berilishi bilan bittadan paydo bo‘ladi.", "Тайёр ҳужжатлар берилиши билан биттадан пайдо бўлади."))
+
+            statusDocumentRow(kind: "ticket", title: localized("Авиабилет", "Airline ticket", "Aviachipta", "Авиачипта"), icon: "airplane", documents: documents, bookingID: session.id)
+            statusDocumentRow(kind: "voucher", title: localized("Подтверждение отеля", "Hotel confirmation", "Mehmonxona tasdig‘i", "Меҳмонхона тасдиғи"), icon: "building.2.fill", documents: documents, bookingID: session.id)
+            statusDocumentRow(kind: "visa", title: localized("Виза", "Visa", "Viza", "Виза"), icon: "checkmark.seal.fill", documents: documents, bookingID: session.id)
+            statusDocumentRow(kind: "insurance", title: localized("Страховка", "Insurance", "Sug‘urta", "Суғурта"), icon: "cross.case.fill", documents: documents, bookingID: session.id)
+
+            ForEach(documents.filter { !["ticket", "voucher", "visa", "insurance"].contains($0.documentKind.lowercased()) }) { document in
+                statusDocumentReadyRow(document, fallbackTitle: document.title, icon: "doc.fill", bookingID: session.id)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func statusDocumentRow(kind: String, title: String, icon: String, documents: [IumrahTravelDocument], bookingID: String) -> some View {
+        if let document = documents.first(where: { $0.documentKind.lowercased() == kind }) {
+            statusDocumentReadyRow(document, fallbackTitle: title, icon: icon, bookingID: bookingID)
+        } else {
+            HStack(spacing: 13) {
+                IumrahIconBadge(systemName: icon, role: .travel, size: 46, symbolSize: 18, cornerRadius: 15)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(localized("Готовится", "Preparing", "Tayyorlanmoqda", "Тайёрланмоқда"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                ProgressView()
+                    .controlSize(.small)
+            }
+            .padding(15)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+    }
+
+    private func statusDocumentReadyRow(_ document: IumrahTravelDocument, fallbackTitle: String, icon: String, bookingID: String) -> some View {
+        NavigationLink {
+            PilgrimCheckoutView(bookingID: bookingID)
+        } label: {
+            HStack(spacing: 13) {
+                IumrahIconBadge(systemName: "checkmark.circle.fill", role: .success, size: 46, symbolSize: 18, cornerRadius: 15)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(document.title.isEmpty ? fallbackTitle : document.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    if let reference = document.bookingReference?.trimmingCharacters(in: .whitespacesAndNewlines), !reference.isEmpty {
+                        Text(localized("Код: \(reference)", "Reference: \(reference)", "Kod: \(reference)", "Код: \(reference)"))
+                            .font(.caption.monospaced().weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(localized("Готово", "Ready", "Tayyor", "Тайёр"))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.green)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(15)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func statusReceiptMeta(_ receipt: IumrahPaymentReceipt) -> String {
+        let status: String
+        switch receipt.reviewStatus.lowercased() {
+        case "approved": status = localized("Подтверждено", "Approved", "Tasdiqlandi", "Тасдиқланди")
+        case "rejected": status = localized("Нужна проверка", "Needs attention", "Tekshirish kerak", "Текшириш керак")
+        default: status = localized("На проверке", "Under review", "Tekshiruvda", "Текширувда")
+        }
+        return status
+    }
+
+    @MainActor
+    private func loadStatusCheckout() async {
+        guard let session else { return }
+        if statusCheckout == nil { statusCheckoutLoading = true }
+        defer { statusCheckoutLoading = false }
+        do {
+            let headers = account.authorizationHeaders(bookingToken: session.accessToken)
+            statusCheckout = try await accountService.checkout(bookingID: session.id, authorizationHeaders: headers)
+            statusCheckoutError = nil
+        } catch {
+            if statusCheckout == nil {
+                statusCheckoutError = localized("Не удалось обновить данные. Потяните экран вниз и попробуйте ещё раз.", "Could not refresh the data. Pull down and try again.", "Ma’lumotlarni yangilab bo‘lmadi. Pastga tortib qayta urinib ko‘ring.", "Маълумотларни янгилаб бўлмади. Пастга тортиб қайта уриниб кўринг.")
+            }
+        }
+    }
+
     private var topBar: some View {
         HStack(spacing: 12) {
             Button {
@@ -457,14 +909,26 @@ struct BookingDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                IumrahIconBadge(
-                    systemName: statusIcon(session.effectiveStatus),
-                    role: IumrahBookingStatusVisual.role(for: session.effectiveStatus),
-                    size: 52,
-                    symbolSize: 22,
-                    cornerRadius: 26,
-                    shape: .circle
-                )
+                if ["NEW", "AVAILABILITY_CHECK"].contains(session.effectiveStatus.uppercased()) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.orange.opacity(0.10))
+                            .frame(width: 52, height: 52)
+                        ProgressView()
+                            .controlSize(.regular)
+                            .tint(.orange)
+                    }
+                    .accessibilityLabel(localized("Проверяем наличие", "Checking availability", "Mavjudlik tekshirilmoqda", "Мавжудлик текширилмоқда"))
+                } else {
+                    IumrahIconBadge(
+                        systemName: statusIcon(session.effectiveStatus),
+                        role: IumrahBookingStatusVisual.role(for: session.effectiveStatus),
+                        size: 52,
+                        symbolSize: 22,
+                        cornerRadius: 26,
+                        shape: .circle
+                    )
+                }
             }
 
             Text(L10n.text("detail_updates", settings.language))
@@ -475,102 +939,6 @@ struct BookingDetailView: View {
                 lifecycleTimerCard(phase)
             }
 
-            if shouldShowCheckoutEntry(for: session) {
-                NavigationLink {
-                    IumrahSecurityConfirmationView(bookingID: bookingID)
-                        .environmentObject(settings)
-                        .environmentObject(bookings)
-                } label: {
-                    HStack(spacing: 13) {
-                        Image(systemName: securityConfirmationIcon)
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(securityConfirmation?.isConfirmed == true ? Color.green : Color.primary)
-                            .frame(width: 42, height: 42)
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(securityConfirmationDisplayTitle)
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(securityConfirmationSubtitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                        }
-
-                        Spacer(minLength: 8)
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous), interactive: true)
-                    .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink {
-                    PilgrimCheckoutView(bookingID: bookingID)
-                } label: {
-                    HStack(spacing: 13) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.white.opacity(0.14))
-                                .frame(width: 42, height: 42)
-
-                            Image(systemName: "person.text.rectangle.fill")
-                                .font(.system(size: 18, weight: .semibold))
-                        }
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(checkoutCTA)
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
-
-                            Text(checkoutCTASubtitle)
-                                .font(.caption)
-                                .foregroundStyle(Color.white.opacity(0.72))
-                                .lineLimit(2)
-                        }
-
-                        Spacer(minLength: 8)
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Color.white.opacity(0.88))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(Color.black)
-                    )
-                    .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(checkoutCTA)
-            } else if ["BOOKING_CONFIRMED", "READY_TO_TRAVEL", "IN_TRIP"].contains(session.effectiveStatus) {
-                NavigationLink {
-                    PilgrimCheckoutView(bookingID: bookingID)
-                } label: {
-                    HStack {
-                        Label(tripDocumentsTitle, systemImage: "doc.text.fill")
-                            .font(.subheadline.weight(.semibold))
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(.tertiary)
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 14)
-                    .frame(height: 50)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-                }
-                .buttonStyle(.plain)
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
