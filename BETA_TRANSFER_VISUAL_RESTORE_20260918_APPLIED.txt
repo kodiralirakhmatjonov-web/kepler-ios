@@ -1,0 +1,1 @@
+Restored original transparent transfer vehicle PNG assets and refined TransferSelectionView visual state transitions on 2026-09-18.

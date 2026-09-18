@@ -1,0 +1,10 @@
+{
+  "name": "iumrah-beta-update-20260918-transfer-visual-restore-v4",
+  "applies_over": "iumrah-beta-update-20260918-booking-care-transfer-v3.zip",
+  "changes": [
+    "Restore original transparent RGBA Kia Carnival, Chevrolet Malibu and GMC Yukon transfer assets from kepler-ios-main 4(5).zip",
+    "Force light transfer UI for Carnival/Malibu and dark transfer UI for Yukon",
+    "Keep the warm gradient only at the top under the iOS system area instead of across the middle of the matched-transfer screen",
+    "Smooth the white-to-black transfer theme transition when swiping to/from GMC Yukon"
+  ]
+}

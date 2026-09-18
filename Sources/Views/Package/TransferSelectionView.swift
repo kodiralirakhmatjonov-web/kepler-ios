@@ -55,16 +55,16 @@ struct TransferSelectionView: View {
             case .matched:
                 matchedExperience
                     .transition(.opacity.combined(with: .scale(scale: 0.985)))
-                    .environment(\.colorScheme, isVIP ? .dark : inheritedColorScheme)
+                    .environment(\.colorScheme, isVIP ? .dark : .light)
             }
         }
-        .background(transferPageBackground)
-        .animation(.easeInOut(duration: 0.48), value: isVIP)
+        .animation(.easeInOut(duration: 0.58), value: isVIP)
         .iumrahInternalNavigation(
             progress: .transfer,
             showsGeneratorAmbient: true,
             currentPriceText: currentPackagePriceTitle
         )
+        .background(transferPageBackground)
         .navigationDestination(isPresented: $showFinalPackage) {
             FinalPackageView()
         }
@@ -81,22 +81,35 @@ struct TransferSelectionView: View {
 
     private var transferPageBackground: some View {
         ZStack(alignment: .top) {
-            pageBackground
+            Color.white
                 .ignoresSafeArea()
 
-            LinearGradient(
-                colors: [Color(red: 0.97, green: 0.95, blue: 0.79), Color(red: 0.98, green: 0.98, blue: 0.94), .clear],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 280)
-            .opacity(isVIP ? 0 : 1)
-            .ignoresSafeArea(edges: .top)
+            Color.black
+                .opacity(discoveryPhase == .matched && isVIP ? 1 : 0)
+                .ignoresSafeArea()
+
+            if discoveryPhase == .matched {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.98, green: 0.96, blue: 0.82).opacity(0.88),
+                        Color(red: 0.99, green: 0.99, blue: 0.96).opacity(0.45),
+                        .clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(maxWidth: .infinity)
+                .frame(height: 165, alignment: .top)
+                .opacity(isVIP ? 0 : 1)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+            }
         }
+        .animation(.easeInOut(duration: 0.58), value: isVIP)
     }
 
     private var pageBackground: Color {
-        discoveryPhase == .matched && isVIP ? .black : .iumrahPageBackground
+        discoveryPhase == .matched && isVIP ? .black : .white
     }
 
     // MARK: - 30-second Apple Maps search
@@ -307,7 +320,7 @@ struct TransferSelectionView: View {
 
             ZStack {
                 RoundedRectangle(cornerRadius: 36, style: .continuous)
-                    .fill(isVIP ? Color.black : Color.iumrahCardBackground)
+                    .fill(isVIP ? Color.black : Color.white)
 
                 if isVIP {
                     RadialGradient(
@@ -1107,7 +1120,8 @@ private struct TransferVehicleHero: View {
             Image(vehicle.assetName)
                 .resizable()
                 .scaledToFit()
-                .padding(.horizontal, vehicle == .malibu ? 18 : 6)
+                .padding(.horizontal, vehicle == .malibu ? 16 : 4)
+                .shadow(color: .black.opacity(active ? (vehicle == .yukon ? 0.28 : 0.13) : 0), radius: 18, y: 10)
                 .accessibilityLabel(vehicle.modelName)
         }
         .padding(.horizontal, 4)
