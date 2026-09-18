@@ -115,6 +115,55 @@ struct IumrahAccountService {
         )
     }
 
+    /// Checkout accepts either the short-lived booking proof or the permanent account
+    /// session. Do not send both in the same request: some gateway versions prioritize
+    /// the bearer session and reject a still-valid booking proof when the two identities
+    /// are temporarily out of sync. Prefer the booking proof, then fall back to the
+    /// permanent account session only for authorization/not-found responses.
+    func checkout(
+        bookingID: String,
+        bookingToken: String?,
+        accountToken: String?
+    ) async throws -> IumrahCheckoutResponse {
+        let bookingToken = bookingToken?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let accountToken = accountToken?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        if !bookingToken.isEmpty {
+            do {
+                return try await checkout(
+                    bookingID: bookingID,
+                    authorizationHeaders: ["x-booking-token": bookingToken]
+                )
+            } catch {
+                guard !accountToken.isEmpty, checkoutMayRetryWithAccount(error) else { throw error }
+            }
+        }
+
+        if !accountToken.isEmpty {
+            return try await checkout(
+                bookingID: bookingID,
+                authorizationHeaders: ["Authorization": "Bearer \(accountToken)"]
+            )
+        }
+
+        throw APIError.missingBookingToken
+    }
+
+    private func checkoutMayRetryWithAccount(_ error: Error) -> Bool {
+        switch error {
+        case APIError.status(let code):
+            return code == 401 || code == 403 || code == 404
+        case APIError.server(let code, let message):
+            let normalized = message.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            return code == 401 || code == 403 || code == 404
+                || normalized.contains("UNAUTHORIZED")
+                || normalized.contains("BOOKING_NOT_FOUND")
+                || normalized.contains("BOOKING_PROOF_INVALID")
+        default:
+            return false
+        }
+    }
+
     func saveTraveler(bookingID: String, position: Int, form: IumrahTravelerForm, token: String) async throws -> IumrahTravelerForm {
         let value: IumrahTravelerSaveResponse = try await api.put(
             "/api/catalog/hotels/client/trips/\(bookingID)/travelers/\(position)",

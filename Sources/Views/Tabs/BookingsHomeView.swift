@@ -135,23 +135,25 @@ struct BookingsHomeView: View {
                     .padding(.bottom, 28)
 
                 if bookingPanel == .booking {
+                    bookingProgress(session)
+                        .padding(.bottom, 38)
+                } else {
                     bookingTimerOverview(session)
                         .padding(.bottom, 28)
 
                     bookingActionCenter(session, checkout: activeCheckout)
                         .padding(.bottom, 34)
 
+                    if shouldShowTravelReadyFlights(session) {
+                        bookingStatusFlights(session)
+                            .padding(.bottom, 34)
+                    }
+
                     tripPlanPreview(session)
                         .padding(.bottom, 34)
 
                     tripManagement(session)
                         .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
-                } else {
-                    bookingProgress(session)
-                        .padding(.bottom, 30)
-
-                    bookingStatusWorkspace(session)
-                        .padding(.bottom, 38)
                 }
 
                 if activeSessions.count > 1 {
@@ -313,9 +315,8 @@ struct BookingsHomeView: View {
             }
             .buttonStyle(.plain)
 
-            Button {
-                withAnimation(.snappy(duration: 0.28)) { bookingPanel = .status }
-                IumrahHaptics.selection()
+            NavigationLink {
+                PilgrimCheckoutView(bookingID: session.id)
             } label: {
                 bookingActionCard(
                     icon: "person.2.fill",
@@ -328,9 +329,8 @@ struct BookingsHomeView: View {
             }
             .buttonStyle(.plain)
 
-            Button {
-                withAnimation(.snappy(duration: 0.28)) { bookingPanel = .status }
-                IumrahHaptics.selection()
+            NavigationLink {
+                PilgrimCheckoutView(bookingID: session.id)
             } label: {
                 bookingActionCard(
                     icon: "creditcard.fill",
@@ -345,9 +345,8 @@ struct BookingsHomeView: View {
             }
             .buttonStyle(.plain)
 
-            Button {
-                withAnimation(.snappy(duration: 0.28)) { bookingPanel = .status }
-                IumrahHaptics.selection()
+            NavigationLink {
+                PilgrimCheckoutView(bookingID: session.id)
             } label: {
                 bookingActionCard(
                     icon: "doc.on.doc.fill",
@@ -1683,8 +1682,11 @@ struct BookingsHomeView: View {
             activeCheckout = nil
             return
         }
-        let headers = account.authorizationHeaders(bookingToken: session.accessToken)
-        activeCheckout = try? await accountService.checkout(bookingID: session.id, authorizationHeaders: headers)
+        activeCheckout = try? await accountService.checkout(
+            bookingID: session.id,
+            bookingToken: session.accessToken,
+            accountToken: account.bearerToken
+        )
     }
 
     @MainActor

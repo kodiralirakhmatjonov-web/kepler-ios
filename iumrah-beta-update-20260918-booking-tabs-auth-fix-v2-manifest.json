@@ -1,0 +1,37 @@
+{
+  "name": "iumrah-beta-update-20260918-booking-tabs-auth-fix-v2",
+  "base": "kepler-ios-main 4(5).zip",
+  "cumulative_from_v1": true,
+  "files": [
+    {
+      "path": "Sources/AppShell/IumrahTravelCompanionsView.swift",
+      "sha256": "89b76d04a81c64cb47eb4786874639baa7cc8ebaa7b4d146ce20b1fe1441c70a",
+      "bytes": 15387
+    },
+    {
+      "path": "Sources/Legal/IumrahInvoiceRenderer.swift",
+      "sha256": "1b54e79c15917a67202913c20b059b096416975af625d3f0c3fd0778a4ee2cbf",
+      "bytes": 39598
+    },
+    {
+      "path": "Sources/Services/IumrahAccountService.swift",
+      "sha256": "4b5632c848345fe06b026fdb7b53cb56ce8f35c6ea178ab36d78a1aec9ce0e88",
+      "bytes": 13322
+    },
+    {
+      "path": "Sources/Views/Booking/PilgrimCheckoutView.swift",
+      "sha256": "256d78da654ad64bec474f6a779793bc8601fd7a9a41a5684e32588578777e25",
+      "bytes": 116476
+    },
+    {
+      "path": "Sources/Views/Flights/IumrahFlightsView.swift",
+      "sha256": "f611577ab959126f3a41bf0cee962741c5872e193122fa1641485b253eafdef6",
+      "bytes": 53853
+    },
+    {
+      "path": "Sources/Views/Tabs/BookingsHomeView.swift",
+      "sha256": "d5067a95badb1904b4505b28744eceb58837fdc417ef83eea366348810d92837",
+      "bytes": 103810
+    }
+  ]
+}

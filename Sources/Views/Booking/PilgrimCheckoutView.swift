@@ -1352,8 +1352,11 @@ struct PilgrimCheckoutView: View {
         if showLoader { isLoading = true }
         defer { isLoading = false }
         do {
-            let headers = account.authorizationHeaders(bookingToken: session.accessToken)
-            let loaded = try await service.checkout(bookingID: bookingID, authorizationHeaders: headers)
+            let loaded = try await service.checkout(
+                bookingID: bookingID,
+                bookingToken: session.accessToken,
+                accountToken: account.bearerToken
+            )
             checkout = loaded
             errorMessage = nil
             let options = paymentOptions(loaded)
