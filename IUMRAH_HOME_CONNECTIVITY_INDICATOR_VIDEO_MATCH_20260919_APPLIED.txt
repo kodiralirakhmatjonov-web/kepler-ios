@@ -1,0 +1,2 @@
+Replaced the Home connectivity pill with the video-matched animated connectivity indicator component on 2026-09-19.
+The network source of truth remains IumrahConnectivityMonitor.

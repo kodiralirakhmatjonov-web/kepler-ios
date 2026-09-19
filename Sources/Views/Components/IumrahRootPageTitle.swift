@@ -34,7 +34,7 @@ struct IumrahRootPageTitle: View {
             Spacer(minLength: showsConnectivityStatus ? 4 : 8)
 
             if showsConnectivityStatus {
-                ConnectivityStatusPill(lightStyle: lightStyle)
+                IumrahAnimatedConnectivityIndicator(lightStyle: lightStyle)
                     .padding(.top, 6)
             }
 

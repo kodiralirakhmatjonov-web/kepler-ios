@@ -1,0 +1,17 @@
+{
+  "name": "iumrah-beta-update-20260919-home-connectivity-indicator-v5",
+  "applies_over": "kepler-ios-main 4(5) + booking-tabs-auth-fix-v2 + booking-care-transfer-v3 + transfer-visual-restore-v4",
+  "files": [
+    "Sources/Views/Components/ConnectivityStatusPill.swift",
+    "Sources/Views/Components/IumrahRootPageTitle.swift",
+    "IUMRAH_HOME_CONNECTIVITY_INDICATOR_VIDEO_MATCH_20260919_APPLIED.txt"
+  ],
+  "behavior": {
+    "compact_seconds": 1.65,
+    "expanded_seconds": 3.65,
+    "compact_beat_seconds": 0.62,
+    "border_orbit_seconds": 1.55,
+    "expanded_width": 88,
+    "height": 34
+  }
+}
