@@ -141,7 +141,7 @@ struct BookingsHomeView: View {
                     bookingTimerOverview(session)
                         .padding(.bottom, 28)
 
-                    bookingActionCenter(session, checkout: activeCheckout)
+                    bookingFulfillmentCenter(session, checkout: activeCheckout)
                         .padding(.bottom, 34)
 
                     if shouldShowTravelReadyFlights(session) {
@@ -290,11 +290,9 @@ struct BookingsHomeView: View {
         }
     }
 
-    private func bookingActionCenter(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
+    private func bookingFulfillmentCenter(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
         let completed = checkout?.travelers.filter(\.completed).count ?? 0
         let total = checkout?.travelers.count ?? session.booking.input.travelers.totalPeople
-        let receiptReady = !(checkout?.receipts.isEmpty ?? true)
-        let documentCount = checkout?.documents.count ?? 0
 
         return VStack(alignment: .leading, spacing: 15) {
             sectionHeader(title: localized("Что нужно сделать", "What to do next", "Keyingi qadamlar", "Кейинги қадамлар"), trailing: nil)
@@ -323,42 +321,88 @@ struct BookingsHomeView: View {
                     role: .profile,
                     title: localized("Кто едет с Вами", "Who is traveling with you", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"),
                     body: localized("Заполнено анкет: \(completed) из \(total). Можно заполнить заранее во время проверки наличия.", "Forms completed: \(completed) of \(total). You can fill them in while availability is checked.", "To‘ldirilgan anketalar: \(completed)/\(total). Mavjudlik tekshirilayotganda oldindan to‘ldirish mumkin.", "Тўлдирилган анкеталар: \(completed)/\(total). Мавжудлик текширилаётганда олдиндан тўлдириш мумкин."),
-                    action: completed == total && total > 0 ? localized("Проверить анкеты", "Review forms", "Anketalarni tekshirish", "Анкеталарни текшириш") : localized("Заполнить анкеты", "Complete forms", "Anketalarni to‘ldirish", "Анкеталарни тўлдириш"),
+                    action: completed == total && total > 0
+                        ? localized("Проверить анкеты", "Review forms", "Anketalarni tekshirish", "Анкеталарни текшириш")
+                        : localized("Заполнить данные заранее", "Complete details in advance", "Ma’lumotlarni oldindan to‘ldirish", "Маълумотларни олдиндан тўлдириш"),
                     ready: completed == total && total > 0
                 )
             }
             .buttonStyle(.plain)
 
-            NavigationLink {
-                PilgrimCheckoutView(bookingID: session.id)
-            } label: {
-                bookingActionCard(
-                    icon: "creditcard.fill",
-                    role: .payment,
-                    title: localized("Оплата", "Payment", "To‘lov", "Тўлов"),
-                    body: session.effectiveStatus.uppercased() == "AVAILABILITY_CHECK"
-                        ? localized("Пока ничего оплачивать не нужно. Оплата откроется после подтверждения наличия.", "No payment is needed yet. It will open after availability is confirmed.", "Hozircha to‘lov kerak emas. Mavjudlik tasdiqlangach ochiladi.", "Ҳозирча тўлов керак эмас. Мавжудлик тасдиқлангач очилади.")
-                        : (receiptReady ? localized("Чек получен и сохранён в бронировании.", "The receipt is received and saved with the booking.", "Chek qabul qilindi va bronda saqlandi.", "Чек қабул қилинди ва бронда сақланди.") : localized("Оплатите по реквизитам и прикрепите чек.", "Pay using the provided details and attach the receipt.", "Rekvizitlar bo‘yicha to‘lang va chekni biriktiring.", "Реквизитлар бўйича тўланг ва чекни бириктиринг.")),
-                    action: receiptReady ? localized("Открыть чек", "Open receipt", "Chekni ochish", "Чекни очиш") : localized("Перейти к оплате", "Go to payment", "To‘lovga o‘tish", "Тўловга ўтиш"),
-                    ready: receiptReady
-                )
-            }
-            .buttonStyle(.plain)
+            paymentReceiptStatusCard(session, checkout: checkout)
+
+            documentReadinessCard(session, checkout: checkout)
 
             NavigationLink {
                 PilgrimCheckoutView(bookingID: session.id)
             } label: {
-                bookingActionCard(
-                    icon: "doc.on.doc.fill",
-                    role: .document,
-                    title: localized("Документы поездки", "Travel documents", "Safar hujjatlari", "Сафар ҳужжатлари"),
-                    body: documentCount > 0 ? localized("Готово документов: \(documentCount). Каждый файл доступен отдельно.", "Documents ready: \(documentCount). Each file is available separately.", "Tayyor hujjatlar: \(documentCount). Har biri alohida ochiladi.", "Тайёр ҳужжатлар: \(documentCount). Ҳар бири алоҳида очилади.") : localized("После оплаты здесь появятся авиабилет, отель и остальные готовые документы.", "After payment, your ticket, hotel confirmation and other documents will appear here.", "To‘lovdan keyin aviachipta, mehmonxona tasdig‘i va boshqa hujjatlar shu yerda chiqadi.", "Тўловдан кейин авиачипта, меҳмонхона тасдиғи ва бошқа ҳужжатлар шу ерда чиқади."),
-                    action: localized("Посмотреть документы", "View documents", "Hujjatlarni ko‘rish", "Ҳужжатларни кўриш"),
-                    ready: documentCount > 0
-                )
+                HStack(spacing: 10) {
+                    Text(localized("Перейти к бронированию", "Open booking", "Bronni ochish", "Бронни очиш"))
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.iumrahPrimaryButtonText)
+                .padding(.horizontal, 18)
+                .frame(height: 54)
+                .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                IumrahPolicyDetailView(kind: .refund)
+            } label: {
+                Label(localized("Условия возврата", "Refund policy", "Qaytarish shartlari", "Қайтариш шартлари"), systemImage: "doc.text.magnifyingglass")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
         }
+    }
+
+    private func paymentReceiptStatusCard(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
+        let receiptReady = !(checkout?.receipts.isEmpty ?? true)
+        return NavigationLink {
+            PilgrimCheckoutView(bookingID: session.id)
+        } label: {
+            bookingActionCard(
+                icon: "creditcard.fill",
+                role: .payment,
+                title: localized("Оплата", "Payment", "To‘lov", "Тўлов"),
+                body: session.effectiveStatus.uppercased() == "AVAILABILITY_CHECK"
+                    ? localized("Пока ничего оплачивать не нужно. Оплата откроется после подтверждения наличия.", "No payment is needed yet. It will open after availability is confirmed.", "Hozircha to‘lov kerak emas. Mavjudlik tasdiqlangach ochiladi.", "Ҳозирча тўлов керак эмас. Мавжудлик тасдиқлангач очилади.")
+                    : (receiptReady ? localized("Чек получен и сохранён в бронировании.", "The receipt is received and saved with the booking.", "Chek qabul qilindi va bronda saqlandi.", "Чек қабул қилинди ва бронда сақланди.") : localized("Оплатите по реквизитам и прикрепите чек.", "Pay using the provided details and attach the receipt.", "Rekvizitlar bo‘yicha to‘lang va chekni biriktiring.", "Реквизитлар бўйича тўланг ва чекни бириктиринг.")),
+                action: receiptReady ? localized("Открыть чек", "Open receipt", "Chekni ochish", "Чекни очиш") : localized("Перейти к оплате", "Go to payment", "To‘lovga o‘tish", "Тўловга ўтиш"),
+                ready: receiptReady
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func documentReadinessCard(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
+        let ticketKinds = ["ticket", "flight_ticket", "airline_ticket"]
+        let hotelKinds = ["voucher", "hotel_voucher", "hotel_booking", "hotel_confirmation"]
+        let documents = checkout?.documents ?? []
+        let ticketReady = documents.contains { ticketKinds.contains($0.documentKind.lowercased()) }
+        let hotelReady = documents.contains { hotelKinds.contains($0.documentKind.lowercased()) }
+        let documentCount = documents.count
+        let essentialsReady = ticketReady && hotelReady
+
+        return NavigationLink {
+            PilgrimCheckoutView(bookingID: session.id)
+        } label: {
+            bookingActionCard(
+                icon: "doc.on.doc.fill",
+                role: .document,
+                title: localized("Документы поездки", "Travel documents", "Safar hujjatlari", "Сафар ҳужжатлари"),
+                body: documentCount > 0
+                    ? localized("Готово документов: \(documentCount). Каждый файл доступен отдельно.", "Documents ready: \(documentCount). Each file is available separately.", "Tayyor hujjatlar: \(documentCount). Har biri alohida ochiladi.", "Тайёр ҳужжатлар: \(documentCount). Ҳар бири алоҳида очилади.")
+                    : localized("После оплаты здесь появятся авиабилет, отель и остальные готовые документы.", "After payment, your ticket, hotel confirmation and other documents will appear here.", "To‘lovdan keyin aviachipta, mehmonxona tasdig‘i va boshqa hujjatlar shu yerda chiqadi.", "Тўловдан кейин авиачипта, меҳмонхона тасдиғи ва бошқа ҳужжатлар шу ерда чиқади."),
+                action: localized("Посмотреть документы", "View documents", "Hujjatlarni ko‘rish", "Ҳужжатларни кўриш"),
+                ready: essentialsReady
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private func bookingActionCard(icon: String, role: IumrahIconRole, title: String, body: String, action: String, ready: Bool) -> some View {
@@ -722,7 +766,9 @@ struct BookingsHomeView: View {
                         .foregroundStyle(future ? Color(uiColor: .secondaryLabel) : Color.primary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if let date = statusDateText(for: index, current: current, session: session, isCancelled: isCancelled) {
+                    if index <= current,
+                       let rawTimestamp = lifecycleStageTimestamp(index: index, session: session, isCancelled: isCancelled),
+                       let date = createdDateText(rawTimestamp) {
                         Text(date)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
@@ -1776,30 +1822,43 @@ struct BookingsHomeView: View {
         session.orderedStatusHistory.last(where: { $0.newStatus.lowercased() == status.lowercased() })?.createdAt
     }
 
-    private func statusDateText(for index: Int, current: Int, session: StoredBookingSession, isCancelled: Bool) -> String? {
-        guard index <= current else { return nil }
-        let raw: String?
+    private func lifecycleStageTimestamp(index: Int, session: StoredBookingSession, isCancelled: Bool) -> String? {
         switch index {
         case 0:
-            raw = session.booking.createdAt
+            return session.booking.createdAt
         case 1:
-            raw = isCancelled
-                ? transitionDate("cancelled", session: session)
-                : (session.availabilityStartedAt ?? transitionDate("availability_check", session: session) ?? session.booking.createdAt)
+            if isCancelled {
+                return session.latestStatusTimestamp(matching: ["cancelled"])
+                    ?? transitionDate("cancelled", session: session)
+                    ?? session.booking.updatedAt
+            }
+            return session.availabilityStartedAt
+                ?? session.latestStatusTimestamp(matching: ["availability_check", "new"])
+                ?? session.booking.createdAt
         case 2:
-            raw = session.priceLockStartedAt ?? transitionDate("payment_pending", session: session)
+            return session.priceLockStartedAt
+                ?? session.latestStatusTimestamp(matching: ["payment_pending"])
+                ?? session.booking.updatedAt
         case 3:
-            raw = session.documentsStartedAt ?? transitionDate("booking_confirmed", session: session)
+            return session.documentsStartedAt
+                ?? session.latestStatusTimestamp(matching: ["booking_confirmed", "paid"])
+                ?? session.paymentReceivedAt
+                ?? session.booking.updatedAt
         case 4:
-            raw = transitionDate("ready_to_travel", session: session)
+            return session.latestStatusTimestamp(matching: ["ready_to_travel", "documents_ready"])
+                ?? transitionDate("ready_to_travel", session: session)
+                ?? session.booking.updatedAt
         case 5:
-            raw = transitionDate("in_trip", session: session)
+            return session.latestStatusTimestamp(matching: ["in_trip"])
+                ?? transitionDate("in_trip", session: session)
+                ?? session.booking.updatedAt
         case 6:
-            raw = transitionDate("completed", session: session)
+            return session.latestStatusTimestamp(matching: ["completed"])
+                ?? transitionDate("completed", session: session)
+                ?? session.booking.updatedAt
         default:
-            raw = nil
+            return nil
         }
-        return raw.flatMap(createdDateText)
     }
 
     private func formatPrice(_ amount: Double) -> String {

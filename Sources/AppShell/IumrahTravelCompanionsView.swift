@@ -186,7 +186,7 @@ struct IumrahTravelCompanionsView: View {
             return (checkout?.travelers ?? []).map {
                 // BookingInput has no `hotelName`; the normalized booking model stores
                 // the selected Makkah hotel in `hotelNames`.
-                TravelerItem(bookingID: session.id, tripTitle: session.booking.hotelNames.makkah, traveler: $0)
+                TravelerItem(bookingID: session.id, tripTitle: companionTripTitle(session), traveler: $0)
             }
         }
         .sorted {
@@ -194,6 +194,18 @@ struct IumrahTravelCompanionsView: View {
             return $0.tripTitle < $1.tripTitle
         }
     }
+    private func companionTripTitle(_ session: StoredBookingSession) -> String {
+        let hotelName = session.booking.hotelNames.makkah.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !hotelName.isEmpty { return hotelName }
+
+        let origin = session.booking.route.originCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        let destination = session.booking.route.outboundDestination.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !origin.isEmpty && !destination.isEmpty { return "\(origin) → \(destination)" }
+        if !origin.isEmpty { return origin }
+        if !destination.isEmpty { return destination }
+        return tr("Umrah trip", "Поездка Umrah", "Umra safari", "Умра сафари")
+    }
+
     @MainActor
     private func loadTravelers() async {
         guard !isLoading else { return }
