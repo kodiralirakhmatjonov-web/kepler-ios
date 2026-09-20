@@ -34,6 +34,15 @@ enum TripStayPlanner {
             return TripStayBreakdown(totalNights: totalNights, totalDays: totalDays, makkahNights: totalNights, madinahNights: 0)
         }
 
+        if trip.hotelFirstStayPolicy == true, totalNights >= 4 {
+            // Hotel First keeps Madinah at two nights and gives the remaining stay
+            // to Makkah: 4 = 2+2, 5 = 3+2, 7 = 5+2. Other package flows retain
+            // their historical 60/40 planner below.
+            let madinah = min(2, max(1, totalNights - 2))
+            let makkah = max(1, totalNights - madinah)
+            return TripStayBreakdown(totalNights: totalNights, totalDays: totalDays, makkahNights: makkah, madinahNights: madinah)
+        }
+
         let makkah = max(1, min(totalNights - 1, Int(ceil(Double(totalNights) * 0.6))))
         let madinah = max(1, totalNights - makkah)
         return TripStayBreakdown(totalNights: totalNights, totalDays: totalDays, makkahNights: makkah, madinahNights: madinah)

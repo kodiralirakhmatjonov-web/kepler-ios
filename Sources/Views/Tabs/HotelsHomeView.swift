@@ -2059,6 +2059,11 @@ struct StorefrontUmrahPackageDetailView: View {
             bookingError = packagePreparationErrorText
             return
         }
+        let anchorCity = isHotelFirst ? (preview.hotelFirstAnchorCity ?? "Makkah") : "Makkah"
+        let anchorHotel: HotelSummary = {
+            if anchorCity == "Madinah", let madinah = journey.selectedMadinahHotel { return madinah }
+            return hotel
+        }()
 
         let config = StorefrontPackageSnapshotConfiguration(
             adults: max(1, journey.trip.adults),
@@ -2114,7 +2119,6 @@ struct StorefrontUmrahPackageDetailView: View {
             && activePackageID?.range(of: "^\\d{10}$", options: .regularExpression) != nil
         if packageChanged && !alreadyPersistedCurrentState {
             let stay = TripStayPlanner.breakdown(for: journey.trip)
-            let makkahImages = storefront.previewImages(for: hotel, limit: 6)
             let secondary = journey.trip.scope == .makkahAndMadinah ? journey.selectedMadinahHotel : nil
             let snapshot = StorefrontServerPackageSnapshot(
                 id: "",
@@ -2127,8 +2131,16 @@ struct StorefrontUmrahPackageDetailView: View {
                 kind: journey.trip.scope == .makkahOnly ? "makkah-only" : "makkah-madinah",
                 startDate: String(currentOutboundLeg.departureAt.prefix(10)),
                 endDate: String(currentInboundLeg.departureAt.prefix(10)),
-                totalDays: max(1, stay.totalNights + 1),
+                totalDays: max(1, currentDurationDays),
                 totalNights: max(1, stay.totalNights),
+                makkahNights: max(1, stay.makkahNights),
+                madinahNights: max(0, stay.madinahNights),
+                hotelFirstVariant: isHotelFirst ? preview.hotelFirstVariant : nil,
+                hotelFirstVariantIndex: isHotelFirst ? preview.hotelFirstVariantIndex : nil,
+                hotelFirstVariantMinDays: isHotelFirst ? preview.hotelFirstVariantMinDays : nil,
+                hotelFirstVariantMaxDays: isHotelFirst ? preview.hotelFirstVariantMaxDays : nil,
+                hotelFirstAnchorCity: isHotelFirst ? anchorCity : nil,
+                hotelFirstAnchorHotelId: isHotelFirst ? anchorHotel.id : nil,
                 outbound: .init(
                     airline: currentOutboundLeg.airline,
                     airlineCode: currentOutboundLeg.airlineCode,
@@ -2156,12 +2168,12 @@ struct StorefrontUmrahPackageDetailView: View {
                 providerItineraryId: "curated:\(selectedOutboundOptionID)+\(selectedInboundOptionID)",
                 outboundOfferId: selectedOutboundOptionID,
                 inboundOfferId: selectedInboundOptionID,
-                imageUrl: makkahImages.first ?? hotel.coverImageURL ?? "/iumrah/hotels-showcase.jpeg",
-                hotelImages: makkahImages,
+                imageUrl: storefront.previewImages(for: anchorHotel, limit: 1).first ?? anchorHotel.coverImageURL ?? "/iumrah/hotels-showcase.jpeg",
+                hotelImages: storefront.previewImages(for: anchorHotel, limit: 6),
                 hotelName: hotel.name,
                 hotelSecondaryName: secondary?.name,
-                hotelCity: hotel.city,
-                hotelStars: hotel.stars,
+                hotelCity: anchorHotel.city,
+                hotelStars: anchorHotel.stars,
                 makkahHotelId: hotel.id,
                 madinahHotelId: secondary?.id,
                 routeSummary: "\(currentOutboundLeg.origin) → \(currentOutboundLeg.destination) + \(currentInboundLeg.origin) → \(currentInboundLeg.destination)",
@@ -2195,8 +2207,8 @@ struct StorefrontUmrahPackageDetailView: View {
 
         let payload = IumrahPackageSharePayload(
             packageID: packageID,
-            hotelID: hotel.id,
-            hotelName: hotel.name,
+            hotelID: anchorHotel.id,
+            hotelName: anchorHotel.name,
             tierName: journey.trip.packageTier.title(settings.language),
             outboundRoute: "\(currentOutboundLeg.origin) → \(currentOutboundLeg.destination)",
             inboundRoute: "\(currentInboundLeg.origin) → \(currentInboundLeg.destination)",
@@ -2294,7 +2306,7 @@ struct StorefrontUmrahPackageDetailView: View {
 
         let snapshotShared: HotelConfiguratorDeepLink? = preview.snapshotConfiguration.map { config in
             HotelConfiguratorDeepLink(
-                hotelID: makkahHotel.id,
+                hotelID: preview.hotelFirstAnchorHotelID ?? makkahHotel.id,
                 adults: config.adults,
                 children: config.children,
                 infants: config.infants,
@@ -2306,11 +2318,12 @@ struct StorefrontUmrahPackageDetailView: View {
                 inboundOptionID: preview.returnOptionID
             )
         }
-        let shared = (isHotelFirst && sharedConfiguration?.hotelID == makkahHotel.id ? sharedConfiguration : nil) ?? snapshotShared
+        let expectedSharedHotelID = preview.hotelFirstAnchorHotelID ?? makkahHotel.id
+        let shared = (isHotelFirst && sharedConfiguration?.hotelID == expectedSharedHotelID ? sharedConfiguration : nil) ?? snapshotShared
 
         let initialScope: JourneyScope
         if isHotelFirst {
-            initialScope = shared?.scope ?? .makkahOnly
+            initialScope = shared?.scope ?? (preview.madinahNights > 0 ? .makkahAndMadinah : .makkahOnly)
         } else {
             initialScope = preview.kind == .makkahComfortShort ? .makkahOnly : .makkahAndMadinah
         }
@@ -2361,6 +2374,7 @@ struct StorefrontUmrahPackageDetailView: View {
         trip.packageTier = preview.tier
         trip.mealSelection = shared?.mealSelection
         trip.scope = initialScope
+        trip.hotelFirstStayPolicy = isHotelFirst ? true : nil
         trip.flightTripType = .roundTrip
 
         initialOutboundFare = storefront.publishedFarePerTraveler(optionID: preview.outboundOptionID)

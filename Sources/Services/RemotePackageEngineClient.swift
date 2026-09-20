@@ -48,7 +48,9 @@ struct RemotePackageEngineClient {
         includeHaramainTrain: Bool,
         transferVehicle: TransferVehicleKind?,
         haramainFareClass: HaramainFareClass,
-        haramainTicketCount: Int
+        haramainTicketCount: Int,
+        makkahNightsOverride: Int? = nil,
+        madinahNightsOverride: Int? = nil
     ) async throws -> PackageQuote {
         let rawProviderItineraryID = pricingOffer.providerItineraryID?.trimmingCharacters(in: .whitespacesAndNewlines)
         let providerItineraryID: String
@@ -71,7 +73,25 @@ struct RemotePackageEngineClient {
             throw LocalPricingError.invalidFlightFare
         }
 
-        let stay = TripStayPlanner.breakdown(for: trip, calendar: Calendar(identifier: .gregorian))
+        let plannedStay = TripStayPlanner.breakdown(for: trip, calendar: Calendar(identifier: .gregorian))
+        let stay: TripStayBreakdown
+        if let makkahNightsOverride,
+           let madinahNightsOverride,
+           makkahNightsOverride > 0,
+           madinahNightsOverride >= 0,
+           (trip.scope == .makkahAndMadinah) == (madinahNightsOverride > 0) {
+            // An immutable Hotel First snapshot owns its exact city split. Preserve
+            // it while the original travel window is unchanged; ordinary generator
+            // trips continue using TripStayPlanner exactly as before.
+            stay = TripStayBreakdown(
+                totalNights: makkahNightsOverride + madinahNightsOverride,
+                totalDays: makkahNightsOverride + madinahNightsOverride + 1,
+                makkahNights: makkahNightsOverride,
+                madinahNights: madinahNightsOverride
+            )
+        } else {
+            stay = plannedStay
+        }
         var legs: [ServerPackageQuoteRequest.Flight.Leg] = [
             .init(origin: outboundOffer.origin, destination: outboundOffer.destination, departureDate: Self.flightDay(outboundOffer))
         ]

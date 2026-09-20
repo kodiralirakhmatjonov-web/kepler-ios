@@ -79,6 +79,14 @@ struct StorefrontServerPackageSnapshot: Codable, Hashable, Identifiable {
     let endDate: String
     let totalDays: Int
     let totalNights: Int
+    let makkahNights: Int?
+    let madinahNights: Int?
+    let hotelFirstVariant: String?
+    let hotelFirstVariantIndex: Int?
+    let hotelFirstVariantMinDays: Int?
+    let hotelFirstVariantMaxDays: Int?
+    let hotelFirstAnchorCity: String?
+    let hotelFirstAnchorHotelId: String?
     let outbound: Leg
     let inbound: Leg
     let providerItineraryId: String
@@ -130,7 +138,7 @@ struct HotelStorefrontService {
             query: [
                 URLQueryItem(name: "mode", value: mode),
                 URLQueryItem(name: "origins", value: origin.uppercased()),
-                URLQueryItem(name: "limit", value: mode == "hotel-first" ? "120" : "500")
+                URLQueryItem(name: "limit", value: mode == "hotel-first" ? "300" : "500")
             ],
             timeoutInterval: 25
         )

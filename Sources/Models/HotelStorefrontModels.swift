@@ -151,13 +151,22 @@ struct StorefrontFlightPackagePreview: Hashable, Identifiable {
     let totalNights: Int
     let makkahNights: Int
     let madinahNights: Int
+    let hotelFirstVariant: String?
+    let hotelFirstVariantIndex: Int?
+    let hotelFirstVariantMinDays: Int?
+    let hotelFirstVariantMaxDays: Int?
+    let hotelFirstAnchorCity: String?
+    let hotelFirstAnchorHotelID: String?
     let kind: StorefrontUmrahPackageKind
     let tier: PackageTier
     let hotels: [StorefrontPackageHotel]
     let packageQuote: PackageQuote
 
     var primaryHotel: StorefrontPackageHotel? {
-        hotels.first(where: { $0.city.lowercased().contains("makk") || $0.city.lowercased().contains("mecc") }) ?? hotels.first
+        if let hotelFirstAnchorHotelID, let anchor = hotels.first(where: { $0.id == hotelFirstAnchorHotelID }) {
+            return anchor
+        }
+        return hotels.first(where: { $0.city.lowercased().contains("makk") || $0.city.lowercased().contains("mecc") }) ?? hotels.first
     }
 
     var usesTashkentReturnFallback: Bool {

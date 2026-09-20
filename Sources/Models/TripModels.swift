@@ -194,6 +194,10 @@ struct TripDraft: Codable, Hashable {
     /// breakfast-only default; paid lunch/dinner remain opt-in.
     var mealSelection: PackageMealSelection? = nil
     var scope: JourneyScope = .makkahAndMadinah
+    /// Hotel First is the only product that uses the fixed two-night Madinah split
+    /// requested by the storefront package engine. Optional keeps older saved TripDrafts
+    /// fully decodable and leaves Flight First / normal configurator behavior unchanged.
+    var hotelFirstStayPolicy: Bool? = nil
     var flightFilters: FlightSearchFilters? = nil
     /// Optional so drafts saved before one-way search was introduced continue to
     /// decode. A missing value always means the historical round-trip flow.

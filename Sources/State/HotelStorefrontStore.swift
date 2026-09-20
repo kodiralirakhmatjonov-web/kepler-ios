@@ -23,7 +23,7 @@ final class HotelStorefrontStore: ObservableObject {
     private let favoritesKey = "iumrah.hotelStorefront.favorites.v1"
     private let snapshotURL: URL
     private var preparationTask: Task<Void, Never>?
-    private var hotelServerPackages: [String: StorefrontServerPackageSnapshot] = [:]
+    private var hotelServerPackages: [String: [StorefrontServerPackageSnapshot]] = [:]
     private var flightServerPackages: [String: StorefrontServerPackageSnapshot] = [:]
 
     init() {
@@ -123,24 +123,35 @@ final class HotelStorefrontStore: ObservableObject {
         if let cached = flightPackagePreviews.values.first(where: { $0.packageID == packageID }) {
             return cached
         }
-        if let cached = hotelServerPackages.values.first(where: { $0.id == packageID }) {
-            return serverPreview(cached, forceKind: .hotelFirstMakkah)
+        if let cached = hotelServerPackages.values.flatMap({ $0 }).first(where: { $0.id == packageID }) {
+            return serverPreview(cached, forceHotelFirst: true)
         }
         guard let snapshot = try? await storefront.packageSnapshot(id: packageID) else { return nil }
-        if snapshot.entryMode == "hotel-first", let hotelID = snapshot.makkahHotelId {
-            hotelServerPackages[hotelID] = snapshot
-            return serverPreview(snapshot, forceKind: .hotelFirstMakkah)
+        if snapshot.entryMode == "hotel-first" {
+            let hotelID = snapshot.hotelFirstAnchorHotelId ?? snapshot.makkahHotelId ?? snapshot.madinahHotelId
+            if let hotelID {
+                var values = hotelServerPackages[hotelID] ?? []
+                values.removeAll(where: { $0.id == snapshot.id })
+                values.append(snapshot)
+                hotelServerPackages[hotelID] = sortedHotelFirstSnapshots(values)
+            }
+            return serverPreview(snapshot, forceHotelFirst: true)
         }
         flightServerPackages[snapshot.id] = snapshot
         return serverPreview(snapshot)
     }
 
-    /// Creates the hotel-first entry point for the shared iumrah Configurator.
-    /// The selected hotel is the fixed starting component; flights, pilgrims,
-    /// rooms and Madinah can then be changed on the same package screen.
+    /// All server-owned Hotel First choices for one concrete hotel. The same
+    /// outbound is reused where inventory allows and each return date has its own
+    /// immutable 10-digit Package ID.
+    func hotelConfiguratorPreviews(for hotel: HotelSummary) -> [StorefrontFlightPackagePreview] {
+        sortedHotelFirstSnapshots(hotelServerPackages[hotel.id] ?? []).compactMap {
+            serverPreview($0, forceHotelFirst: true)
+        }
+    }
+
     func hotelConfiguratorPreview(for hotel: HotelSummary) -> StorefrontFlightPackagePreview? {
-        guard let snapshot = hotelServerPackages[hotel.id] else { return nil }
-        return serverPreview(snapshot, forceKind: .hotelFirstMakkah)
+        hotelConfiguratorPreviews(for: hotel).first
     }
 
     func defaultMadinahHotel(for tier: PackageTier) -> HotelSummary? {
@@ -277,6 +288,13 @@ final class HotelStorefrontStore: ObservableObject {
         let inboundOffer = selectedInboundOffer ?? previewOffers.inbound
         guard trip.scope != .makkahAndMadinah || madinahHotel != nil else { return nil }
 
+        let outboundUsesSnapshot = outboundOffer.sourceCandidateID == preview.outboundOptionID
+        let inboundUsesSnapshot = inboundOffer.sourceCandidateID == preview.returnOptionID
+        let preservesHotelFirstStay = preview.hotelFirstVariant != nil
+            && outboundUsesSnapshot
+            && inboundUsesSnapshot
+            && (trip.scope == .makkahAndMadinah) == (preview.madinahNights > 0)
+
         return try? await packageEngine.packageQuote(
             trip: trip,
             pricingOffer: inboundOffer,
@@ -289,7 +307,9 @@ final class HotelStorefrontStore: ObservableObject {
             includeHaramainTrain: includeHaramainTrain,
             transferVehicle: transferVehicle,
             haramainFareClass: haramainFareClass,
-            haramainTicketCount: haramainTicketCount ?? max(0, trip.adults + trip.children)
+            haramainTicketCount: haramainTicketCount ?? max(0, trip.adults + trip.children),
+            makkahNightsOverride: preservesHotelFirstStay ? preview.makkahNights : nil,
+            madinahNightsOverride: preservesHotelFirstStay ? preview.madinahNights : nil
         )
     }
 
@@ -416,15 +436,20 @@ final class HotelStorefrontStore: ObservableObject {
     ) {
         hotelServerPackages = [:]
         for item in hotelPackages {
-            if let hotelID = item.makkahHotelId { hotelServerPackages[hotelID] = item }
+            let hotelID = item.hotelFirstAnchorHotelId ?? item.makkahHotelId ?? item.madinahHotelId
+            guard let hotelID else { continue }
+            hotelServerPackages[hotelID, default: []].append(item)
+        }
+        for (hotelID, values) in hotelServerPackages {
+            hotelServerPackages[hotelID] = sortedHotelFirstSnapshots(values)
         }
         flightServerPackages = Dictionary(uniqueKeysWithValues: flightPackages.map { ($0.id, $0) })
 
         var standard: [String: HotelStorefrontQuote] = [:]
         var comfort: [String: HotelStorefrontQuote] = [:]
         var luxury: [String: HotelStorefrontQuote] = [:]
-        for item in hotelPackages {
-            guard let hotelID = item.makkahHotelId,
+        for item in hotelPackages.sorted(by: { ($0.hotelFirstVariantIndex ?? 99) < ($1.hotelFirstVariantIndex ?? 99) }) {
+            guard let hotelID = item.hotelFirstAnchorHotelId ?? item.makkahHotelId ?? item.madinahHotelId,
                   let total = item.totalPackagePrice,
                   let perPerson = item.pricePerPerson else { continue }
             let quote = HotelStorefrontQuote(
@@ -444,9 +469,9 @@ final class HotelStorefrontStore: ObservableObject {
                 flightFarePerTravelerUsd: 0
             )
             switch item.tier {
-            case .luxury: luxury[hotelID] = quote
-            case .comfort: comfort[hotelID] = quote
-            case .economy, .standard: standard[hotelID] = quote
+            case .luxury: if luxury[hotelID] == nil { luxury[hotelID] = quote }
+            case .comfort: if comfort[hotelID] == nil { comfort[hotelID] = quote }
+            case .economy, .standard: if standard[hotelID] == nil { standard[hotelID] = quote }
             }
         }
         standardQuotes = standard
@@ -462,19 +487,32 @@ final class HotelStorefrontStore: ObservableObject {
         flightPackagePreviews = previews
     }
 
+    private func sortedHotelFirstSnapshots(_ values: [StorefrontServerPackageSnapshot]) -> [StorefrontServerPackageSnapshot] {
+        values.sorted { lhs, rhs in
+            let left = lhs.hotelFirstVariantIndex ?? 99
+            let right = rhs.hotelFirstVariantIndex ?? 99
+            if left != right { return left < right }
+            if lhs.totalDays != rhs.totalDays { return lhs.totalDays < rhs.totalDays }
+            return lhs.id < rhs.id
+        }
+    }
+
     private func serverPreview(
         _ item: StorefrontServerPackageSnapshot,
-        forceKind: StorefrontUmrahPackageKind? = nil
+        forceHotelFirst: Bool = false
     ) -> StorefrontFlightPackagePreview? {
         guard let total = item.totalPackagePrice, let perPerson = item.pricePerPerson else { return nil }
         let kind: StorefrontUmrahPackageKind
-        if let forceKind { kind = forceKind }
-        else { kind = item.kind == "makkah-only" ? .makkahComfortShort : .makkahMadinahStandard }
+        if forceHotelFirst {
+            kind = item.kind == "makkah-only" ? .hotelFirstMakkah : .makkahMadinahStandard
+        } else {
+            kind = item.kind == "makkah-only" ? .makkahComfortShort : .makkahMadinahStandard
+        }
 
-        let madinahNights = item.kind == "makkah-madinah" && item.totalNights > 1
+        let madinahNights = item.madinahNights ?? (item.kind == "makkah-madinah" && item.totalNights > 1
             ? max(1, min(item.totalNights - 1, Int(floor(Double(item.totalNights) * 0.42))))
-            : 0
-        let makkahNights = max(1, item.totalNights - madinahNights)
+            : 0)
+        let makkahNights = item.makkahNights ?? max(1, item.totalNights - madinahNights)
         var packageHotels: [StorefrontPackageHotel] = []
         if let hotelID = item.makkahHotelId {
             let hotel = hotel(id: hotelID)
@@ -524,6 +562,12 @@ final class HotelStorefrontStore: ObservableObject {
             totalNights: max(1, item.totalNights),
             makkahNights: makkahNights,
             madinahNights: madinahNights,
+            hotelFirstVariant: item.hotelFirstVariant,
+            hotelFirstVariantIndex: item.hotelFirstVariantIndex,
+            hotelFirstVariantMinDays: item.hotelFirstVariantMinDays,
+            hotelFirstVariantMaxDays: item.hotelFirstVariantMaxDays,
+            hotelFirstAnchorCity: item.hotelFirstAnchorCity,
+            hotelFirstAnchorHotelID: item.hotelFirstAnchorHotelId,
             kind: kind,
             tier: item.tier,
             hotels: packageHotels,
@@ -1002,6 +1046,12 @@ final class HotelStorefrontStore: ObservableObject {
             totalNights: stay.totalNights,
             makkahNights: stay.makkahNights,
             madinahNights: stay.madinahNights,
+            hotelFirstVariant: nil,
+            hotelFirstVariantIndex: nil,
+            hotelFirstVariantMinDays: nil,
+            hotelFirstVariantMaxDays: nil,
+            hotelFirstAnchorCity: nil,
+            hotelFirstAnchorHotelID: nil,
             kind: pair.kind,
             tier: trip.packageTier,
             hotels: packageHotels,
