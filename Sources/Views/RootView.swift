@@ -127,6 +127,13 @@ struct RootView: View {
         if url.scheme?.lowercased() == "https",
            url.host?.lowercased() == "iumrah.app" {
             let components = url.pathComponents.filter { $0 != "/" }
+            if components.count == 3,
+               components[0] == "flights",
+               components[1] == "package",
+               components[2].range(of: "^\\d{10}$", options: .regularExpression) != nil {
+                chrome.openPackage(id: components[2])
+                return
+            }
             guard components.count == 2 else { return }
             let rawValue = components[1].removingPercentEncoding ?? components[1]
             switch components[0] {

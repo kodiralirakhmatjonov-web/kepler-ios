@@ -57,12 +57,16 @@ struct HotelsHomeView: View {
         }
         .onAppear {
             applyRequestedBoard()
+            openRequestedPackage(chrome.requestedPackageID)
         }
         .onChange(of: chrome.requestedHotelsBoard) { _, _ in
             applyRequestedBoard()
         }
         .onChange(of: chrome.requestedHotelID) { _, hotelID in
             openRequestedHotel(hotelID)
+        }
+        .onChange(of: chrome.requestedPackageID) { _, packageID in
+            openRequestedPackage(packageID)
         }
         .onChange(of: storefront.allHotels.map(\.id)) { _, _ in
             openRequestedHotel(chrome.requestedHotelID)
@@ -459,6 +463,17 @@ struct HotelsHomeView: View {
         }
         if chrome.requestedHotelConfiguratorDeepLink?.hotelID == hotelID {
             chrome.requestedHotelConfiguratorDeepLink = nil
+        }
+    }
+
+    private func openRequestedPackage(_ packageID: String?) {
+        guard let packageID, packageID.range(of: "^\\d{10}$", options: .regularExpression) != nil else { return }
+        Task { @MainActor in
+            await storefront.prepareIfNeeded()
+            guard let preview = await storefront.packagePreview(id: packageID) else { return }
+            board = preview.kind == .hotelFirstMakkah ? .hotels : .flights
+            selectedFlightPackage = preview
+            chrome.requestedPackageID = nil
         }
     }
 
@@ -1016,6 +1031,8 @@ struct StorefrontUmrahPackageDetailView: View {
     @State private var showMadinahFirstCityPicker = false
     @State private var mealsExpanded = false
     @State private var shareArtifacts: IumrahPackageShareArtifacts?
+    @State private var activePackageID: String?
+    @State private var activePackageFingerprint: String?
     @State private var soloComparisonServerQuote: PackageQuote?
     @State private var twoPersonComparisonServerQuote: PackageQuote?
 
@@ -1081,11 +1098,19 @@ struct StorefrontUmrahPackageDetailView: View {
 
                 bookingButton
 
-                Label(generatedStamp, systemImage: "seal.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(IumrahIconRole.umrah.color)
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 12)
+                VStack(spacing: 5) {
+                    Label(generatedStamp, systemImage: "seal.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(IumrahIconRole.umrah.color)
+                    let displayedPackageID = activePackageID ?? preview.packageID
+                    if displayedPackageID.range(of: "^\\d{10}$", options: .regularExpression) != nil {
+                        Text("Package ID · \(displayedPackageID)")
+                            .font(.caption2.monospacedDigit().weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 12)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
@@ -2022,13 +2047,154 @@ struct StorefrontUmrahPackageDetailView: View {
         )
     }
 
-    @MainActor
     private func presentPackageShare(invitation: Bool) {
+        Task { @MainActor in
+            await preparePackageShare(invitation: invitation)
+        }
+    }
+
+    @MainActor
+    private func preparePackageShare(invitation: Bool) async {
         guard isPrepared, let hotel = journey.selectedHotel else {
             bookingError = packagePreparationErrorText
             return
         }
+
+        let config = StorefrontPackageSnapshotConfiguration(
+            adults: max(1, journey.trip.adults),
+            children: max(0, journey.trip.children),
+            infants: max(0, journey.trip.infants),
+            rooms: max(1, journey.trip.rooms),
+            makkahLunch: journey.trip.effectiveMealSelection.makkahLunch,
+            makkahDinner: journey.trip.effectiveMealSelection.makkahDinner,
+            madinahDinner: journey.trip.effectiveMealSelection.madinahDinner,
+            transferVehicle: journey.selectedTransferVehicle?.rawValue,
+            haramainEnabled: journey.haramainTrainSelected,
+            haramainFareClass: journey.haramainFareClass.rawValue,
+            haramainTicketCount: journey.haramainTicketCount,
+            makkahRoomId: journey.selectedRoom?.id ?? journey.selectedRoomCategory?.id,
+            madinahRoomId: journey.selectedMadinahRoom?.id ?? journey.selectedMadinahRoomCategory?.id
+        )
+        let baseConfig = preview.snapshotConfiguration ?? StorefrontPackageSnapshotConfiguration(
+            adults: 2,
+            children: 0,
+            infants: 0,
+            rooms: 1,
+            makkahLunch: false,
+            makkahDinner: false,
+            madinahDinner: false,
+            transferVehicle: TransferVehicleKind.carnival.rawValue,
+            haramainEnabled: false,
+            haramainFareClass: HaramainFareClass.economy.rawValue,
+            haramainTicketCount: 0,
+            makkahRoomId: nil,
+            madinahRoomId: nil
+        )
+        let originalMakkahID = preview.hotels.first(where: { !isMadinahCity($0.city) })?.id
+        let originalMadinahID = preview.hotels.first(where: { isMadinahCity($0.city) })?.id
+        let packageChanged = config != baseConfig
+            || selectedOutboundOptionID != preview.outboundOptionID
+            || selectedInboundOptionID != preview.returnOptionID
+            || hotel.id != originalMakkahID
+            || journey.selectedMadinahHotel?.id != originalMadinahID
+            || currentQuote.totalPackagePrice != preview.totalPackagePrice
+            || currentQuote.pricePerPerson != preview.pricePerPerson
+        let packageFingerprint = [
+            String(config.adults), String(config.children), String(config.infants), String(config.rooms),
+            config.makkahLunch ? "1" : "0", config.makkahDinner ? "1" : "0", config.madinahDinner ? "1" : "0",
+            config.transferVehicle ?? "", config.haramainEnabled ? "1" : "0", config.haramainFareClass, String(config.haramainTicketCount),
+            config.makkahRoomId ?? "", config.madinahRoomId ?? "", selectedOutboundOptionID, selectedInboundOptionID,
+            hotel.id, journey.selectedMadinahHotel?.id ?? "", String(describing: currentQuote.totalPackagePrice), String(describing: currentQuote.pricePerPerson)
+        ].joined(separator: "|")
+
+        var packageID = packageChanged ? (activePackageID ?? preview.packageID) : preview.packageID
+        var sharedTotalPrice = currentQuote.totalPackagePrice
+        var sharedPerPersonPrice = currentQuote.pricePerPerson
+        let alreadyPersistedCurrentState = activePackageFingerprint == packageFingerprint
+            && activePackageID?.range(of: "^\\d{10}$", options: .regularExpression) != nil
+        if packageChanged && !alreadyPersistedCurrentState {
+            let stay = TripStayPlanner.breakdown(for: journey.trip)
+            let makkahImages = storefront.previewImages(for: hotel, limit: 6)
+            let secondary = journey.trip.scope == .makkahAndMadinah ? journey.selectedMadinahHotel : nil
+            let snapshot = StorefrontServerPackageSnapshot(
+                id: "",
+                entryMode: isHotelFirst ? "hotel-first" : "flight-first",
+                status: "ready",
+                originCode: currentOutboundLeg.origin.uppercased(),
+                originCity: currentOutboundLeg.origin.uppercased(),
+                destinationCode: currentOutboundLeg.destination.uppercased(),
+                tier: journey.trip.packageTier,
+                kind: journey.trip.scope == .makkahOnly ? "makkah-only" : "makkah-madinah",
+                startDate: String(currentOutboundLeg.departureAt.prefix(10)),
+                endDate: String(currentInboundLeg.departureAt.prefix(10)),
+                totalDays: max(1, stay.totalNights + 1),
+                totalNights: max(1, stay.totalNights),
+                outbound: .init(
+                    airline: currentOutboundLeg.airline,
+                    airlineCode: currentOutboundLeg.airlineCode,
+                    flightNumber: currentOutboundLeg.flightNumber,
+                    origin: currentOutboundLeg.origin,
+                    destination: currentOutboundLeg.destination,
+                    departureAt: currentOutboundLeg.departureAt,
+                    arrivalAt: currentOutboundLeg.arrivalAt,
+                    durationMinutes: currentOutboundLeg.durationMinutes,
+                    stops: currentOutboundLeg.stops,
+                    cabinClass: currentOutboundLeg.cabinClass
+                ),
+                inbound: .init(
+                    airline: currentInboundLeg.airline,
+                    airlineCode: currentInboundLeg.airlineCode,
+                    flightNumber: currentInboundLeg.flightNumber,
+                    origin: currentInboundLeg.origin,
+                    destination: currentInboundLeg.destination,
+                    departureAt: currentInboundLeg.departureAt,
+                    arrivalAt: currentInboundLeg.arrivalAt,
+                    durationMinutes: currentInboundLeg.durationMinutes,
+                    stops: currentInboundLeg.stops,
+                    cabinClass: currentInboundLeg.cabinClass
+                ),
+                providerItineraryId: "curated:\(selectedOutboundOptionID)+\(selectedInboundOptionID)",
+                outboundOfferId: selectedOutboundOptionID,
+                inboundOfferId: selectedInboundOptionID,
+                imageUrl: makkahImages.first ?? hotel.coverImageURL ?? "/iumrah/hotels-showcase.jpeg",
+                hotelImages: makkahImages,
+                hotelName: hotel.name,
+                hotelSecondaryName: secondary?.name,
+                hotelCity: hotel.city,
+                hotelStars: hotel.stars,
+                makkahHotelId: hotel.id,
+                madinahHotelId: secondary?.id,
+                routeSummary: "\(currentOutboundLeg.origin) → \(currentOutboundLeg.destination) + \(currentInboundLeg.origin) → \(currentInboundLeg.destination)",
+                pricePerPerson: currentQuote.pricePerPerson,
+                totalPackagePrice: currentQuote.totalPackagePrice,
+                currency: currentQuote.currency,
+                isEstimated: currentQuote.isEstimated,
+                configuration: config
+            )
+            do {
+                let persisted = try await HotelStorefrontService().createPackageSnapshot(
+                    snapshot,
+                    parentPackageID: (activePackageID ?? preview.packageID).range(of: "^\\d{10}$", options: .regularExpression) != nil ? (activePackageID ?? preview.packageID) : nil
+                )
+                packageID = persisted.id
+                activePackageID = persisted.id
+                activePackageFingerprint = packageFingerprint
+                sharedTotalPrice = persisted.totalPackagePrice ?? currentQuote.totalPackagePrice
+                sharedPerPersonPrice = persisted.pricePerPerson ?? currentQuote.pricePerPerson
+            } catch {
+                bookingError = tr(
+                    "Не удалось сохранить новый Package ID. Попробуйте ещё раз.",
+                    "Could not save the new Package ID. Please try again.",
+                    "Yangi Package ID saqlanmadi. Qayta urinib ko‘ring.",
+                    "Янги Package ID сақланмади. Қайта уриниб кўринг."
+                )
+                IumrahHaptics.error()
+                return
+            }
+        }
+
         let payload = IumrahPackageSharePayload(
+            packageID: packageID,
             hotelID: hotel.id,
             hotelName: hotel.name,
             tierName: journey.trip.packageTier.title(settings.language),
@@ -2045,8 +2211,8 @@ struct StorefrontUmrahPackageDetailView: View {
             scope: journey.trip.scope,
             firstSaudiCity: journey.trip.arrivalAirport,
             mealSelection: journey.trip.effectiveMealSelection,
-            totalPriceUSD: currentQuote.totalPackagePrice,
-            perPersonPriceUSD: currentQuote.pricePerPerson,
+            totalPriceUSD: sharedTotalPrice,
+            perPersonPriceUSD: sharedPerPersonPrice,
             mealsSummary: mealsSummary,
             scopeSummary: scopeTitle,
             outboundOptionID: selectedOutboundOptionID,
@@ -2126,7 +2292,21 @@ struct StorefrontUmrahPackageDetailView: View {
             return
         }
 
-        let shared = isHotelFirst && sharedConfiguration?.hotelID == makkahHotel.id ? sharedConfiguration : nil
+        let snapshotShared: HotelConfiguratorDeepLink? = preview.snapshotConfiguration.map { config in
+            HotelConfiguratorDeepLink(
+                hotelID: makkahHotel.id,
+                adults: config.adults,
+                children: config.children,
+                infants: config.infants,
+                rooms: config.rooms,
+                scope: preview.kind == .makkahComfortShort || preview.kind == .hotelFirstMakkah ? .makkahOnly : .makkahAndMadinah,
+                firstSaudiCity: preview.outbound.destination.uppercased() == "MED" ? .madinah : .jeddah,
+                mealSelection: config.mealSelection,
+                outboundOptionID: preview.outboundOptionID,
+                inboundOptionID: preview.returnOptionID
+            )
+        }
+        let shared = (isHotelFirst && sharedConfiguration?.hotelID == makkahHotel.id ? sharedConfiguration : nil) ?? snapshotShared
 
         let initialScope: JourneyScope
         if isHotelFirst {
@@ -2162,7 +2342,7 @@ struct StorefrontUmrahPackageDetailView: View {
         trip.saudiArrivalDate = Calendar.current.startOfDay(for: outboundArrival)
         trip.returnDate = Calendar.current.startOfDay(for: returnDeparture)
         trip.flexibility = .exact
-        trip.adults = min(9, max(1, shared?.adults ?? (isHotelFirst ? 2 : 1)))
+        trip.adults = min(9, max(1, shared?.adults ?? 2))
         trip.children = min(8, max(0, shared?.children ?? 0))
         trip.infants = min(4, max(0, shared?.infants ?? 0))
         let restoredTravelerTotal = trip.adults + trip.children + trip.infants
@@ -2211,8 +2391,12 @@ struct StorefrontUmrahPackageDetailView: View {
         journey.selectedMadinahRoomCategory = nil
         journey.selectedOutbound = offers.outbound
         journey.selectedInbound = offers.inbound
-        journey.selectedTransferVehicle = .carnival
-        journey.haramainTrainSelected = false
+        journey.selectedTransferVehicle = preview.snapshotConfiguration?.transferVehicle
+            .flatMap(TransferVehicleKind.init(rawValue:)) ?? .carnival
+        journey.haramainTrainSelected = preview.snapshotConfiguration?.haramainEnabled ?? false
+        journey.haramainFareClass = preview.snapshotConfiguration
+            .flatMap { HaramainFareClass(rawValue: $0.haramainFareClass) } ?? .economy
+        journey.haramainTicketCount = max(0, preview.snapshotConfiguration?.haramainTicketCount ?? 0)
         journey.transferSelectionConfirmed = false
         journey.quote = preview.packageQuote
         journey.errorMessage = nil

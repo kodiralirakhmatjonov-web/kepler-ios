@@ -37,8 +37,128 @@ private struct ServerStorefrontQuoteEnvelope: Decodable {
     let quote: Quote
 }
 
+
+struct StorefrontServerPackageSnapshot: Codable, Hashable, Identifiable {
+    struct Leg: Codable, Hashable {
+        let airline: String
+        let airlineCode: String
+        let flightNumber: String
+        let origin: String
+        let destination: String
+        let departureAt: String
+        let arrivalAt: String
+        let durationMinutes: Int
+        let stops: Int
+        let cabinClass: String
+
+        var clientLeg: StorefrontFlightLeg {
+            StorefrontFlightLeg(
+                airline: airline,
+                flightNumber: flightNumber,
+                airlineCode: airlineCode,
+                origin: origin,
+                destination: destination,
+                departureAt: departureAt,
+                arrivalAt: arrivalAt,
+                durationMinutes: durationMinutes,
+                stops: stops,
+                cabinClass: cabinClass
+            )
+        }
+    }
+
+    let id: String
+    let entryMode: String
+    let status: String
+    let originCode: String
+    let originCity: String
+    let destinationCode: String
+    let tier: PackageTier
+    let kind: String
+    let startDate: String
+    let endDate: String
+    let totalDays: Int
+    let totalNights: Int
+    let outbound: Leg
+    let inbound: Leg
+    let providerItineraryId: String
+    let outboundOfferId: String
+    let inboundOfferId: String
+    let imageUrl: String
+    let hotelImages: [String]
+    let hotelName: String
+    let hotelSecondaryName: String?
+    let hotelCity: String?
+    let hotelStars: Int?
+    let makkahHotelId: String?
+    let madinahHotelId: String?
+    let routeSummary: String
+    let pricePerPerson: Decimal?
+    let totalPackagePrice: Decimal?
+    let currency: String
+    let isEstimated: Bool
+    let configuration: StorefrontPackageSnapshotConfiguration?
+}
+
+private struct StorefrontServerPackagesEnvelope: Decodable {
+    let ok: Bool
+    let cacheState: String?
+    let generatedAt: String?
+    let expiresAt: String?
+    let items: [StorefrontServerPackageSnapshot]
+}
+
+private struct StorefrontServerPackageEnvelope: Decodable {
+    let ok: Bool
+    let package: StorefrontServerPackageSnapshot
+    let generatedAt: String?
+    let expiresAt: String?
+    let expired: Bool?
+}
+
+private struct StorefrontCreateSnapshotRequest: Encodable {
+    let package: StorefrontServerPackageSnapshot
+    let parentPackageId: String?
+}
+
 struct HotelStorefrontService {
     private let api = APIClient.shared
+
+    func serverPackages(mode: String, origin: String) async throws -> [StorefrontServerPackageSnapshot] {
+        let response: StorefrontServerPackagesEnvelope = try await api.get(
+            "/api/storefront/packages",
+            query: [
+                URLQueryItem(name: "mode", value: mode),
+                URLQueryItem(name: "origins", value: origin.uppercased()),
+                URLQueryItem(name: "limit", value: mode == "hotel-first" ? "120" : "500")
+            ],
+            timeoutInterval: 25
+        )
+        guard response.ok else { throw APIError.invalidResponse }
+        return response.items
+    }
+
+    func packageSnapshot(id: String) async throws -> StorefrontServerPackageSnapshot {
+        let response: StorefrontServerPackageEnvelope = try await api.get(
+            "/api/storefront/packages/\(id)",
+            timeoutInterval: 15
+        )
+        guard response.ok else { throw APIError.invalidResponse }
+        return response.package
+    }
+
+    func createPackageSnapshot(
+        _ package: StorefrontServerPackageSnapshot,
+        parentPackageID: String?
+    ) async throws -> StorefrontServerPackageSnapshot {
+        let response: StorefrontServerPackageEnvelope = try await api.post(
+            "/api/storefront/packages/snapshot",
+            body: StorefrontCreateSnapshotRequest(package: package, parentPackageId: parentPackageID),
+            timeoutInterval: 15
+        )
+        guard response.ok else { throw APIError.invalidResponse }
+        return response.package
+    }
 
     func flightBoard(origin: String = "TAS") async throws -> StorefrontFlightBoardResponse {
         try await api.get(

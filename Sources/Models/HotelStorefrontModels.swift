@@ -106,9 +106,36 @@ struct StorefrontPackageHotel: Hashable, Identifiable {
     let nights: Int
 }
 
-struct StorefrontFlightPackagePreview: Hashable, Identifiable {
-    var id: String { "\(outboundOptionID)::\(returnOptionID)" }
 
+struct StorefrontPackageSnapshotConfiguration: Codable, Hashable {
+    let adults: Int
+    let children: Int
+    let infants: Int
+    let rooms: Int
+    let makkahLunch: Bool
+    let makkahDinner: Bool
+    let madinahDinner: Bool
+    let transferVehicle: String?
+    let haramainEnabled: Bool
+    let haramainFareClass: String
+    let haramainTicketCount: Int
+    let makkahRoomId: String?
+    let madinahRoomId: String?
+
+    var mealSelection: PackageMealSelection {
+        PackageMealSelection(
+            makkahLunch: makkahLunch,
+            makkahDinner: makkahDinner,
+            madinahDinner: madinahDinner
+        )
+    }
+}
+
+struct StorefrontFlightPackagePreview: Hashable, Identifiable {
+    var id: String { packageID }
+
+    let packageID: String
+    let snapshotConfiguration: StorefrontPackageSnapshotConfiguration?
     let pricePerPerson: Decimal
     let totalPackagePrice: Decimal
     /// Complete published flight-pair fare for one traveler. Kept internal so the

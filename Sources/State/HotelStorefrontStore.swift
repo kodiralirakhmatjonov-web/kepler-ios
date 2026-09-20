@@ -23,6 +23,8 @@ final class HotelStorefrontStore: ObservableObject {
     private let favoritesKey = "iumrah.hotelStorefront.favorites.v1"
     private let snapshotURL: URL
     private var preparationTask: Task<Void, Never>?
+    private var hotelServerPackages: [String: StorefrontServerPackageSnapshot] = [:]
+    private var flightServerPackages: [String: StorefrontServerPackageSnapshot] = [:]
 
     init() {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -80,11 +82,7 @@ final class HotelStorefrontStore: ObservableObject {
 
     func ingest(detail: HotelDetail) {
         details[detail.id] = detail
-        Task { @MainActor in
-            await rebuildQuotes()
-            await rebuildFlightPackagePreviews()
-            persistDiskSnapshot()
-        }
+        persistDiskSnapshot()
         startImageWarmup()
     }
 
@@ -103,11 +101,13 @@ final class HotelStorefrontStore: ObservableObject {
 
         departureOriginCode = normalized
         do {
-            let board = try await storefront.resilientFlightBoard(origin: normalized)
+            async let boardRequest = storefront.resilientFlightBoard(origin: normalized)
+            async let hotelPackagesRequest = storefront.serverPackages(mode: "hotel-first", origin: normalized)
+            async let flightPackagesRequest = storefront.serverPackages(mode: "flight-first", origin: normalized)
+            let (board, hotelPackages, flightPackages) = try await (boardRequest, hotelPackagesRequest, flightPackagesRequest)
             flightBoard = board
-            await rebuildQuotes()
-            await rebuildFlightPackagePreviews()
-            hasPrepared = !allHotels.isEmpty && baseline != nil && (!standardQuotes.isEmpty || !comfortQuotes.isEmpty || !luxuryQuotes.isEmpty)
+            applyServerPackages(hotelPackages: hotelPackages, flightPackages: flightPackages)
+            hasPrepared = !allHotels.isEmpty && (!standardQuotes.isEmpty || !comfortQuotes.isEmpty || !luxuryQuotes.isEmpty || !flightPackagePreviews.isEmpty)
             errorMessage = nil
             persistDiskSnapshot()
         } catch {
@@ -119,33 +119,28 @@ final class HotelStorefrontStore: ObservableObject {
         flightPackagePreviews[option.id]
     }
 
+    func packagePreview(id packageID: String) async -> StorefrontFlightPackagePreview? {
+        if let cached = flightPackagePreviews.values.first(where: { $0.packageID == packageID }) {
+            return cached
+        }
+        if let cached = hotelServerPackages.values.first(where: { $0.id == packageID }) {
+            return serverPreview(cached, forceKind: .hotelFirstMakkah)
+        }
+        guard let snapshot = try? await storefront.packageSnapshot(id: packageID) else { return nil }
+        if snapshot.entryMode == "hotel-first", let hotelID = snapshot.makkahHotelId {
+            hotelServerPackages[hotelID] = snapshot
+            return serverPreview(snapshot, forceKind: .hotelFirstMakkah)
+        }
+        flightServerPackages[snapshot.id] = snapshot
+        return serverPreview(snapshot)
+    }
+
     /// Creates the hotel-first entry point for the shared iumrah Configurator.
     /// The selected hotel is the fixed starting component; flights, pilgrims,
     /// rooms and Madinah can then be changed on the same package screen.
     func hotelConfiguratorPreview(for hotel: HotelSummary) -> StorefrontFlightPackagePreview? {
-        guard let quote = automaticQuote(for: hotel),
-              let baseline else { return nil }
-
-        let duration = tripGapDays(outbound: baseline.outbound, inbound: baseline.inbound) ?? quote.hotelNights
-        let packageHotel = storefrontPackageHotel(hotel, nights: quote.hotelNights)
-        return StorefrontFlightPackagePreview(
-            pricePerPerson: quote.packageQuote.pricePerPerson,
-            totalPackagePrice: quote.packageQuote.totalPackagePrice,
-            flightFarePerPersonUSD: Decimal(baseline.perTravelerFareUsd),
-            fareObservedAt: baseline.observedAt,
-            outboundOptionID: baseline.outboundOfferID,
-            returnOptionID: baseline.inboundOfferID,
-            outbound: baseline.outbound,
-            inbound: baseline.inbound,
-            durationDays: max(1, duration),
-            totalNights: quote.hotelNights,
-            makkahNights: quote.hotelNights,
-            madinahNights: 0,
-            kind: .hotelFirstMakkah,
-            tier: automaticTier(for: hotel),
-            hotels: [packageHotel],
-            packageQuote: quote.packageQuote
-        )
+        guard let snapshot = hotelServerPackages[hotel.id] else { return nil }
+        return serverPreview(snapshot, forceKind: .hotelFirstMakkah)
     }
 
     func defaultMadinahHotel(for tier: PackageTier) -> HotelSummary? {
@@ -369,8 +364,12 @@ final class HotelStorefrontStore: ObservableObject {
             "Madinah Al Munawwarah", "Al Madinah Al Munawwarah"
         ])
         async let flightRequest = flightBoardResult()
+        async let hotelPackagesRequest = serverPackagesResult(mode: "hotel-first")
+        async let flightPackagesRequest = serverPackagesResult(mode: "flight-first")
 
-        let (makkahResult, madinahResult, flightResult) = await (makkahRequest, madinahRequest, flightRequest)
+        let (makkahResult, madinahResult, flightResult, hotelPackagesResult, flightPackagesResult) = await (
+            makkahRequest, madinahRequest, flightRequest, hotelPackagesRequest, flightPackagesRequest
+        )
 
         var hotelErrors: [Error] = []
         switch makkahResult {
@@ -381,33 +380,19 @@ final class HotelStorefrontStore: ObservableObject {
         case .success(let hotels): madinahHotels = hotels
         case .failure(let error): hotelErrors.append(error)
         }
-        if case .success(let board) = flightResult {
-            flightBoard = board
-        }
+        if case .success(let board) = flightResult { flightBoard = board }
 
-        // Most catalogue responses already contain the fresh 48h nightly rate,
-        // so quotes normally become available here before detail/gallery requests.
-        await rebuildQuotes()
-        await rebuildFlightPackagePreviews()
+        let hotelPackages = (try? hotelPackagesResult.get()) ?? []
+        let flightPackages = (try? flightPackagesResult.get()) ?? []
+        applyServerPackages(hotelPackages: hotelPackages, flightPackages: flightPackages)
+
+        // Details/photos are now lazy. The old implementation fetched every hotel
+        // detail and generated 3 server quotes per hotel on tab entry, which created
+        // the visible iPhone hitch. Package prices now arrive as one server snapshot.
+        persistDiskSnapshot()
         startImageWarmup()
 
-        // Hotel detail is also a price fallback. Some catalogue deployments expose
-        // the current hotel price only on the detail payload. The previous storefront
-        // loaded that payload but never rebuilt quotes afterwards, leaving every hotel
-        // filtered out even though the price was present in the database.
-        let hotels = allHotels
-        if !hotels.isEmpty {
-            let loadedDetails = await fetchDetails(for: hotels)
-            for detail in loadedDetails { details[detail.id] = detail }
-            await rebuildQuotes()
-            await rebuildFlightPackagePreviews()
-            persistDiskSnapshot()
-            startImageWarmup()
-        }
-
-        // A completed catalogue + baseline preparation should not rerun on every
-        // tab appearance. Pull-to-refresh remains available for an explicit retry.
-        hasPrepared = !allHotels.isEmpty && baseline != nil && (!standardQuotes.isEmpty || !comfortQuotes.isEmpty || !luxuryQuotes.isEmpty)
+        hasPrepared = !allHotels.isEmpty && (!standardQuotes.isEmpty || !comfortQuotes.isEmpty || !luxuryQuotes.isEmpty || !flightPackagePreviews.isEmpty)
 
         if allHotels.isEmpty {
             if let error = hotelErrors.first {
@@ -415,11 +400,135 @@ final class HotelStorefrontStore: ObservableObject {
             } else {
                 errorMessage = "Каталог отелей временно недоступен."
             }
-        } else if baseline == nil {
-            // Do not hide hotels. This message is shown only in the package-price
-            // placeholder and helps distinguish pricing availability from catalog data.
-            errorMessage = "iumrah Flights Scanner обновляет рейсы для расчёта пакета."
+        } else if hotelPackages.isEmpty && flightPackages.isEmpty {
+            errorMessage = "iumrah обновляет единые серверные пакеты."
         }
+    }
+
+    private func serverPackagesResult(mode: String) async -> Result<[StorefrontServerPackageSnapshot], Error> {
+        do { return .success(try await storefront.serverPackages(mode: mode, origin: departureOriginCode)) }
+        catch { return .failure(error) }
+    }
+
+    private func applyServerPackages(
+        hotelPackages: [StorefrontServerPackageSnapshot],
+        flightPackages: [StorefrontServerPackageSnapshot]
+    ) {
+        hotelServerPackages = [:]
+        for item in hotelPackages {
+            if let hotelID = item.makkahHotelId { hotelServerPackages[hotelID] = item }
+        }
+        flightServerPackages = Dictionary(uniqueKeysWithValues: flightPackages.map { ($0.id, $0) })
+
+        var standard: [String: HotelStorefrontQuote] = [:]
+        var comfort: [String: HotelStorefrontQuote] = [:]
+        var luxury: [String: HotelStorefrontQuote] = [:]
+        for item in hotelPackages {
+            guard let hotelID = item.makkahHotelId,
+                  let total = item.totalPackagePrice,
+                  let perPerson = item.pricePerPerson else { continue }
+            let quote = HotelStorefrontQuote(
+                tier: item.tier,
+                packageQuote: PackageQuote(
+                    totalPackagePrice: total,
+                    pricePerPerson: perPerson,
+                    currency: item.currency,
+                    isEstimated: item.isEstimated,
+                    quoteId: item.id,
+                    quoteProof: nil
+                ),
+                hotelNightlyUsd: 0,
+                hotelNights: max(1, item.totalNights),
+                rooms: 1,
+                travelers: 2,
+                flightFarePerTravelerUsd: 0
+            )
+            switch item.tier {
+            case .luxury: luxury[hotelID] = quote
+            case .comfort: comfort[hotelID] = quote
+            case .economy, .standard: standard[hotelID] = quote
+            }
+        }
+        standardQuotes = standard
+        comfortQuotes = comfort
+        luxuryQuotes = luxury
+
+        var previews: [String: StorefrontFlightPackagePreview] = [:]
+        for item in flightPackages {
+            guard let preview = serverPreview(item) else { continue }
+            previews[item.outboundOfferId] = preview
+            if previews[item.inboundOfferId] == nil { previews[item.inboundOfferId] = preview }
+        }
+        flightPackagePreviews = previews
+    }
+
+    private func serverPreview(
+        _ item: StorefrontServerPackageSnapshot,
+        forceKind: StorefrontUmrahPackageKind? = nil
+    ) -> StorefrontFlightPackagePreview? {
+        guard let total = item.totalPackagePrice, let perPerson = item.pricePerPerson else { return nil }
+        let kind: StorefrontUmrahPackageKind
+        if let forceKind { kind = forceKind }
+        else { kind = item.kind == "makkah-only" ? .makkahComfortShort : .makkahMadinahStandard }
+
+        let madinahNights = item.kind == "makkah-madinah" && item.totalNights > 1
+            ? max(1, min(item.totalNights - 1, Int(floor(Double(item.totalNights) * 0.42))))
+            : 0
+        let makkahNights = max(1, item.totalNights - madinahNights)
+        var packageHotels: [StorefrontPackageHotel] = []
+        if let hotelID = item.makkahHotelId {
+            let hotel = hotel(id: hotelID)
+            packageHotels.append(StorefrontPackageHotel(
+                id: hotelID,
+                name: hotel?.name ?? item.hotelName,
+                city: hotel?.city ?? item.hotelCity ?? "Makkah",
+                stars: hotel?.stars ?? item.hotelStars,
+                coverImageURL: hotel?.coverImageURL ?? item.imageUrl,
+                nights: makkahNights
+            ))
+        }
+        if let hotelID = item.madinahHotelId {
+            let hotel = hotel(id: hotelID)
+            packageHotels.append(StorefrontPackageHotel(
+                id: hotelID,
+                name: hotel?.name ?? item.hotelSecondaryName ?? "Madinah hotel",
+                city: hotel?.city ?? "Madinah",
+                stars: hotel?.stars,
+                coverImageURL: hotel?.coverImageURL,
+                nights: max(1, madinahNights)
+            ))
+        }
+
+        let pairFare = publishedFarePerTraveler(optionID: item.outboundOfferId)
+            .map { $0 + (publishedFarePerTraveler(optionID: item.inboundOfferId) ?? 0) } ?? 0
+        let quote = PackageQuote(
+            totalPackagePrice: total,
+            pricePerPerson: perPerson,
+            currency: item.currency,
+            isEstimated: item.isEstimated,
+            quoteId: item.id,
+            quoteProof: nil
+        )
+        return StorefrontFlightPackagePreview(
+            packageID: item.id,
+            snapshotConfiguration: item.configuration,
+            pricePerPerson: perPerson,
+            totalPackagePrice: total,
+            flightFarePerPersonUSD: pairFare,
+            fareObservedAt: flightBoard?.generatedAt ?? item.startDate,
+            outboundOptionID: item.outboundOfferId,
+            returnOptionID: item.inboundOfferId,
+            outbound: item.outbound.clientLeg,
+            inbound: item.inbound.clientLeg,
+            durationDays: max(1, item.totalDays),
+            totalNights: max(1, item.totalNights),
+            makkahNights: makkahNights,
+            madinahNights: madinahNights,
+            kind: kind,
+            tier: item.tier,
+            hotels: packageHotels,
+            packageQuote: quote
+        )
     }
 
     private func hotelListResult(city: String) async -> Result<[HotelSummary], Error> {
@@ -879,6 +988,8 @@ final class HotelStorefrontStore: ObservableObject {
         }
 
         return StorefrontFlightPackagePreview(
+            packageID: quote.quoteId,
+            snapshotConfiguration: nil,
             pricePerPerson: quote.pricePerPerson,
             totalPackagePrice: quote.totalPackagePrice,
             flightFarePerPersonUSD: pair.farePerPersonUSD,
@@ -1059,10 +1170,8 @@ final class HotelStorefrontStore: ObservableObject {
         details = Dictionary(uniqueKeysWithValues: snapshot.hotelDetails.map { ($0.id, $0) })
         flightBoard = snapshot.flightBoard
         departureOriginCode = snapshot.flightBoard?.origin.uppercased() ?? "TAS"
-        Task { @MainActor in
-            await rebuildQuotes()
-            await rebuildFlightPackagePreviews()
-        }
+        // Package prices are intentionally not rebuilt from disk. The app renders
+        // cached hotel media immediately and then obtains the current 24h server snapshot.
         // Disk data renders immediately, then the app refreshes prices/flight baseline
         // once per launch. Photo bytes themselves live in the persistent image cache.
         hasPrepared = false

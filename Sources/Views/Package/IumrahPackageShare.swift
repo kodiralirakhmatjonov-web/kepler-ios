@@ -4,6 +4,7 @@ import UIKit
 import LinkPresentation
 
 struct IumrahPackageSharePayload: Hashable {
+    let packageID: String
     let hotelID: String
     let hotelName: String
     let tierName: String
@@ -55,6 +56,7 @@ extension IumrahPackageSharePayload {
         }
 
         return IumrahPackageSharePayload(
+            packageID: preview.packageID,
             hotelID: hotel.id,
             hotelName: hotel.name,
             tierName: preview.tier.title(language),
@@ -175,25 +177,10 @@ enum IumrahPackageShareFactory {
     }
 
     private static func packageLink(_ payload: IumrahPackageSharePayload) -> URL {
-        let token = HotelStorefrontService.publicHotelToken(payload.hotelID)
-        let base = AppConfig.apiBaseURL.appendingPathComponent("h").appendingPathComponent(token)
-        var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            URLQueryItem(name: "configurator", value: "1"),
-            URLQueryItem(name: "travelers", value: String(payload.travelers)),
-            URLQueryItem(name: "adults", value: String(payload.adults)),
-            URLQueryItem(name: "children", value: String(payload.children)),
-            URLQueryItem(name: "infants", value: String(payload.infants)),
-            URLQueryItem(name: "rooms", value: String(payload.rooms)),
-            URLQueryItem(name: "scope", value: payload.scope.rawValue),
-            URLQueryItem(name: "first_city", value: payload.firstSaudiCity.rawValue),
-            URLQueryItem(name: "makkah_lunch", value: payload.mealSelection.makkahLunch ? "1" : "0"),
-            URLQueryItem(name: "makkah_dinner", value: payload.mealSelection.makkahDinner ? "1" : "0"),
-            URLQueryItem(name: "madinah_dinner", value: payload.mealSelection.madinahDinner ? "1" : "0"),
-            URLQueryItem(name: "outbound", value: payload.outboundOptionID),
-            URLQueryItem(name: "inbound", value: payload.inboundOptionID)
-        ]
-        return components.url ?? base
+        AppConfig.apiBaseURL
+            .appendingPathComponent("flights")
+            .appendingPathComponent("package")
+            .appendingPathComponent(payload.packageID)
     }
 
     private static func shareMessage(
