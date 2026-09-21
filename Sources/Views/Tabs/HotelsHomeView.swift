@@ -2428,7 +2428,13 @@ struct StorefrontUmrahPackageDetailView: View {
         journey.haramainTrainSelected = preview.snapshotConfiguration?.haramainEnabled ?? false
         journey.haramainFareClass = preview.snapshotConfiguration
             .flatMap { HaramainFareClass(rawValue: $0.haramainFareClass) } ?? .economy
-        journey.haramainTicketCount = max(0, preview.snapshotConfiguration?.haramainTicketCount ?? 0)
+        let restoredHaramainTickets = max(0, preview.snapshotConfiguration?.haramainTicketCount ?? 0)
+        let restoredAdultTickets = min(restoredHaramainTickets, max(0, journey.trip.adults))
+        journey.haramainAdultTickets = restoredAdultTickets
+        journey.haramainChildTickets = min(
+            max(0, restoredHaramainTickets - restoredAdultTickets),
+            max(0, journey.trip.children)
+        )
         journey.transferSelectionConfirmed = false
         journey.quote = preview.packageQuote
         journey.errorMessage = nil

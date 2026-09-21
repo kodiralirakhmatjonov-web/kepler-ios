@@ -1046,8 +1046,10 @@ final class HotelStorefrontStore: ObservableObject {
             packageHotels.append(storefrontPackageHotel(madinahHotel, nights: stay.madinahNights))
         }
 
+        guard let quoteID = quote.quoteId, !quoteID.isEmpty else { return nil }
+
         return StorefrontFlightPackagePreview(
-            packageID: quote.quoteId,
+            packageID: quoteID,
             snapshotConfiguration: nil,
             pricePerPerson: quote.pricePerPerson,
             totalPackagePrice: quote.totalPackagePrice,
