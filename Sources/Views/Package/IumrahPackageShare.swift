@@ -59,6 +59,12 @@ extension IumrahPackageSharePayload {
         let scopeSummary = preview.madinahNights > 0
             ? localized(language, "Мекка + Медина", "Makkah + Madinah", "Makka + Madina", "Макка + Мадина")
             : localized(language, "Только Мекка", "Makkah only", "Faqat Makka", "Фақат Макка")
+        let config = preview.snapshotConfiguration
+        let adults = max(1, config?.adults ?? 2)
+        let children = max(0, config?.children ?? 0)
+        let infants = max(0, config?.infants ?? 0)
+        let travelers = max(1, adults + children + infants)
+        let rooms = max(1, config?.rooms ?? 1)
 
         return IumrahPackageSharePayload(
             packageID: preview.packageID,
@@ -70,14 +76,14 @@ extension IumrahPackageSharePayload {
             outboundAt: preview.outbound.departureAt,
             inboundAt: preview.inbound.departureAt,
             durationDays: preview.durationDays,
-            travelers: 2,
-            adults: 2,
-            children: 0,
-            infants: 0,
-            rooms: 1,
+            travelers: travelers,
+            adults: adults,
+            children: children,
+            infants: infants,
+            rooms: rooms,
             scope: scope,
             firstSaudiCity: preview.outbound.destination.uppercased() == "MED" ? .madinah : .jeddah,
-            mealSelection: .defaultSelection,
+            mealSelection: config?.mealSelection ?? .defaultSelection,
             totalPriceUSD: preview.totalPackagePrice,
             perPersonPriceUSD: preview.pricePerPerson,
             mealsSummary: meals,

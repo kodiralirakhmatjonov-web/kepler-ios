@@ -9,6 +9,7 @@ struct HotelsHomeView: View {
     @State private var board: HotelsShowcaseBoard = .hotels
     @State private var selectedHotel: HotelSummary?
     @State private var selectedFlightPackage: StorefrontFlightPackagePreview?
+    @State private var selectedHotelPackageID: String?
     @State private var autoOpenConfiguratorHotelID: String?
     @State private var autoOpenConfiguratorDeepLink: HotelConfiguratorDeepLink?
     @State private var carePresented = false
@@ -75,7 +76,8 @@ struct HotelsHomeView: View {
             HotelDetailView(
                 hotel: hotel,
                 autoOpenConfigurator: autoOpenConfiguratorHotelID == hotel.id,
-                configuratorDeepLink: autoOpenConfiguratorDeepLink?.hotelID == hotel.id ? autoOpenConfiguratorDeepLink : nil
+                configuratorDeepLink: autoOpenConfiguratorDeepLink?.hotelID == hotel.id ? autoOpenConfiguratorDeepLink : nil,
+                initialPackageID: selectedHotelPackageID
             )
         }
         .navigationDestination(item: $selectedFlightPackage) { preview in
@@ -167,6 +169,7 @@ struct HotelsHomeView: View {
                         language: settings.language,
                         isFavorite: storefront.isFavorite(hotel),
                         onOpen: {
+                            selectedHotelPackageID = nil
                             autoOpenConfiguratorHotelID = nil
                             autoOpenConfiguratorDeepLink = nil
                             selectedHotel = hotel
@@ -450,6 +453,7 @@ struct HotelsHomeView: View {
 
     private func openRequestedHotel(_ hotelID: String?) {
         guard let hotelID, let hotel = storefront.hotel(id: hotelID) else { return }
+        selectedHotelPackageID = nil
         autoOpenConfiguratorHotelID = chrome.requestedHotelConfiguratorID == hotelID ? hotelID : nil
         if chrome.requestedHotelConfiguratorDeepLink?.hotelID == hotelID {
             autoOpenConfiguratorDeepLink = chrome.requestedHotelConfiguratorDeepLink
@@ -471,11 +475,24 @@ struct HotelsHomeView: View {
         Task { @MainActor in
             await storefront.prepareIfNeeded()
             guard let preview = await storefront.packagePreview(id: packageID) else { return }
-            board = preview.kind == .hotelFirstMakkah ? .hotels : .flights
-            selectedFlightPackage = preview
+
+            if let anchorHotelID = preview.hotelFirstAnchorHotelID,
+               let anchorHotel = storefront.hotel(id: anchorHotelID) {
+                board = .hotels
+                selectedFlightPackage = nil
+                selectedHotelPackageID = packageID
+                autoOpenConfiguratorHotelID = nil
+                autoOpenConfiguratorDeepLink = nil
+                selectedHotel = anchorHotel
+            } else {
+                board = .flights
+                selectedHotelPackageID = nil
+                selectedFlightPackage = preview
+            }
             chrome.requestedPackageID = nil
         }
     }
+
 
 }
 
@@ -2191,6 +2208,7 @@ struct StorefrontUmrahPackageDetailView: View {
                 packageID = persisted.id
                 activePackageID = persisted.id
                 activePackageFingerprint = packageFingerprint
+                _ = storefront.ingestPackageSnapshot(persisted)
                 sharedTotalPrice = persisted.totalPackagePrice ?? currentQuote.totalPackagePrice
                 sharedPerPersonPrice = persisted.pricePerPerson ?? currentQuote.pricePerPerson
             } catch {

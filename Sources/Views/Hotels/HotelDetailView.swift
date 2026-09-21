@@ -15,6 +15,7 @@ struct HotelDetailView: View {
     var onSelectionSaved: (() -> Void)? = nil
     var autoOpenConfigurator: Bool = false
     var configuratorDeepLink: HotelConfiguratorDeepLink? = nil
+    var initialPackageID: String? = nil
 
     @State private var detail: HotelDetail?
     @State private var isLoading = false
@@ -34,6 +35,7 @@ struct HotelDetailView: View {
     @State private var packageShareArtifacts: IumrahPackageShareArtifacts?
     @State private var packageShareError: String?
     @State private var selectedPackageVariantIndex = 0
+    @State private var hasAppliedInitialPackageSelection = false
 
     private let service = HotelCatalogService()
     private let packageEngine = RemotePackageEngineClient()
@@ -108,12 +110,20 @@ struct HotelDetailView: View {
         .task {
             await storefront.prepareIfNeeded()
             await storefront.updateDepartureAirport(journey.trip.originCode)
+            synchronizeSelectedPackageVariant()
             await load()
             await loadRoomCategories()
             if autoOpenConfigurator, selectedConfiguratorPreview == nil,
-               let preview = storefront.hotelConfiguratorPreview(for: hotel) {
+               let preview = selectedHotelPackagePreview ?? storefront.hotelConfiguratorPreview(for: hotel) {
                 selectedConfiguratorPreview = preview
             }
+        }
+        .onChange(of: hotelPackagePreviews.map(\.packageID)) { _, _ in
+            synchronizeSelectedPackageVariant()
+        }
+        .onChange(of: selectedPackageVariantIndex) { oldValue, newValue in
+            guard oldValue != newValue, hotelPackagePreviews.indices.contains(newValue) else { return }
+            IumrahHaptics.selection()
         }
         .fullScreenCover(isPresented: $isGalleryPresented) {
             HotelGalleryView(hotelName: hotel.name, images: detail?.images ?? [])
@@ -320,6 +330,31 @@ struct HotelDetailView: View {
                 .background(Color.iumrahCardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             } else {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(L10n.text("hotel_detail_package_options_title", settings.language))
+                            .font(.system(size: 19, weight: .bold, design: .rounded))
+                        Text(L10n.format(
+                            "hotel_detail_package_options_subtitle_fmt",
+                            settings.language,
+                            hotelPackagePreviews.count
+                        ))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 8)
+                    if hotelPackagePreviews.count > 1 {
+                        Text(L10n.format(
+                            "hotel_detail_package_counter_fmt",
+                            settings.language,
+                            selectedPackageVariantIndex + 1,
+                            hotelPackagePreviews.count
+                        ))
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    }
+                }
+
                 TabView(selection: $selectedPackageVariantIndex) {
                     ForEach(Array(hotelPackagePreviews.enumerated()), id: \.element.packageID) { index, preview in
                         hotelPackageVariantCard(preview, index: index)
@@ -327,7 +362,7 @@ struct HotelDetailView: View {
                             .padding(.horizontal, 1)
                     }
                 }
-                .frame(height: 548)
+                .frame(height: 520)
                 .tabViewStyle(.page(indexDisplayMode: .never))
 
                 if hotelPackagePreviews.count > 1 {
@@ -346,8 +381,32 @@ struct HotelDetailView: View {
         }
     }
 
+    private func synchronizeSelectedPackageVariant() {
+        let previews = hotelPackagePreviews
+        guard !previews.isEmpty else {
+            selectedPackageVariantIndex = 0
+            return
+        }
+
+        if !hasAppliedInitialPackageSelection {
+            if let initialPackageID,
+               let index = previews.firstIndex(where: { $0.packageID == initialPackageID }) {
+                selectedPackageVariantIndex = index
+                hasAppliedInitialPackageSelection = true
+                return
+            }
+            if initialPackageID == nil {
+                hasAppliedInitialPackageSelection = true
+            }
+        }
+
+        if !previews.indices.contains(selectedPackageVariantIndex) {
+            selectedPackageVariantIndex = min(max(0, selectedPackageVariantIndex), previews.count - 1)
+        }
+    }
+
     private func hotelPackageVariantCard(_ preview: StorefrontFlightPackagePreview, index: Int) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(packageVariantEyebrow(preview, index: index))
@@ -378,9 +437,11 @@ struct HotelDetailView: View {
                     .font(.caption.weight(.semibold))
                 Text("iumrah Configurator · \(preview.tier.title(settings.language))")
                     .font(.caption.weight(.semibold))
-                Spacer()
-                Text("ID · \(preview.packageID)")
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Text("\(L10n.text("hotel_detail_package_id", settings.language)) · \(preview.packageID)")
                     .font(.caption2.monospacedDigit().weight(.semibold))
+                    .lineLimit(1)
             }
             .foregroundStyle(.secondary)
 
@@ -400,7 +461,7 @@ struct HotelDetailView: View {
                     "hotel_detail_package_total_for_fmt",
                     settings.language,
                     money(preview.totalPackagePrice),
-                    2
+                    packageTravelerCount(preview)
                 ))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -410,12 +471,12 @@ struct HotelDetailView: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 11) {
+            VStack(alignment: .leading, spacing: 10) {
                 packageFact(icon: "airplane", text: "\(preview.outbound.origin.uppercased()) → \(preview.outbound.destination.uppercased())   ·   \(preview.inbound.origin.uppercased()) → \(preview.inbound.destination.uppercased())")
-                packageFact(icon: "calendar", text: packageVariantStayText(preview))
+                packageFact(icon: "calendar", text: "\(L10n.date(preview.outbound.departureAt, settings.language)) → \(L10n.date(preview.inbound.departureAt, settings.language)) · \(preview.durationDays) \(packageDaysShort)")
+                packageFact(icon: "moon.stars.fill", text: packageVariantStayText(preview))
                 packageFact(icon: "building.2.fill", text: packageVariantHotelsText(preview))
                 packageFact(icon: "fork.knife", text: L10n.text("hotel_detail_services", settings.language))
-                packageFact(icon: "heart.fill", text: "iumrah Care")
             }
 
             Spacer(minLength: 0)
@@ -426,7 +487,7 @@ struct HotelDetailView: View {
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "slider.horizontal.3")
-                    Text(changePackageTitle)
+                    Text(L10n.text("hotel_detail_open_configurator", settings.language))
                         .font(.headline)
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -447,49 +508,26 @@ struct HotelDetailView: View {
 
     private func packageVariantEyebrow(_ preview: StorefrontFlightPackagePreview, index: Int) -> String {
         let key = preview.hotelFirstVariant ?? (index == 0 ? "short" : index == 1 ? "balanced" : "extended")
-        switch (settings.language, key) {
-        case (.russian, "short"): return "Короткая поездка"
-        case (.russian, "balanced"): return "Оптимальная поездка"
-        case (.russian, _): return "Больше дней в Умре"
-        case (.english, "short"): return "Short trip"
-        case (.english, "balanced"): return "Balanced trip"
-        case (.english, _): return "Longer Umrah"
-        case (.uzbek, "short"): return "Qisqa safar"
-        case (.uzbek, "balanced"): return "Optimal safar"
-        case (.uzbek, _): return "Umrada ko‘proq kun"
-        case (.uzbekCyrillic, "short"): return "Қисқа сафар"
-        case (.uzbekCyrillic, "balanced"): return "Оптимал сафар"
-        case (.uzbekCyrillic, _): return "Умрада кўпроқ кун"
+        switch key {
+        case "short": return L10n.text("hotel_detail_variant_short", settings.language)
+        case "balanced": return L10n.text("hotel_detail_variant_balanced", settings.language)
+        default: return L10n.text("hotel_detail_variant_extended", settings.language)
         }
     }
 
     private func packageVariantSubtitle(_ preview: StorefrontFlightPackagePreview) -> String {
-        switch settings.language {
-        case .russian: return "Готовый вариант на \(preview.durationDays) дн. · тот же выбранный отель, другой обратный рейс."
-        case .english: return "Ready \(preview.durationDays)-day option · the same selected hotel with a different return flight."
-        case .uzbek: return "\(preview.durationDays) kunlik tayyor variant · shu mehmonxona, boshqa qaytish reysi."
-        case .uzbekCyrillic: return "\(preview.durationDays) кунлик тайёр вариант · шу меҳмонхона, бошқа қайтиш рейси."
-        }
+        L10n.format("hotel_detail_variant_ready_fmt", settings.language, preview.durationDays)
     }
 
     private func packageVariantStayText(_ preview: StorefrontFlightPackagePreview) -> String {
         let makkah = preview.makkahNights
         let madinah = preview.madinahNights
-        let madinahFirst = preview.hotelFirstAnchorCity == "Madinah" && madinah > 0
-        switch settings.language {
-        case .russian:
-            if madinahFirst { return "Медина · \(madinah) ноч.   ·   Мекка · \(makkah) ноч." }
-            return madinah > 0 ? "Мекка · \(makkah) ноч.   ·   Медина · \(madinah) ноч." : "Мекка · \(makkah) ноч."
-        case .english:
-            if madinahFirst { return "Madinah · \(madinah) nights   ·   Makkah · \(makkah) nights" }
-            return madinah > 0 ? "Makkah · \(makkah) nights   ·   Madinah · \(madinah) nights" : "Makkah · \(makkah) nights"
-        case .uzbek:
-            if madinahFirst { return "Madina · \(madinah) tun   ·   Makka · \(makkah) tun" }
-            return madinah > 0 ? "Makka · \(makkah) tun   ·   Madina · \(madinah) tun" : "Makka · \(makkah) tun"
-        case .uzbekCyrillic:
-            if madinahFirst { return "Мадина · \(madinah) тун   ·   Макка · \(makkah) тун" }
-            return madinah > 0 ? "Макка · \(makkah) тун   ·   Мадина · \(madinah) тун" : "Макка · \(makkah) тун"
-        }
+        let makkahText = "\(L10n.text("city_makkah", settings.language)) · \(makkah) \(L10n.text("hotel_detail_nights_short", settings.language))"
+        let madinahText = "\(L10n.text("city_madinah", settings.language)) · \(madinah) \(L10n.text("hotel_detail_nights_short", settings.language))"
+        if madinah <= 0 { return makkahText }
+        return preview.hotelFirstAnchorCity == "Madinah"
+            ? "\(madinahText)   ·   \(makkahText)"
+            : "\(makkahText)   ·   \(madinahText)"
     }
 
     private func packageVariantHotelsText(_ preview: StorefrontFlightPackagePreview) -> String {
@@ -500,27 +538,18 @@ struct HotelDetailView: View {
             if lhsAnchor != rhsAnchor { return lhsAnchor }
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
-        return ordered.map { "\($0.name) · \($0.nights)" }.joined(separator: "   ·   ")
+        let nightsShort = L10n.text("hotel_detail_nights_short", settings.language)
+        return ordered.map { "\($0.name) · \($0.nights) \(nightsShort)" }.joined(separator: "   ·   ")
+    }
+
+    private func packageTravelerCount(_ preview: StorefrontFlightPackagePreview) -> Int {
+        guard let config = preview.snapshotConfiguration else { return 2 }
+        return max(1, config.adults + config.children + config.infants)
     }
 
     private var packageDaysShort: String {
-        switch settings.language {
-        case .russian: return "дн."
-        case .english: return "days"
-        case .uzbek: return "kun"
-        case .uzbekCyrillic: return "кун"
-        }
+        L10n.text("hotel_detail_days_short", settings.language)
     }
-
-    private var changePackageTitle: String {
-        switch settings.language {
-        case .russian: return "Открыть конфигуратор"
-        case .english: return "Open Configurator"
-        case .uzbek: return "Configuratorni ochish"
-        case .uzbekCyrillic: return "Configuratorни очиш"
-        }
-    }
-
 
     private func packageFact(icon: String, text: String) -> some View {
         HStack(spacing: 9) {

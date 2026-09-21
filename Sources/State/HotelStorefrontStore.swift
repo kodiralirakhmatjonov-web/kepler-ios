@@ -127,16 +127,31 @@ final class HotelStorefrontStore: ObservableObject {
             return serverPreview(cached, forceHotelFirst: true)
         }
         guard let snapshot = try? await storefront.packageSnapshot(id: packageID) else { return nil }
+        return ingestPackageSnapshot(snapshot)
+    }
+
+    @discardableResult
+    func ingestPackageSnapshot(_ snapshot: StorefrontServerPackageSnapshot) -> StorefrontFlightPackagePreview? {
         if snapshot.entryMode == "hotel-first" {
             let hotelID = snapshot.hotelFirstAnchorHotelId ?? snapshot.makkahHotelId ?? snapshot.madinahHotelId
             if let hotelID {
                 var values = hotelServerPackages[hotelID] ?? []
-                values.removeAll(where: { $0.id == snapshot.id })
+                values.removeAll(where: { existing in
+                    if existing.id == snapshot.id { return true }
+                    if let variantIndex = snapshot.hotelFirstVariantIndex,
+                       existing.hotelFirstVariantIndex == variantIndex { return true }
+                    if let variant = snapshot.hotelFirstVariant,
+                       !variant.isEmpty,
+                       existing.hotelFirstVariant == variant { return true }
+                    return false
+                })
                 values.append(snapshot)
+                objectWillChange.send()
                 hotelServerPackages[hotelID] = sortedHotelFirstSnapshots(values)
             }
             return serverPreview(snapshot, forceHotelFirst: true)
         }
+        objectWillChange.send()
         flightServerPackages[snapshot.id] = snapshot
         return serverPreview(snapshot)
     }
