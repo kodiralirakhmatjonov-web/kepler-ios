@@ -1,0 +1,38 @@
+{
+  "name": "iumrah-beta-update-20260923-testflight-version-2.0.5-v1.zip",
+  "created": "2026-09-23",
+  "reason": "App Store Connect rejected 2.0.4 because the approved 2.0.4 train is closed (errors 90062 and 90186).",
+  "release": {
+    "marketing_version": "2.0.5",
+    "bundle_id": "com.iumrah.app",
+    "build_number_source": "existing generic TestFlight workflow"
+  },
+  "changed_files": [
+    {
+      "path": "project.yml",
+      "bytes": 3404,
+      "sha256": "26df940ae73955543e09dee8b929d71025a8dc31b12e370eb64ea673a73f2846"
+    },
+    {
+      "path": "Backend/PackageEngine/test/booking-status-fulfillment-client-contract.test.mjs",
+      "bytes": 1740,
+      "sha256": "02d5798e6af67fcb7055dc6df0382e3a7d05c9ba06cc846afd9d646aa806ec9a"
+    },
+    {
+      "path": "IUMRAH_IOS_VERSION_205_20260923_APPLIED.txt",
+      "bytes": 451,
+      "sha256": "a6bc87b5f6dbe3f8f637b2dbfa0f4051960a583f7aaa8a63a8b9546e09c84ece"
+    }
+  ],
+  "qa": {
+    "uploaded_log_diagnosis": "Simulator build PASS; signed archive PASS; IPA export PASS; IPA preflight PASS; TestFlight upload failed only with App Store Connect errors 90062 and 90186 for closed/approved 2.0.4 train.",
+    "clean_overlay_after_hotel_first_v6": "PASS",
+    "zip_integrity": "PASS",
+    "zip_root_structure": "PASS",
+    "project_yml_parse": "PASS",
+    "workflow_version_resolution": "PASS -> 2.0.5",
+    "booking_status_contract_test": "3/3 PASS",
+    "swift_parse_all_sources": "210/210 PASS",
+    "xcodebuild": "Not rerun locally; uploaded GitHub log already proves the Hotel First v6 source compiles, archives, signs and exports successfully before App Store Connect version rejection."
+  }
+}

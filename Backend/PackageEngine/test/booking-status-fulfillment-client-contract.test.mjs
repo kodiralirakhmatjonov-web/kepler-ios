@@ -25,7 +25,7 @@ test('traveler cards keep a readable trip label without a hotel name', () => {
   assert.match(companions, /session\.booking\.route\.outboundDestination/);
 });
 
-test('client release metadata advances for the booking status update', () => {
-  assert.match(project, /MARKETING_VERSION: "2\.0\.4"/);
-  assert.match(project, /CURRENT_PROJECT_VERSION: "20183"/);
+test('client release metadata exposes valid numeric App Store versions', () => {
+  assert.match(project, /MARKETING_VERSION: "[0-9]+(?:\.[0-9]+){1,2}"/);
+  assert.match(project, /CURRENT_PROJECT_VERSION: "[0-9]+"/);
 });
