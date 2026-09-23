@@ -1,0 +1,58 @@
+{
+  "name": "iumrah-beta-update-20260923-hotel-first-server-v6.zip",
+  "created": "2026-09-23",
+  "source_of_truth": {
+    "filename": "kepler-ios-main 3(5).zip",
+    "sha256": "11316efcf26227f9f0a6356a2518a322d5260b05f33a262277e6793556b2078d"
+  },
+  "architecture": {
+    "hotel_first_source_of_truth": "GET/POST /api/storefront/packages on iumrah.app",
+    "hotel_first_engine_version": 6,
+    "variant_contract": [
+      "short",
+      "balanced",
+      "extended"
+    ],
+    "group_contract": "exactly 3 ready variants per hotel; same outbound offer/departure; distinct inbound offers and durations; canonical 10-digit package IDs",
+    "generation_owner": "server only",
+    "client_batch_role": "advance bounded server refresh batches and consume snapshots",
+    "catalog_independence": "hotel catalogue renders before Hotel First generation completes",
+    "flight_inventory": "published storefront flight inventory; no fare-calendar synthetic Hotel First fallback",
+    "flight_first": "preserved server package registry + published flight board"
+  },
+  "changed_files": [
+    {
+      "path": "Sources/Services/HotelStorefrontService.swift",
+      "bytes": 9130,
+      "sha256": "d221d28e91e569b39e4a56aeeba0a16f29629021100bc0d16ce57caab33ea9b6"
+    },
+    {
+      "path": "Sources/State/HotelStorefrontStore.swift",
+      "bytes": 60568,
+      "sha256": "543c349de1d5f9dccb2bdc5a6e4130c398e0a1aa96b4c45c28a0bea5487ac2bf"
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "bytes": 192135,
+      "sha256": "dd243edb3cb8a05445bb2158829127bf2ad86833a6a38805d9996f8be1ee3e94"
+    },
+    {
+      "path": "Sources/Views/RootView.swift",
+      "bytes": 15452,
+      "sha256": "198990d7b6874629ab38131ffe6b8d924cbd81e792d5db7eee247cfdc1c063c2"
+    },
+    {
+      "path": "IUMRAH_IOS_HOTEL_FIRST_SERVER_V6_20260923_APPLIED.txt",
+      "bytes": 831,
+      "sha256": "25e0af9b6cf07b6e12735e00ee2151cedc89cb519b8271e1a394626180b37e18"
+    }
+  ],
+  "qa": {
+    "swift_parse_all_sources": "PASS",
+    "project_yml_parse": "PASS",
+    "hotel_first_v6_source_contract": "PASS",
+    "diff_check_changed_files": "PASS",
+    "clean_overlay_reproduction": "PASS",
+    "xcodebuild": "not runnable in Linux container; GitHub macOS/TestFlight workflow remains final compile/sign validation"
+  }
+}

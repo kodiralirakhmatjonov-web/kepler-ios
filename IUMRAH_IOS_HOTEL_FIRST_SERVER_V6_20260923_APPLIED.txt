@@ -1,0 +1,12 @@
+iumrah iOS — Hotel First server v6 alignment
+Date: 2026-09-23
+
+Hotel First is now server-authoritative end-to-end:
+- the iOS client never constructs missing Hotel First packages locally;
+- only atomic server groups of short / balanced / extended are admitted;
+- all three variants must share one outbound published flight and use three distinct returns;
+- package IDs must be canonical 10-digit registry IDs;
+- the iOS client advances the same bounded Hotel First server batches used by the web storefront until the daily cache is complete;
+- the hotel catalogue renders independently while package batches are still being assembled;
+- fare-calendar / synthetic Hotel First fallback and per-hotel client storefront quoting were removed;
+- Flight First continues to use the published flight inventory and server package registry.

@@ -2158,6 +2158,7 @@ struct StorefrontUmrahPackageDetailView: View {
                 hotelFirstVariantMaxDays: isHotelFirst ? preview.hotelFirstVariantMaxDays : nil,
                 hotelFirstAnchorCity: isHotelFirst ? anchorCity : nil,
                 hotelFirstAnchorHotelId: isHotelFirst ? anchorHotel.id : nil,
+                hotelFirstEngineVersion: isHotelFirst ? HotelStorefrontService.hotelFirstEngineVersion : nil,
                 outbound: .init(
                     airline: currentOutboundLeg.airline,
                     airlineCode: currentOutboundLeg.airlineCode,
@@ -2191,6 +2192,8 @@ struct StorefrontUmrahPackageDetailView: View {
                 hotelSecondaryName: secondary?.name,
                 hotelCity: anchorHotel.city,
                 hotelStars: anchorHotel.stars,
+                hotelRating: anchorHotel.rating,
+                hotelReviewCount: anchorHotel.reviewCount,
                 makkahHotelId: hotel.id,
                 madinahHotelId: secondary?.id,
                 routeSummary: "\(currentOutboundLeg.origin) → \(currentOutboundLeg.destination) + \(currentInboundLeg.origin) → \(currentInboundLeg.destination)",

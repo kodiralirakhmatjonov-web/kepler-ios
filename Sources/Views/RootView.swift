@@ -29,9 +29,10 @@ struct RootView: View {
                 chrome.requestedTab = nil
             }
             .task {
-                // Start hotel catalogue, published-flight baseline, package-price preparation
-                // and photo prefetch as soon as the application launches. The Hotels tab
-                // should consume prepared data instead of triggering this work on entry.
+                // Start the hotel catalogue, published flight inventory, immutable server
+                // package snapshots and photo prefetch as soon as the app launches. Hotel
+                // First generation stays on the server; the client only advances bounded
+                // server batches when the daily cache is still being assembled.
                 Task(priority: .userInitiated) { await hotelStorefront.prepareIfNeeded() }
                 guard hasCompletedOnboarding else { return }
                 await bootstrapAfterOnboardingIfNeeded()
