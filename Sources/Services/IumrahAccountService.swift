@@ -48,6 +48,71 @@ struct IumrahAccountService {
         )
     }
 
+    func startActivationSMS(bookingID: String, bookingToken: String, phone: String, locale: String) async throws -> IumrahPhoneChallengeStartResponse {
+        try await api.post(
+            "/api/package/client/account/activate/sms/start",
+            body: IumrahAccountActivationSMSStartRequest(
+                bookingID: bookingID,
+                phone: phone,
+                locale: locale
+            ),
+            headers: ["x-booking-token": bookingToken]
+        )
+    }
+
+    func confirmActivationSMS(
+        bookingID: String,
+        bookingToken: String,
+        challengeID: String,
+        code: String,
+        password: String,
+        locale: String
+    ) async throws -> IumrahAccountAuthResponse {
+        try await api.post(
+            "/api/package/client/account/activate/sms/confirm",
+            body: IumrahAccountActivationSMSConfirmRequest(
+                bookingID: bookingID,
+                challengeID: challengeID,
+                code: code,
+                password: password,
+                device: IumrahAccountDeviceIdentity.current(locale: locale)
+            ),
+            headers: ["x-booking-token": bookingToken]
+        )
+    }
+
+    func bookingPhoneVerificationStatus(bookingID: String, bookingToken: String) async throws -> IumrahPhoneVerificationStatusResponse {
+        let encodedID = bookingID.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? bookingID
+        return try await api.get(
+            "/api/package/client/account/phone/status?bookingID=\(encodedID)",
+            headers: ["x-booking-token": bookingToken]
+        )
+    }
+
+    func startBookingPhoneVerification(bookingID: String, bookingToken: String, phone: String, locale: String) async throws -> IumrahPhoneChallengeStartResponse {
+        try await api.post(
+            "/api/package/client/account/phone/start",
+            body: IumrahBookingPhoneVerificationStartRequest(
+                bookingID: bookingID,
+                phone: phone,
+                locale: locale
+            ),
+            headers: ["x-booking-token": bookingToken]
+        )
+    }
+
+    func confirmBookingPhoneVerification(bookingID: String, bookingToken: String, challengeID: String, code: String) async throws -> IumrahPhoneVerificationResponse {
+        try await api.post(
+            "/api/package/client/account/phone/confirm",
+            body: IumrahBookingPhoneVerificationConfirmRequest(
+                bookingID: bookingID,
+                challengeID: challengeID,
+                code: code
+            ),
+            headers: ["x-booking-token": bookingToken]
+        )
+    }
+
     func login(identifier: String, password: String, locale: String) async throws -> IumrahAccountAuthResponse {
         try await api.post(
             "/api/package/client/account/login",

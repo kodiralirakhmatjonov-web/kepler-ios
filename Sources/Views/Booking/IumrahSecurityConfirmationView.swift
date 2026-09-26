@@ -36,6 +36,11 @@ struct IumrahSecurityConfirmationView: View {
     @State private var isSubmitting = false
     @State private var isPreparingPhoto = false
     @State private var errorMessage: String?
+    @State private var smsChallengeID = ""
+    @State private var smsChallengePhone = ""
+    @State private var smsCode = ""
+    @State private var smsVerifiedPhone = ""
+    @State private var isSMSBusy = false
     @FocusState private var focusedField: Field?
 
     private let service = BookingService()
@@ -77,6 +82,15 @@ struct IumrahSecurityConfirmationView: View {
 
     private var smsCovered: Bool {
         normalizedPhone(phone).hasPrefix("+998")
+    }
+
+    private var smsPhoneValid: Bool {
+        let digits = normalizedPhone(phone).filter(\.isNumber)
+        return digits.hasPrefix("998") && digits.count == 12
+    }
+
+    private var smsPhoneVerified: Bool {
+        !smsVerifiedPhone.isEmpty && smsVerifiedPhone == normalizedPhone(phone)
     }
 
     var body: some View {
@@ -373,6 +387,17 @@ struct IumrahSecurityConfirmationView: View {
                 title: tr("Phone", "Номер телефона", "Telefon", "Телефон"),
                 text: $phone
             )
+            .onChange(of: phone) { _, raw in
+                let normalized = normalizedPhone(raw)
+                if !smsChallengeID.isEmpty && normalized != smsChallengePhone {
+                    smsChallengeID = ""
+                    smsChallengePhone = ""
+                    smsCode = ""
+                }
+                if !smsVerifiedPhone.isEmpty && normalized != smsVerifiedPhone {
+                    smsVerifiedPhone = ""
+                }
+            }
 
             if !smsCovered && !phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 HStack(alignment: .top, spacing: 10) {
@@ -395,19 +420,111 @@ struct IumrahSecurityConfirmationView: View {
                     RoundedRectangle(cornerRadius: 17, style: .continuous)
                         .strokeBorder(Color.orange.opacity(0.20), lineWidth: 0.8)
                 }
-            } else {
+            } else if smsPhoneVerified {
                 HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: "message.badge.fill")
-                        .foregroundStyle(.blue)
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(.green)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(tr("Phone verified", "Номер подтверждён", "Telefon tasdiqlandi", "Телефон тасдиқланди"))
+                            .font(.caption.weight(.bold))
+                        Text(tr(
+                            "This number is securely linked to the booking holder.",
+                            "Этот номер безопасно привязан к владельцу бронирования.",
+                            "Bu raqam bron egasiga xavfsiz bog‘landi.",
+                            "Бу рақам брон эгасига хавфсиз боғланди."
+                        ))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            } else if smsChallengeID.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "message.badge.fill")
+                            .foregroundStyle(.blue)
+                        Text(tr(
+                            "Confirm this +998 number by SMS. We will send a one-time code through DevSMS.",
+                            "Подтвердите этот номер +998 по SMS. Мы отправим одноразовый код через DevSMS.",
+                            "Ushbu +998 raqamni SMS orqali tasdiqlang. DevSMS orqali bir martalik kod yuboramiz.",
+                            "Ушбу +998 рақамни SMS орқали тасдиқланг. DevSMS орқали бир марталик код юборамиз."
+                        ))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Button { Task { await startPhoneVerification() } } label: {
+                        HStack {
+                            if isSMSBusy { ProgressView().tint(.white) }
+                            Text(tr("Send SMS code", "Отправить SMS-код", "SMS kodini yuborish", "SMS кодини юбориш"))
+                            Spacer()
+                            Image(systemName: "arrow.up.message.fill")
+                        }
+                    }
+                    .buttonStyle(IumrahPrimaryButtonStyle())
+                    .disabled(!smsPhoneValid || isSMSBusy)
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.blue.opacity(0.06), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    securityPlainField(
+                        title: tr("SMS verification code", "Код подтверждения из SMS", "SMS tasdiqlash kodi", "SMS тасдиқлаш коди"),
+                        placeholder: "000000",
+                        text: $smsCode,
+                        keyboard: .numberPad,
+                        contentType: .oneTimeCode,
+                        capitalization: .never
+                    )
+                    .onChange(of: smsCode) { _, raw in
+                        let digits = String(raw.filter(\.isNumber).prefix(6))
+                        if digits != raw { smsCode = digits }
+                    }
+
                     Text(tr(
-                        "SMS confirmation for +998 will be connected through DevSMS. Your number is saved now; the verification action is temporarily disabled.",
-                        "SMS-подтверждение для +998 будет подключено через DevSMS. Номер уже сохраняется, а само подтверждение пока временно недоступно.",
-                        "+998 uchun SMS tasdiqlash DevSMS orqali ulanadi. Raqamingiz hozir saqlanadi, tasdiqlash amali esa vaqtincha o‘chirilgan.",
-                        "+998 учун SMS тасдиқлаш DevSMS орқали уланади. Рақамингиз ҳозир сақланади, тасдиқлаш амали эса вақтинча ўчирилган."
+                        "The code was sent to your number and is valid for 10 minutes.",
+                        "Код отправлен на Ваш номер и действует 10 минут.",
+                        "Kod raqamingizga yuborildi va 10 daqiqa amal qiladi.",
+                        "Код рақамингизга юборилди ва 10 дақиқа амал қилади."
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+
+                    Button { Task { await confirmPhoneVerification() } } label: {
+                        HStack {
+                            if isSMSBusy { ProgressView().tint(.white) }
+                            Text(tr("Confirm number", "Подтвердить номер", "Raqamni tasdiqlash", "Рақамни тасдиқлаш"))
+                            Spacer()
+                            Image(systemName: "checkmark.shield.fill")
+                        }
+                    }
+                    .buttonStyle(IumrahPrimaryButtonStyle())
+                    .disabled(smsCode.count != 6 || isSMSBusy)
+
+                    HStack {
+                        Button {
+                            smsChallengeID = ""
+                            smsChallengePhone = ""
+                            smsCode = ""
+                            errorMessage = nil
+                        } label: {
+                            Text(tr("Change number", "Изменить номер", "Raqamni o‘zgartirish", "Рақамни ўзгартириш"))
+                                .font(.caption.weight(.semibold))
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        Button { Task { await startPhoneVerification() } } label: {
+                            Text(tr("Send again", "Отправить ещё раз", "Qayta yuborish", "Қайта юбориш"))
+                                .font(.caption.weight(.semibold))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isSMSBusy)
+                    }
                 }
                 .padding(13)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -914,6 +1031,14 @@ struct IumrahSecurityConfirmationView: View {
         if emergencyPhone == "+998", !settings.emergencyPhone.isEmpty { emergencyPhone = Self.formatPhoneInput(settings.emergencyPhone) }
         if emergencyRelation.isEmpty { emergencyRelation = settings.emergencyRelation }
 
+        if let status = try? await accountService.bookingPhoneVerificationStatus(
+            bookingID: bookingID,
+            bookingToken: session.accessToken
+        ), status.verified, !status.phone.isEmpty {
+            smsVerifiedPhone = status.phone
+            phone = Self.formatPhoneInput(status.phone)
+        }
+
         do {
             let response = try await service.securityConfirmation(id: bookingID, accessToken: session.accessToken)
             existing = response.confirmation
@@ -925,6 +1050,58 @@ struct IumrahSecurityConfirmationView: View {
             existing = nil
         } catch {
             errorMessage = L10n.error(error, settings.language)
+        }
+    }
+
+    @MainActor
+    private func startPhoneVerification() async {
+        guard let session, smsPhoneValid else { return }
+        isSMSBusy = true
+        errorMessage = nil
+        defer { isSMSBusy = false }
+
+        do {
+            let response = try await accountService.startBookingPhoneVerification(
+                bookingID: bookingID,
+                bookingToken: session.accessToken,
+                phone: normalizedPhone(phone),
+                locale: settings.language.rawValue
+            )
+            phone = Self.formatPhoneInput(response.phone)
+            smsChallengePhone = response.phone
+            smsChallengeID = response.challengeID
+            smsCode = ""
+            IumrahHaptics.success()
+        } catch {
+            errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func confirmPhoneVerification() async {
+        guard let session, !smsChallengeID.isEmpty, smsCode.count == 6 else { return }
+        isSMSBusy = true
+        errorMessage = nil
+        defer { isSMSBusy = false }
+
+        do {
+            let response = try await accountService.confirmBookingPhoneVerification(
+                bookingID: bookingID,
+                bookingToken: session.accessToken,
+                challengeID: smsChallengeID,
+                code: smsCode
+            )
+            phone = Self.formatPhoneInput(response.phone)
+            smsVerifiedPhone = response.phone
+            smsChallengeID = ""
+            smsChallengePhone = ""
+            smsCode = ""
+            settings.phone = response.phone
+            IumrahHaptics.success()
+        } catch {
+            errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            IumrahHaptics.error()
         }
     }
 

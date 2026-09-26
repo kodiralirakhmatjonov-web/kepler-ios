@@ -1033,6 +1033,31 @@ enum IumrahAccountSecurityCopy {
             ru = "Сейчас не удалось отправить письмо. Попробуйте повторить позже."
             uz = "Hozir tasdiqlash xatini yuborib bo‘lmadi. Keyinroq qayta urinib ko‘ring."
             cyrl = "Ҳозир тасдиқлаш хатини юбориб бўлмади. Кейинроқ қайта уриниб кўринг."
+        case "PHONE_INVALID":
+            en = "Enter a valid Uzbekistan mobile number in +998 format."
+            ru = "Введите корректный номер Узбекистана в формате +998."
+            uz = "+998 formatida to‘g‘ri O‘zbekiston raqamini kiriting."
+            cyrl = "+998 форматида тўғри Ўзбекистон рақамини киритинг."
+        case "PHONE_ALREADY_CONNECTED":
+            en = "This phone number is already connected to another iumrah account."
+            ru = "Этот номер телефона уже привязан к другому аккаунту iumrah."
+            uz = "Bu telefon raqami boshqa iumrah akkauntiga bog‘langan."
+            cyrl = "Бу телефон рақами бошқа iumrah аккаунтига боғланган."
+        case "SMS_COUNTRY_UNSUPPORTED":
+            en = "SMS verification is temporarily available only for Uzbekistan (+998). Continue with email, Google or Apple."
+            ru = "SMS-подтверждение временно доступно только для Узбекистана (+998). Продолжите через email, Google или Apple."
+            uz = "SMS tasdiqlash hozircha faqat O‘zbekiston (+998) uchun mavjud. Email, Google yoki Apple orqali davom eting."
+            cyrl = "SMS тасдиқлаш ҳозирча фақат Ўзбекистон (+998) учун мавжуд. Email, Google ёки Apple орқали давом этинг."
+        case "SMS_RATE_LIMITED":
+            en = "Too many SMS requests. Please wait and try again later."
+            ru = "Слишком много запросов SMS. Подождите и попробуйте позже."
+            uz = "SMS so‘rovlari juda ko‘p. Biroz kutib, keyinroq qayta urinib ko‘ring."
+            cyrl = "SMS сўровлари жуда кўп. Бироз кутиб, кейинроқ қайта уриниб кўринг."
+        case "SMS_DELIVERY_NOT_CONFIGURED", "SMS_DELIVERY_UNAVAILABLE":
+            en = "The SMS code could not be sent right now. Please try again later or continue with email, Google or Apple."
+            ru = "Сейчас не удалось отправить SMS-код. Попробуйте позже или продолжите через email, Google либо Apple."
+            uz = "Hozir SMS kodini yuborib bo‘lmadi. Keyinroq urinib ko‘ring yoki email, Google yoxud Apple orqali davom eting."
+            cyrl = "Ҳозир SMS кодини юбориб бўлмади. Кейинроқ уриниб кўринг ёки email, Google ёхуд Apple орқали давом этинг."
         case "VERIFICATION_CODE_INVALID":
             en = "The code is incorrect or expired. Request a new code."
             ru = "Код неверный или устарел. Запросите новый код."

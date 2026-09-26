@@ -37,6 +37,8 @@ async function publicHealth(env: Env) {
       roomCategoriesReady: false,
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
+      smsProvider: "devsms",
+      smsProviderConfigured: Boolean(env.DEVSMS_API_TOKEN),
       quoteSealingMode: quoteSealingMode(env),
     });
   }
@@ -76,6 +78,8 @@ async function publicHealth(env: Env) {
       bookingRoomColumnsReady: Boolean(env.BOOKINGS_DB),
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
+      smsProvider: "devsms",
+      smsProviderConfigured: Boolean(env.DEVSMS_API_TOKEN),
       quoteSealingMode: quoteSealingMode(env),
     });
   } catch (error) {
@@ -89,6 +93,8 @@ async function publicHealth(env: Env) {
       roomCategoriesReady: false,
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
+      smsProvider: "devsms",
+      smsProviderConfigured: Boolean(env.DEVSMS_API_TOKEN),
       quoteSealingMode: quoteSealingMode(env),
       error: error instanceof Error ? error.message : "D1 health check failed",
     }, 503);

@@ -99,6 +99,18 @@ function validEmail(value: string) {
     && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u.test(value);
 }
 
+function normalizePhone(value: unknown) {
+  const raw = cleanText(value, 40);
+  const digits = raw.replace(/\D/g, "").slice(0, 15);
+  return digits ? `+${digits}` : "";
+}
+
+function validUzbekPhone(value: string) {
+  return /^\+998\d{9}$/.test(value);
+}
+
+type SMSChallengePurpose = "verify_phone" | "activate_account";
+
 function validPassword(value: unknown): value is string {
   return typeof value === "string" && value.length >= 8 && value.length <= 128;
 }
@@ -1077,6 +1089,136 @@ async function confirmBookingEmailActivation(request: Request, env: Env, db: D1L
   });
 }
 
+
+async function startBookingSMSActivation(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    bookingID?: unknown;
+    phone?: unknown;
+    locale?: unknown;
+  } | null;
+  const context = await bookingActivationContext(request, env, db, payload?.bookingID);
+  await ensureActivationAvailable(db, context.pilgrimID);
+  const challenge = await createSMSChallenge(
+    db,
+    env,
+    request,
+    "activate_account",
+    context.pilgrimID,
+    payload?.phone,
+  );
+  await audit(db, context.pilgrimID, "booking_sms_activation_started", null, null);
+  return json({
+    ok: true,
+    challengeID: challenge.id,
+    expiresAt: challenge.expiresAt,
+    phone: challenge.phoneNormalized,
+  });
+}
+
+async function confirmBookingSMSActivation(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    bookingID?: unknown;
+    challengeID?: unknown;
+    code?: unknown;
+    password?: unknown;
+    device?: unknown;
+  } | null;
+  const context = await bookingActivationContext(request, env, db, payload?.bookingID);
+  await ensureActivationAvailable(db, context.pilgrimID);
+  const challenge = await verifySMSChallenge(
+    db,
+    cleanText(payload?.challengeID, 120),
+    "activate_account",
+    cleanText(payload?.code, 12),
+    context.pilgrimID,
+  );
+  await ensurePhoneAvailable(db, challenge.phone_normalized, context.pilgrimID);
+
+  const established = await establishPasswordAccount(
+    request,
+    db,
+    context,
+    payload?.password,
+    payload?.device,
+  );
+  await linkVerifiedPhone(db, context.pilgrimID, challenge.phone_display, challenge.phone_normalized);
+  await audit(db, context.pilgrimID, "booking_sms_activation_completed", established.sessionID, established.sessionID);
+
+  const updatedPilgrim = await db.prepare(
+    `SELECT id,first_name,last_name,display_name,phone,email,telegram,whatsapp
+     FROM pilgrims WHERE id=?1 LIMIT 1`,
+  ).bind(context.pilgrimID).first<PilgrimRow>() ?? context.pilgrim;
+  return json({
+    ok: true,
+    account: accountProfile(updatedPilgrim),
+    session: { token: established.session.token, expiresAt: established.session.expiresAt },
+  });
+}
+
+async function bookingPhoneVerificationStatus(request: Request, env: Env, db: D1Like) {
+  const url = new URL(request.url);
+  const context = await bookingActivationContext(request, env, db, url.searchParams.get("bookingID"));
+  const row = await db.prepare(
+    `SELECT phone_normalized,verified_at FROM iumrah_client_account_phones
+     WHERE pilgrim_id=?1 LIMIT 1`,
+  ).bind(context.pilgrimID).first<{ phone_normalized: string; verified_at: string }>();
+  return json({
+    ok: true,
+    verified: Boolean(row?.verified_at),
+    phone: cleanText(row?.phone_normalized, 40),
+    verifiedAt: cleanText(row?.verified_at, 80),
+  });
+}
+
+async function startBookingPhoneVerification(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    bookingID?: unknown;
+    phone?: unknown;
+    locale?: unknown;
+  } | null;
+  const context = await bookingActivationContext(request, env, db, payload?.bookingID);
+  const challenge = await createSMSChallenge(
+    db,
+    env,
+    request,
+    "verify_phone",
+    context.pilgrimID,
+    payload?.phone,
+  );
+  await audit(db, context.pilgrimID, "booking_phone_verification_started", null, null);
+  return json({
+    ok: true,
+    challengeID: challenge.id,
+    expiresAt: challenge.expiresAt,
+    phone: challenge.phoneNormalized,
+  });
+}
+
+async function confirmBookingPhoneVerification(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    bookingID?: unknown;
+    challengeID?: unknown;
+    code?: unknown;
+  } | null;
+  const context = await bookingActivationContext(request, env, db, payload?.bookingID);
+  const challenge = await verifySMSChallenge(
+    db,
+    cleanText(payload?.challengeID, 120),
+    "verify_phone",
+    cleanText(payload?.code, 12),
+    context.pilgrimID,
+  );
+  await ensurePhoneAvailable(db, challenge.phone_normalized, context.pilgrimID);
+  const verifiedAt = await linkVerifiedPhone(
+    db,
+    context.pilgrimID,
+    challenge.phone_display,
+    challenge.phone_normalized,
+  );
+  await audit(db, context.pilgrimID, "booking_phone_verified", null, null);
+  return json({ ok: true, phone: challenge.phone_normalized, verifiedAt });
+}
+
 async function startStandaloneEmailRegistration(request: Request, env: Env, db: D1Like) {
   const payload = await request.json().catch(() => null) as {
     email?: unknown;
@@ -1416,6 +1558,201 @@ async function verifyEmailChallenge(
   await db.prepare("UPDATE iumrah_client_email_challenges SET consumed_at=?1 WHERE id=?2")
     .bind(new Date().toISOString(), row.id).run();
   return row;
+}
+
+
+async function ensurePhoneAvailable(db: D1Like, phoneNormalized: string, pilgrimID: number) {
+  const collision = await db.prepare(
+    `SELECT pilgrim_id FROM iumrah_client_account_phones
+     WHERE phone_normalized=?1 AND pilgrim_id<>?2 LIMIT 1`,
+  ).bind(phoneNormalized, pilgrimID).first<{ pilgrim_id: number }>();
+  if (collision) throw new RouteError("PHONE_ALREADY_CONNECTED", 409);
+}
+
+async function sendDevSMSOTP(env: Env, purpose: SMSChallengePurpose, phoneNormalized: string, otpCode: string) {
+  const token = cleanText(env.DEVSMS_API_TOKEN, 600);
+  if (!token) throw new RouteError("SMS_DELIVERY_NOT_CONFIGURED", 503);
+
+  const response = await fetch("https://devsms.uz/api/send_sms.php", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      phone: phoneNormalized.replace(/^\+/, ""),
+      type: "universal_otp",
+      template_type: purpose === "activate_account" ? 3 : 1,
+      service_name: "iumrah",
+      otp_code: otpCode,
+    }),
+  });
+
+  const bodyText = await response.text().catch(() => "");
+  type DevSMSResponse = {
+    success?: boolean;
+    error?: unknown;
+    data?: { sms_id?: unknown; request_id?: unknown; status?: unknown };
+  };
+  let payload: DevSMSResponse | null = null;
+  try {
+    payload = bodyText ? JSON.parse(bodyText) as DevSMSResponse : null;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok || payload?.success !== true) {
+    console.error("DEVSMS_OTP_SEND_FAILED", response.status, cleanText(payload?.error, 180));
+    throw new RouteError("SMS_DELIVERY_UNAVAILABLE", 503);
+  }
+
+  return {
+    smsID: cleanText(payload.data?.sms_id, 100),
+    requestID: cleanText(payload.data?.request_id, 160),
+    status: cleanText(payload.data?.status, 40) || "sent",
+  };
+}
+
+async function smsChallengeRate(
+  db: D1Like,
+  purpose: SMSChallengePurpose,
+  phoneNormalized: string,
+  pilgrimID: number,
+  request: Request,
+) {
+  const since = new Date(Date.now() - 60 * 60_000).toISOString();
+  const ip = cleanText(request.headers.get("cf-connecting-ip"), 80);
+  const ipHash = ip ? await sha256Hex(ip) : "";
+  const row = await db.prepare(
+    `SELECT COUNT(*) AS count FROM iumrah_client_sms_challenges
+     WHERE purpose=?1 AND created_at>?2
+       AND (phone_normalized=?3 OR (?4<>'' AND request_ip_hash=?4) OR pilgrim_id=?5)`,
+  ).bind(purpose, since, phoneNormalized, ipHash, pilgrimID).first<{ count: number }>();
+  return { limited: Number(row?.count ?? 0) >= 5, ipHash };
+}
+
+async function createSMSChallenge(
+  db: D1Like,
+  env: Env,
+  request: Request,
+  purpose: SMSChallengePurpose,
+  pilgrimID: number,
+  phoneInput: unknown,
+) {
+  const phoneNormalized = normalizePhone(phoneInput);
+  if (!phoneNormalized.startsWith("+998")) throw new RouteError("SMS_COUNTRY_UNSUPPORTED", 400);
+  if (!validUzbekPhone(phoneNormalized)) throw new RouteError("PHONE_INVALID", 400);
+  await ensurePhoneAvailable(db, phoneNormalized, pilgrimID);
+
+  const rate = await smsChallengeRate(db, purpose, phoneNormalized, pilgrimID, request);
+  if (rate.limited) throw new RouteError("SMS_RATE_LIMITED", 429);
+
+  const code = randomVerificationCode();
+  const salt = randomToken(18);
+  const codeHash = await passwordDigest(code, salt, CODE_ITERATIONS);
+  const id = `sms-${crypto.randomUUID()}`;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + CODE_TTL_MINUTES * 60_000).toISOString();
+
+  await db.prepare(
+    `INSERT INTO iumrah_client_sms_challenges(
+       id,purpose,pilgrim_id,phone_normalized,phone_display,code_salt,code_hash,
+       code_iterations,attempts,max_attempts,expires_at,created_at,request_ip_hash
+     ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,0,?9,?10,?11,?12)`,
+  ).bind(
+    id, purpose, pilgrimID, phoneNormalized, phoneNormalized, salt, codeHash,
+    CODE_ITERATIONS, MAX_CODE_ATTEMPTS, expiresAt, now.toISOString(), rate.ipHash,
+  ).run();
+
+  try {
+    const delivery = await sendDevSMSOTP(env, purpose, phoneNormalized, code);
+    await db.prepare(
+      `UPDATE iumrah_client_sms_challenges
+       SET provider_sms_id=?1,provider_request_id=?2,provider_status=?3 WHERE id=?4`,
+    ).bind(delivery.smsID || null, delivery.requestID || null, delivery.status, id).run();
+  } catch (error) {
+    await db.prepare(
+      "UPDATE iumrah_client_sms_challenges SET consumed_at=?1,provider_status='failed' WHERE id=?2",
+    ).bind(new Date().toISOString(), id).run().catch(() => undefined);
+    throw error;
+  }
+
+  return { id, expiresAt, phoneNormalized };
+}
+
+async function verifySMSChallenge(
+  db: D1Like,
+  challengeID: string,
+  purpose: SMSChallengePurpose,
+  code: string,
+  pilgrimID: number,
+) {
+  const row = await db.prepare(
+    `SELECT id,pilgrim_id,phone_normalized,phone_display,code_salt,code_hash,
+            code_iterations,attempts,max_attempts,expires_at,consumed_at
+     FROM iumrah_client_sms_challenges WHERE id=?1 AND purpose=?2 LIMIT 1`,
+  ).bind(challengeID, purpose).first<{
+    id: string;
+    pilgrim_id: number;
+    phone_normalized: string;
+    phone_display: string;
+    code_salt: string;
+    code_hash: string;
+    code_iterations: number;
+    attempts: number;
+    max_attempts: number;
+    expires_at: string;
+    consumed_at: string | null;
+  }>();
+
+  if (!row || row.consumed_at || Date.parse(row.expires_at) <= Date.now()
+      || Number(row.pilgrim_id) !== pilgrimID
+      || !/^\d{6}$/.test(code) || Number(row.attempts) >= Number(row.max_attempts)) {
+    throw new RouteError("VERIFICATION_CODE_INVALID", 400);
+  }
+
+  const digest = await passwordDigest(code, row.code_salt, Number(row.code_iterations));
+  if (!constantTimeEqual(digest, row.code_hash)) {
+    const attempts = Number(row.attempts) + 1;
+    await db.prepare(
+      `UPDATE iumrah_client_sms_challenges
+       SET attempts=?1,consumed_at=CASE WHEN ?1>=max_attempts THEN ?2 ELSE consumed_at END
+       WHERE id=?3`,
+    ).bind(attempts, new Date().toISOString(), row.id).run();
+    throw new RouteError("VERIFICATION_CODE_INVALID", 400);
+  }
+
+  await db.prepare(
+    "UPDATE iumrah_client_sms_challenges SET consumed_at=?1,provider_status=COALESCE(provider_status,'verified') WHERE id=?2",
+  ).bind(new Date().toISOString(), row.id).run();
+  return row;
+}
+
+async function linkVerifiedPhone(
+  db: D1Like,
+  pilgrimID: number,
+  phoneDisplay: string,
+  phoneNormalized: string,
+) {
+  const now = new Date().toISOString();
+  await db.prepare(
+    `INSERT INTO iumrah_client_account_phones(
+       pilgrim_id,phone_normalized,phone_display,verified_at,updated_at
+     ) VALUES(?1,?2,?3,?4,?4)
+     ON CONFLICT(pilgrim_id) DO UPDATE SET
+       phone_normalized=excluded.phone_normalized,
+       phone_display=excluded.phone_display,
+       verified_at=excluded.verified_at,
+       updated_at=excluded.updated_at`,
+  ).bind(pilgrimID, phoneNormalized, phoneDisplay, now).run();
+  await db.prepare("UPDATE pilgrims SET phone=?1,updated_at=?2 WHERE id=?3")
+    .bind(phoneDisplay, now, pilgrimID).run();
+  await db.prepare(
+    `UPDATE iumrah_client_sms_challenges SET consumed_at=?1
+     WHERE pilgrim_id=?2 AND consumed_at IS NULL`,
+  ).bind(now, pilgrimID).run();
+  return now;
 }
 
 async function register(request: Request, db: D1Like) {
@@ -2148,6 +2485,21 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/activate/email/confirm") {
       return await confirmBookingEmailActivation(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/activate/sms/start") {
+      return await startBookingSMSActivation(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/activate/sms/confirm") {
+      return await confirmBookingSMSActivation(request, env, db);
+    }
+    if (request.method === "GET" && url.pathname === "/api/package/client/account/phone/status") {
+      return await bookingPhoneVerificationStatus(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/phone/start") {
+      return await startBookingPhoneVerification(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/phone/confirm") {
+      return await confirmBookingPhoneVerification(request, env, db);
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/login") {
       return await loginWithPassword(request, db);

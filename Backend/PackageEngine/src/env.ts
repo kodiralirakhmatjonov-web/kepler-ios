@@ -11,6 +11,7 @@ export type Env = {
   RESEND_API_KEY?: string;
   ACCOUNT_EMAIL_FROM?: string;
   ACCOUNT_EMAIL_REPLY_TO?: string;
+  DEVSMS_API_TOKEN?: string;
   WALLET_PASS_TYPE_ID?: string;
   WALLET_TEAM_ID?: string;
   WALLET_ORGANIZATION_NAME?: string;

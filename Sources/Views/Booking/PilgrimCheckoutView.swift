@@ -49,6 +49,8 @@ struct PilgrimCheckoutView: View {
     @State private var activationEmailChallengeID = ""
     @State private var activationEmailCode = ""
     @State private var activationPhone = "+998"
+    @State private var activationSMSChallengeID = ""
+    @State private var activationSMSCode = ""
     @State private var appleNonce = ""
     @State private var isAppleSigningIn = false
     @State private var isGoogleSigningIn = false
@@ -327,6 +329,8 @@ struct PilgrimCheckoutView: View {
                 errorMessage = nil
                 activationEmailChallengeID = ""
                 activationEmailCode = ""
+                activationSMSChallengeID = ""
+                activationSMSCode = ""
             }
 
             if activationMethod == .iumrahID {
@@ -404,6 +408,7 @@ struct PilgrimCheckoutView: View {
                         TextField("+998 90 123 45 67", text: $activationPhone)
                             .keyboardType(.phonePad)
                             .textContentType(.telephoneNumber)
+                            .disabled(!activationSMSChallengeID.isEmpty)
                             .onChange(of: activationPhone) { _, raw in
                                 let formatted = activationPhoneInput(raw)
                                 if formatted != raw { activationPhone = formatted }
@@ -413,16 +418,42 @@ struct PilgrimCheckoutView: View {
                     .frame(height: 54)
                     .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
 
+                    if !activationSMSChallengeID.isEmpty {
+                        HStack(spacing: 11) {
+                            Image(systemName: "number.square.fill")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 22)
+                            TextField(tr("6-digit SMS code", "Код из SMS — 6 цифр", "SMS kodi — 6 raqam", "SMS коди — 6 рақам"), text: $activationSMSCode)
+                                .keyboardType(.numberPad)
+                                .textContentType(.oneTimeCode)
+                                .font(.body.monospaced())
+                                .onChange(of: activationSMSCode) { _, raw in
+                                    let digits = String(raw.filter(\.isNumber).prefix(6))
+                                    if digits != raw { activationSMSCode = digits }
+                                }
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: 54)
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+                    }
+
                     HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: activationSMSCovered ? "message.badge.fill" : "exclamationmark.bubble.fill")
+                        Image(systemName: activationSMSCovered ? (activationSMSChallengeID.isEmpty ? "message.badge.fill" : "checkmark.message.fill") : "exclamationmark.bubble.fill")
                             .foregroundStyle(activationSMSCovered ? Color.blue : Color.orange)
                         Text(activationSMSCovered
-                             ? tr(
-                                "SMS confirmation for Uzbekistan (+998) is being prepared through DevSMS. The number can already be entered here, but sending the code is temporarily disabled.",
-                                "SMS-подтверждение для Узбекистана (+998) готовится через DevSMS. Номер уже можно указать здесь, но отправка кода пока временно недоступна.",
-                                "O‘zbekiston (+998) uchun SMS tasdiqlash DevSMS orqali tayyorlanmoqda. Raqamni hozir kiritish mumkin, ammo kod yuborish vaqtincha o‘chirilgan.",
-                                "Ўзбекистон (+998) учун SMS тасдиқлаш DevSMS орқали тайёрланмоқда. Рақамни ҳозир киритиш мумкин, аммо код юбориш вақтинча ўчирилган."
-                             )
+                             ? (activationSMSChallengeID.isEmpty
+                                ? tr(
+                                    "We will send a one-time verification code to this Uzbekistan number through DevSMS.",
+                                    "Мы отправим одноразовый код подтверждения на этот номер Узбекистана через DevSMS.",
+                                    "Ushbu O‘zbekiston raqamiga DevSMS orqali bir martalik tasdiqlash kodi yuboramiz.",
+                                    "Ушбу Ўзбекистон рақамига DevSMS орқали бир марталик тасдиқлаш коди юборамиз."
+                                  )
+                                : tr(
+                                    "The SMS code has been sent. Enter it above within 10 minutes to confirm the number and activate your account.",
+                                    "Код отправлен по SMS. Введите его выше в течение 10 минут, чтобы подтвердить номер и активировать аккаунт.",
+                                    "SMS kodi yuborildi. Raqamni tasdiqlash va akkauntni faollashtirish uchun uni 10 daqiqa ichida yuqoriga kiriting.",
+                                    "SMS коди юборилди. Рақамни тасдиқлаш ва аккаунтни фаоллаштириш учун уни 10 дақиқа ичида юқорига киритинг."
+                                  ))
                              : tr(
                                 "SMS is temporarily unavailable for this country. Please continue by email or use your Google or Apple account. At the moment SMS activation supports only Uzbekistan numbers beginning with +998.",
                                 "SMS для этой страны временно недоступны. Продолжите по электронной почте или воспользуйтесь аккаунтом Google или Apple. Сейчас SMS-активация поддерживает только номера Узбекистана, начинающиеся с +998.",
@@ -443,21 +474,20 @@ struct PilgrimCheckoutView: View {
                 }
             }
 
-            if activationMethod != .sms {
-                passwordField(
+            passwordField(
                     tr("Create password", "Создайте пароль", "Parol yarating", "Парол яратинг"),
                     text: $password,
                     isVisible: $isPasswordVisible,
                     newPassword: true
                 )
-                passwordField(
-                    tr("Confirm password", "Подтвердите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг"),
+            passwordField(
+                tr("Confirm password", "Подтвердите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг"),
                     text: $passwordConfirm,
                     isVisible: $isPasswordConfirmVisible,
                     newPassword: true
-                )
+            )
 
-                VStack(alignment: .leading, spacing: 7) {
+            VStack(alignment: .leading, spacing: 7) {
                     activationRequirement(
                         tr("At least 8 characters", "Минимум 8 символов", "Kamida 8 belgi", "Камида 8 белги"),
                         ready: password.count >= 8
@@ -466,7 +496,6 @@ struct PilgrimCheckoutView: View {
                         tr("Passwords match", "Пароли совпадают", "Parollar mos", "Пароллар мос"),
                         ready: !passwordConfirm.isEmpty && password == passwordConfirm
                     )
-                }
             }
 
             Button {
@@ -478,7 +507,8 @@ struct PilgrimCheckoutView: View {
                         if activationEmailChallengeID.isEmpty { await startEmailActivation(value) }
                         else { await confirmEmailActivation(value) }
                     case .sms:
-                        break
+                        if activationSMSChallengeID.isEmpty { await startSMSActivation(value) }
+                        else { await confirmSMSActivation(value) }
                     }
                 }
             } label: {
@@ -486,7 +516,7 @@ struct PilgrimCheckoutView: View {
                     if isSubmittingAccount { ProgressView().tint(.white) }
                     Text(activationPrimaryTitle)
                     Spacer()
-                    Image(systemName: activationMethod == .sms ? "message.badge" : (activationMethod == .email && activationEmailChallengeID.isEmpty ? "envelope.badge.fill" : "arrow.right"))
+                    Image(systemName: activationMethod == .sms && activationSMSChallengeID.isEmpty ? "message.badge.fill" : (activationMethod == .email && activationEmailChallengeID.isEmpty ? "envelope.badge.fill" : "arrow.right"))
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
@@ -508,6 +538,31 @@ struct PilgrimCheckoutView: View {
 
                     Button {
                         Task { await startEmailActivation(value) }
+                    } label: {
+                        Text(tr("Send again", "Отправить ещё раз", "Qayta yuborish", "Қайта юбориш"))
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSubmittingAccount)
+                }
+            }
+
+            if activationMethod == .sms && !activationSMSChallengeID.isEmpty {
+                HStack {
+                    Button {
+                        activationSMSChallengeID = ""
+                        activationSMSCode = ""
+                        errorMessage = nil
+                    } label: {
+                        Text(tr("Change number", "Изменить номер", "Raqamni o‘zgartirish", "Рақамни ўзгартириш"))
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Button {
+                        Task { await startSMSActivation(value) }
                     } label: {
                         Text(tr("Send again", "Отправить ещё раз", "Qayta yuborish", "Қайта юбориш"))
                             .font(.subheadline.weight(.semibold))
@@ -669,22 +724,35 @@ struct PilgrimCheckoutView: View {
             }
             return tr("Confirm email and continue", "Подтвердить почту и продолжить", "Emailni tasdiqlash va davom etish", "Emailни тасдиқлаш ва давом этиш")
         case .sms:
-            return tr("SMS activation coming soon", "SMS-активация скоро будет доступна", "SMS faollashtirish tez orada", "SMS фаоллаштириш тез орада")
+            if activationSMSChallengeID.isEmpty {
+                return tr("Send SMS code", "Отправить SMS-код", "SMS kodini yuborish", "SMS кодини юбориш")
+            }
+            return tr("Confirm number and continue", "Подтвердить номер и продолжить", "Raqamni tasdiqlash va davom etish", "Рақамни тасдиқлаш ва давом этиш")
         }
     }
 
     private var activationPrimaryReady: Bool {
-        if activationMethod == .sms { return false }
         guard password.count >= 8, password == passwordConfirm else { return false }
-        if activationMethod == .iumrahID { return true }
-        let email = activationEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard email.contains("@"), email.contains(".") else { return false }
-        if activationEmailChallengeID.isEmpty { return true }
-        return activationEmailCode.count == 6
+        switch activationMethod {
+        case .iumrahID:
+            return true
+        case .email:
+            let email = activationEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard email.contains("@"), email.contains(".") else { return false }
+            return activationEmailChallengeID.isEmpty || activationEmailCode.count == 6
+        case .sms:
+            guard activationSMSCovered, activationSMSValid else { return false }
+            return activationSMSChallengeID.isEmpty || activationSMSCode.count == 6
+        }
     }
 
     private var activationSMSCovered: Bool {
         activationPhoneInput(activationPhone).hasPrefix("+998")
+    }
+
+    private var activationSMSValid: Bool {
+        let digits = activationPhoneInput(activationPhone).filter(\.isNumber)
+        return digits.hasPrefix("998") && digits.count == 12
     }
 
     private func activationPhoneInput(_ raw: String) -> String {
@@ -1496,6 +1564,59 @@ struct PilgrimCheckoutView: View {
     }
 
     @MainActor
+    private func startSMSActivation(_ value: IumrahCheckoutResponse) async {
+        guard let session, !session.accessToken.isEmpty else { return }
+        isSubmittingAccount = true
+        errorMessage = nil
+        defer { isSubmittingAccount = false }
+        do {
+            let response = try await account.startActivationSMS(
+                bookingID: bookingID,
+                bookingToken: session.accessToken,
+                phone: activationPhoneInput(activationPhone),
+                locale: settings.language.rawValue
+            )
+            activationPhone = response.phone
+            activationSMSChallengeID = response.challengeID
+            activationSMSCode = ""
+            IumrahHaptics.success()
+        } catch APIError.server(_, let message) where message.uppercased().contains("ACCOUNT_ALREADY_ACTIVE") {
+            errorMessage = IumrahAccountSecurityCopy.message(for: APIError.server(409, "ACCOUNT_ALREADY_ACTIVE"), language: settings.language)
+            showExistingAccountLogin = true
+            IumrahHaptics.error()
+        } catch {
+            errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func confirmSMSActivation(_ value: IumrahCheckoutResponse) async {
+        guard let session, !session.accessToken.isEmpty, !activationSMSChallengeID.isEmpty else { return }
+        isSubmittingAccount = true
+        errorMessage = nil
+        defer { isSubmittingAccount = false }
+        do {
+            let profile = try await account.confirmActivationSMS(
+                bookingID: bookingID,
+                bookingToken: session.accessToken,
+                challengeID: activationSMSChallengeID,
+                code: activationSMSCode,
+                password: password,
+                locale: settings.language.rawValue
+            )
+            await finishAccountActivation(profile, session: session)
+        } catch APIError.server(_, let message) where message.uppercased().contains("ACCOUNT_ALREADY_ACTIVE") {
+            errorMessage = IumrahAccountSecurityCopy.message(for: APIError.server(409, "ACCOUNT_ALREADY_ACTIVE"), language: settings.language)
+            showExistingAccountLogin = true
+            IumrahHaptics.error()
+        } catch {
+            errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
     private func finishAccountActivation(_ profile: IumrahAccountProfile, session: StoredBookingSession) async {
         _ = profile
         bookings.setAccountToken(account.bearerToken)
@@ -1508,6 +1629,8 @@ struct PilgrimCheckoutView: View {
         password = ""
         passwordConfirm = ""
         activationEmailCode = ""
+        activationSMSChallengeID = ""
+        activationSMSCode = ""
         await loadCheckout(showLoader: false)
         IumrahHaptics.success()
     }
