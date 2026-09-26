@@ -30,15 +30,27 @@ jobs:
       - name: Verify deploy secrets
         env:
           IGNAV_API_KEY: ${{ secrets.IGNAV_API_KEY }}
+          DEVSMS_API_TOKEN: ${{ secrets.DEVSMS_API_TOKEN }}
         run: |
           set -euo pipefail
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID IGNAV_API_KEY; do
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID IGNAV_API_KEY DEVSMS_API_TOKEN; do
             if [ -z "${!name:-}" ]; then
               echo "Missing GitHub secret: $name"
               exit 1
             fi
           done
           echo "Required deployment secrets are present."
+
+      - name: Verify DevSMS API token
+        env:
+          DEVSMS_API_TOKEN: ${{ secrets.DEVSMS_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -fsS "https://devsms.uz/api/get_balance.php" \
+            -H "Authorization: Bearer ${DEVSMS_API_TOKEN}" \
+            -H "Accept: application/json")
+          echo "$RESPONSE" | jq -e '.success == true' >/dev/null
+          echo "DevSMS API token is valid."
 
       - name: Install dependencies
         run: npm install
@@ -76,6 +88,9 @@ jobs:
       - name: Apply Package Engine schema to existing D1
         run: npx wrangler d1 execute HOTELS_DB --remote --file migrations/0006_package_primary_hotels.sql --config wrangler.generated.jsonc
 
+      - name: Apply DevSMS phone verification schema
+        run: npx wrangler d1 execute HOTELS_DB --remote --file migrations/0008_devsms_phone_verification.sql --config wrangler.generated.jsonc
+
       - name: Verify Package Engine table
         run: npx wrangler d1 execute HOTELS_DB --remote --command "SELECT COUNT(*) AS configured FROM package_primary_hotels;" --config wrangler.generated.jsonc
 
@@ -89,6 +104,13 @@ jobs:
           set -euo pipefail
           printf '%s' "$IGNAV_API_KEY" | npx wrangler secret put IGNAV_API_KEY --config wrangler.generated.jsonc
 
+      - name: Install DevSMS Worker secret
+        env:
+          DEVSMS_API_TOKEN: ${{ secrets.DEVSMS_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$DEVSMS_API_TOKEN" | npx wrangler secret put DEVSMS_API_TOKEN --config wrangler.generated.jsonc
+
       - name: Verify Package Engine and Ignav
         working-directory: ${{ github.workspace }}
         run: |
@@ -100,13 +122,15 @@ jobs:
                 .ok == true and
                 .hotelsDbConfigured == true and
                 .flightProvider == "ignav" and
-                .flightProviderConfigured == true
+                .flightProviderConfigured == true and
+                .smsProvider == "devsms" and
+                .smsProviderConfigured == true
               ' >/dev/null; then
-                echo "iumrah Package Engine is online and Ignav is configured."
+                echo "iumrah Package Engine is online; Ignav and DevSMS are configured."
                 exit 0
               fi
             fi
             sleep 5
           done
-          echo "Package Engine health check failed: Ignav is not configured."
+          echo "Package Engine health check failed: Ignav or DevSMS is not configured."
           exit 1

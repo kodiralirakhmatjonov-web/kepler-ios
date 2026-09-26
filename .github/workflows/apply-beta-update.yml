@@ -36,9 +36,11 @@ jobs:
 
           protected_prefixes = (
               '.git/',
-              '.github/workflows/',
               'Signing/',
           )
+          allowed_workflow_updates = {
+              '.github/workflows/deploy-package-engine.yml',
+          }
 
           for archive in archives:
               print(f'Applying {archive.name}')
@@ -52,6 +54,10 @@ jobs:
 
                       if any(name.startswith(prefix) for prefix in protected_prefixes):
                           print(f'Skipping protected path: {name}')
+                          continue
+
+                      if name.startswith('.github/workflows/') and name not in allowed_workflow_updates:
+                          print(f'Skipping protected workflow: {name}')
                           continue
 
                       if member.is_dir():
