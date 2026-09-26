@@ -19,6 +19,23 @@ private enum IumrahGuestAuthMethod: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+private enum IumrahFieldIssueTone {
+    case warning
+    case error
+
+    var color: Color {
+        switch self {
+        case .warning: return .orange
+        case .error: return .red
+        }
+    }
+}
+
+private struct IumrahFieldIssue {
+    let message: String
+    let tone: IumrahFieldIssueTone
+}
+
 struct IumrahAccountView: View {
     @EnvironmentObject private var account: IumrahAccountStore
     @EnvironmentObject private var bookings: BookingStore
@@ -33,11 +50,16 @@ struct IumrahAccountView: View {
     @State private var loginID = ""
     @State private var loginEmail = ""
     @State private var loginPhone = "+998"
+    @State private var loginSMSCode = ""
+    @State private var loginSMSChallengeID = ""
+    @State private var loginSMSDebugCode: String?
     @State private var loginPassword = ""
+    @State private var loginEmailServerIssue: IumrahFieldIssue?
     @State private var registrationFirstName = ""
     @State private var registrationLastName = ""
     @State private var registrationEmail = ""
     @State private var registrationEmailCode = ""
+    @State private var registrationEmailIssue: IumrahFieldIssue?
     @State private var registrationEmailChallengeID = ""
     @State private var registrationPassword = ""
     @State private var registrationPasswordConfirm = ""
@@ -71,6 +93,7 @@ struct IumrahAccountView: View {
     @State private var isLoadingWalletPass = false
     @State private var walletAlertMessage: String?
     @State private var identityPublicURL: String?
+    @State private var identityCopyMessage: String?
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -94,7 +117,9 @@ struct IumrahAccountView: View {
                         settingsSection
                         signOutButton
                     } else {
-                        guestCard
+                        IumrahLockedIdentityCard(language: settings.language) {
+                            showIdentityUnlockSheet = true
+                        }
                         loginCard
                             .id("account-login")
                         paymentSecuritySection
@@ -206,7 +231,7 @@ struct IumrahAccountView: View {
     }
 
     private func identityCard(_ profile: IumrahAccountProfile) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             ZStack {
                 identityFront(profile)
                     .opacity(identityCardFlipped ? 0 : 1)
@@ -215,7 +240,7 @@ struct IumrahAccountView: View {
                     .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
                     .opacity(identityCardFlipped ? 1 : 0)
             }
-            .frame(height: 238)
+            .frame(height: 226)
             .overlay {
                 IumrahIdentitySealOverlay(
                     progress: identityRevealProgress,
@@ -225,19 +250,25 @@ struct IumrahAccountView: View {
             }
             .rotation3DEffect(.degrees(identityCardFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.72)
             .animation(.spring(response: 0.52, dampingFraction: 0.82), value: identityCardFlipped)
-            .contentShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
             .onTapGesture {
                 IumrahHaptics.selection()
                 identityCardFlipped.toggle()
             }
 
             HStack(spacing: 8) {
-                Label(
-                    identityCardFlipped ? tr("Front side", "Лицевая сторона", "Old tomoni", "Олд томони") : tr("Tap to flip", "Нажмите, чтобы перевернуть", "Aylantirish uchun bosing", "Айлантириш учун босинг"),
-                    systemImage: identityCardFlipped ? "rectangle.portrait.rotate" : "hand.tap.fill"
-                )
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                if let identityCopyMessage {
+                    Label(identityCopyMessage, systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
+                } else {
+                    Label(
+                        identityCardFlipped ? tr("Front side", "Лицевая сторона", "Old tomoni", "Олд томони") : tr("Tap to flip", "Нажмите, чтобы перевернуть", "Aylantirish uchun bosing", "Айлантириш учун босинг"),
+                        systemImage: identityCardFlipped ? "rectangle.portrait.rotate" : "hand.tap.fill"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button {
                     IumrahHaptics.selection()
@@ -257,129 +288,151 @@ struct IumrahAccountView: View {
     }
 
     private func identityFront(_ profile: IumrahAccountProfile) -> some View {
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(Color.black)
+        let fullName = displayName(profile).split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+        let first = fullName.first.map(String.init) ?? profile.firstName
+        let last = fullName.dropFirst().first.map(String.init) ?? profile.lastName
+        return ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(Color.white)
 
             LinearGradient(
-                colors: [Color.white.opacity(0.10), .clear, Color.white.opacity(0.035)],
+                colors: [Color.black.opacity(0.05), .clear, Color.black.opacity(0.02)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
 
-            Circle()
-                .fill(Color.white.opacity(0.055))
-                .frame(width: 190, height: 190)
-                .offset(x: 220, y: -98)
-
-            VStack(alignment: .leading, spacing: 22) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("iumrah ID")
-                            .font(.system(size: 25, weight: .bold, design: .rounded))
-                        Text(tr("DIGITAL PILGRIM IDENTITY", "ЦИФРОВАЯ ID-КАРТА ПАЛОМНИКА", "RAQAMLI ZIYORATCHI ID", "РАҚАМЛИ ЗИЁРАТЧИ ID"))
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(.black)
+                        Text(tr("PERMANENT PILGRIM ACCOUNT", "ПОСТОЯННЫЙ АККАУНТ ПАЛОМНИКА", "DOIMIY ZIYORATCHI AKKAUNTI", "ДОИМИЙ ЗИЁРАТЧИ АККАУНТИ"))
                             .font(.system(size: 9, weight: .bold))
-                            .tracking(1.5)
-                            .foregroundStyle(.white.opacity(0.52))
+                            .tracking(1.4)
+                            .foregroundStyle(.black.opacity(0.45))
                     }
                     Spacer()
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.92))
+                    Image(systemName: "wave.3.right")
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundStyle(.black.opacity(0.42))
                 }
 
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(displayName(profile))
-                        .font(.system(size: 25, weight: .bold, design: .rounded))
-                        .lineLimit(2)
-                    Text(normalizedID(profile.iumrahID))
-                        .font(.system(size: 33, weight: .bold, design: .monospaced))
-                        .tracking(3)
-                        .textSelection(.enabled)
+                VStack(alignment: .leading, spacing: 12) {
+                    identityFact(title: tr("First name", "Имя", "Ism", "Исм"), value: first.nilIfBlank ?? profile.firstName.nilIfBlank ?? tr("Pilgrim", "Паломник", "Ziyoratchi", "Зиёратчи"))
+                    identityFact(title: tr("Last name", "Фамилия", "Familiya", "Фамилия"), value: last.nilIfBlank ?? profile.lastName.nilIfBlank ?? "—")
                 }
 
-                HStack(spacing: 18) {
-                    Label("\(bookings.sessions.count) \(tr("trips", "поездок", "safar", "сафар"))", systemImage: "suitcase.fill")
-                    Label(tr("Permanent ID", "Постоянный ID", "Doimiy ID", "Доимий ID"), systemImage: "person.text.rectangle.fill")
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("UMR ID")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.black.opacity(0.48))
+                    HStack(alignment: .center, spacing: 12) {
+                        Text(normalizedID(profile.iumrahID))
+                            .font(.system(size: 28, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.black)
+                            .tracking(1.6)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                        Spacer(minLength: 8)
+                        Button {
+                            copyIdentityID(profile)
+                        } label: {
+                            Label(tr("Copy", "Копировать", "Nusxalash", "Нусхалаш"), systemImage: "doc.on.doc")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 12)
+                                .frame(height: 34)
+                                .background(Color.black.opacity(0.06), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.66))
             }
-            .foregroundStyle(.white)
-            .padding(24)
+            .padding(22)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 32, style: .continuous).strokeBorder(.white.opacity(0.10), lineWidth: 1) }
-        .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.07), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.08), radius: 22, y: 12)
     }
 
     private func identityBack(_ profile: IumrahAccountProfile) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(Color.black)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(Color.white)
 
             LinearGradient(
-                colors: [Color.white.opacity(0.08), .clear, Color.white.opacity(0.025)],
+                colors: [Color.black.opacity(0.05), .clear, Color.black.opacity(0.02)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
 
-            HStack(spacing: 22) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Image("HeaderWordmarkDark")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 142, height: 34, alignment: .leading)
-                        .accessibilityLabel("Iumrah")
-
+            HStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("iumrah ID")
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundStyle(.black)
                     Text(tr("Digital pilgrim identity", "Цифровая ID-карта паломника", "Raqamli ziyoratchi ID", "Рақамли зиёратчи ID"))
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.54))
-
-                    Spacer(minLength: 4)
-
-                    Text("iumrah ID")
+                        .foregroundStyle(.black.opacity(0.54))
+                    Spacer(minLength: 6)
+                    Text("UMR ID")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.white.opacity(0.48))
-
+                        .foregroundStyle(.black.opacity(0.45))
                     Text(normalizedID(profile.iumrahID))
-                        .font(.system(size: 24, weight: .bold, design: .monospaced))
-                        .tracking(2)
-                        .foregroundStyle(.white)
-
+                        .font(.system(size: 22, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.black)
                     Text("iumrah.app")
                         .font(.caption.monospaced().weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.48))
+                        .foregroundStyle(.black.opacity(0.48))
                 }
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 6)
 
-                qrCodeView(identityPublicURL ?? fallbackIdentityURL(profile.iumrahID), size: 116)
-                    .padding(9)
+                qrCodeView(identityPublicURL ?? fallbackIdentityURL(profile.iumrahID), size: 114)
+                    .padding(10)
                     .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.16), lineWidth: 0.8)
+                            .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.8)
                     }
             }
-            .padding(24)
+            .padding(22)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.07), lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
+        .shadow(color: .black.opacity(0.08), radius: 22, y: 12)
     }
 
     private var identityFullscreenView: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Rectangle()
+                .fill(colorScheme == .dark ? Color.black.opacity(0.52) : Color.white.opacity(0.52))
+                .background(.ultraThinMaterial)
+                .ignoresSafeArea()
             if let profile = account.account {
                 VStack(spacing: 22) {
                     HStack {
+                        if !identityCardFlipped {
+                            Button {
+                                copyIdentityID(profile)
+                            } label: {
+                                Label(tr("Copy ID", "Скопировать ID", "ID ni nusxalash", "ID ни нусхалаш"), systemImage: "doc.on.doc")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .padding(.horizontal, 14)
+                                    .frame(height: 44)
+                                    .iumrahGlass(in: Capsule(), interactive: true, tint: colorScheme == .dark ? .white.opacity(0.12) : .white.opacity(0.58), chrome: true)
+                            }
+                            .buttonStyle(.plain)
+                        }
                         Spacer()
                         Button {
                             IumrahHaptics.soft()
@@ -387,10 +440,10 @@ struct IumrahAccountView: View {
                         } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 17, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                                 .frame(width: 46, height: 46)
                                 .contentShape(Circle())
-                                .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.18), chrome: true)
+                                .iumrahGlass(in: Circle(), interactive: true, tint: colorScheme == .dark ? .white.opacity(0.12) : .white.opacity(0.58), chrome: true)
                         }
                         .buttonStyle(.plain)
                     }
@@ -403,7 +456,7 @@ struct IumrahAccountView: View {
                             .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
                             .opacity(identityCardFlipped ? 1 : 0)
                     }
-                    .frame(height: 260)
+                    .frame(height: 248)
                     .rotation3DEffect(.degrees(identityCardFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.72)
                     .animation(.spring(response: 0.52, dampingFraction: 0.82), value: identityCardFlipped)
                     .onTapGesture {
@@ -411,15 +464,28 @@ struct IumrahAccountView: View {
                         identityCardFlipped.toggle()
                     }
 
-                    Text(tr("Tap the card to flip it", "Нажмите на карту, чтобы перевернуть", "Kartani aylantirish uchun bosing", "Картани айлантириш учун босинг"))
+                    Text(identityCopyMessage ?? tr("Tap the card to flip it", "Нажмите на карту, чтобы перевернуть", "Kartani aylantirish uchun bosing", "Картани айлантириш учун босинг"))
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.58))
+                        .foregroundStyle((identityCopyMessage == nil ? Color.secondary : Color.green).opacity(0.9))
 
                     Spacer()
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
             }
+        }
+    }
+
+    private func identityFact(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.black.opacity(0.46))
+            Text(value)
+                .font(.system(size: 21, weight: .bold, design: .rounded))
+                .foregroundStyle(.black)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
     }
 
@@ -979,8 +1045,11 @@ struct IumrahAccountView: View {
             .pickerStyle(.segmented)
             .onChange(of: guestAccountMode) { _, _ in
                 loginError = nil
+                loginEmailServerIssue = nil
+                resetPhoneLoginState()
                 registrationEmailChallengeID = ""
                 registrationEmailCode = ""
+                registrationEmailIssue = nil
             }
 
             Picker("", selection: $guestAuthMethod) {
@@ -989,7 +1058,11 @@ struct IumrahAccountView: View {
                 Text("iumrah ID").tag(IumrahGuestAuthMethod.iumrahID)
             }
             .pickerStyle(.segmented)
-            .onChange(of: guestAuthMethod) { _, _ in loginError = nil }
+            .onChange(of: guestAuthMethod) { _, _ in
+                loginError = nil
+                loginEmailServerIssue = nil
+                resetPhoneLoginState()
+            }
 
             if guestAccountMode == .signIn {
                 guestSignInFields
@@ -1051,11 +1124,49 @@ struct IumrahAccountView: View {
                 let digits = String(raw.filter(\.isNumber).prefix(8))
                 if digits != raw { loginID = digits }
             }
+
+            accountPasswordField(text: $loginPassword, placeholder: tr("Password", "Пароль", "Parol", "Парол"))
+
+            Button {
+                Task { await login() }
+            } label: {
+                HStack(spacing: 10) {
+                    if isLoggingIn { ProgressView().tint(.white) }
+                    Image(systemName: "person.crop.circle.fill")
+                    Text(tr("Sign in to iumrah", "Войти в iumrah", "iumrah ga kirish", "iumrah га кириш"))
+                    Spacer(minLength: 10)
+                    Image(systemName: "arrow.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(!guestLoginReady || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
+
         case .email:
             accountInputField(symbol: "envelope.fill", placeholder: "name@example.com", text: $loginEmail, keyboard: .emailAddress, contentType: .emailAddress) { raw in
                 let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 if cleaned != raw { loginEmail = cleaned }
+                loginEmailServerIssue = nil
             }
+            if let issue = loginEmailFieldIssue {
+                fieldIssueView(issue)
+            }
+
+            accountPasswordField(text: $loginPassword, placeholder: tr("Password", "Пароль", "Parol", "Парол"))
+
+            Button {
+                Task { await login() }
+            } label: {
+                HStack(spacing: 10) {
+                    if isLoggingIn { ProgressView().tint(.white) }
+                    Image(systemName: "person.crop.circle.fill")
+                    Text(tr("Sign in to iumrah", "Войти в iumrah", "iumrah ga kirish", "iumrah га кириш"))
+                    Spacer(minLength: 10)
+                    Image(systemName: "arrow.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(!guestLoginReady || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
+
         case .sms:
             accountInputField(symbol: "phone.fill", placeholder: "+998 90 123 45 67", text: $loginPhone, keyboard: .phonePad, contentType: .telephoneNumber) { raw in
                 let formatted = normalizedUZPhoneInput(raw)
@@ -1063,24 +1174,61 @@ struct IumrahAccountView: View {
             }
             if !loginPhone.isEmpty && !normalizedUZPhoneInput(loginPhone).hasPrefix("+998") {
                 unsupportedSMSNotice
+            } else {
+                Text(loginSMSChallengeID.isEmpty
+                     ? tr(
+                        "We will send a 6-digit sign-in code to your Uzbekistan number through DevSMS.",
+                        "Мы отправим 6-значный код входа на Ваш номер Узбекистана через DevSMS.",
+                        "DevSMS orqali O‘zbekiston raqamingizga 6 xonali kirish kodi yuboramiz.",
+                        "DevSMS орқали Ўзбекистон рақамингизга 6 хонали кириш коди юборамиз."
+                     )
+                     : tr(
+                        "Enter the code from SMS. It is valid for 10 minutes.",
+                        "Введите код из SMS. Он действует 10 минут.",
+                        "SMS dagi kodni kiriting. U 10 daqiqa amal qiladi.",
+                        "SMS даги кодни киритинг. У 10 дақиқа амал қилади."
+                     ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-        }
-
-        accountPasswordField(text: $loginPassword, placeholder: tr("Password", "Пароль", "Parol", "Парол"))
-
-        Button {
-            Task { await login() }
-        } label: {
-            HStack(spacing: 10) {
-                if isLoggingIn { ProgressView().tint(.white) }
-                Image(systemName: "person.crop.circle.fill")
-                Text(tr("Sign in to iumrah", "Войти в iumrah", "iumrah ga kirish", "iumrah га кириш"))
-                Spacer(minLength: 10)
-                Image(systemName: "arrow.right")
+            if !loginSMSChallengeID.isEmpty {
+                accountInputField(symbol: "number.square.fill", placeholder: tr("6-digit code", "Код из 6 цифр", "6 xonali kod", "6 хонали код"), text: $loginSMSCode, keyboard: .numberPad, contentType: .oneTimeCode) { raw in
+                    let digits = String(raw.filter(\.isNumber).prefix(6))
+                    if digits != raw { loginSMSCode = digits }
+                }
+                if let debugCode = loginSMSDebugCode, !debugCode.isEmpty {
+                    Text(tr(
+                        "DevSMS test code: \(debugCode)",
+                        "Тестовый код DevSMS: \(debugCode)",
+                        "DevSMS test kodi: \(debugCode)",
+                        "DevSMS тест коди: \(debugCode)"
+                    ))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
+
+            Button {
+                Task {
+                    if loginSMSChallengeID.isEmpty { await startPhoneLogin() }
+                    else { await confirmPhoneLogin() }
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    if isLoggingIn { ProgressView().tint(.white) }
+                    Image(systemName: loginSMSChallengeID.isEmpty ? "message.badge.fill" : "person.crop.circle.fill")
+                    Text(loginSMSChallengeID.isEmpty
+                         ? tr("Send SMS code", "Отправить SMS-код", "SMS kodni yuborish", "SMS кодни юбориш")
+                         : tr("Confirm and sign in", "Подтвердить и войти", "Tasdiqlab kirish", "Тасдиқлаб кириш"))
+                    Spacer(minLength: 10)
+                    Image(systemName: "arrow.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(!guestLoginReady || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
         }
-        .buttonStyle(IumrahPrimaryButtonStyle())
-        .disabled(!guestLoginReady || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
     }
 
     @ViewBuilder
@@ -1095,8 +1243,13 @@ struct IumrahAccountView: View {
             accountInputField(symbol: "envelope.fill", placeholder: "name@example.com", text: $registrationEmail, keyboard: .emailAddress, contentType: .emailAddress) { raw in
                 let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 if cleaned != raw { registrationEmail = cleaned }
+                registrationEmailIssue = nil
             }
             .disabled(!registrationEmailChallengeID.isEmpty)
+
+            if let issue = registrationEmailFieldIssue {
+                fieldIssueView(issue)
+            }
 
             if !registrationEmailChallengeID.isEmpty {
                 accountInputField(symbol: "number.square.fill", placeholder: tr("6-digit code", "Код из 6 цифр", "6 xonali kod", "6 хонали код"), text: $registrationEmailCode, keyboard: .numberPad, contentType: .oneTimeCode) { raw in
@@ -1250,21 +1403,25 @@ struct IumrahAccountView: View {
     }
 
     private var guestLoginReady: Bool {
-        guard loginPassword.count >= 8 else { return false }
         switch guestAuthMethod {
         case .iumrahID:
+            guard loginPassword.count >= 8 else { return false }
             return [6, 8].contains(loginID.filter(\.isNumber).count)
         case .email:
-            let value = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-            return value.contains("@") && value.contains(".")
+            guard loginPassword.count >= 8 else { return false }
+            return loginEmailFieldIssue == nil && !loginEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .sms:
-            return normalizedUZPhoneInput(loginPhone).count == 13 && normalizedUZPhoneInput(loginPhone).hasPrefix("+998")
+            let phoneReady = normalizedUZPhoneInput(loginPhone).count == 13 && normalizedUZPhoneInput(loginPhone).hasPrefix("+998")
+            if !phoneReady { return false }
+            if loginSMSChallengeID.isEmpty { return true }
+            return loginSMSCode.count == 6
         }
     }
 
     private var guestEmailRegistrationReady: Bool {
         let mail = registrationEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard mail.contains("@"), mail.contains("."),
+        guard registrationEmailFieldIssue == nil,
+              !mail.isEmpty,
               !registrationFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !registrationLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         if registrationEmailChallengeID.isEmpty { return true }
@@ -1520,6 +1677,7 @@ struct IumrahAccountView: View {
     private func login() async {
         isLoggingIn = true
         loginError = nil
+        loginEmailServerIssue = nil
         defer { isLoggingIn = false }
         do {
             let identifier: String
@@ -1533,7 +1691,51 @@ struct IumrahAccountView: View {
             loginPassword = ""
             IumrahHaptics.success()
         } catch {
-            loginError = L10n.error(error, settings.language)
+            if guestAuthMethod == .email,
+               let issue = serverIssueForEmailLogin(error) {
+                loginEmailServerIssue = issue
+                loginError = nil
+            } else {
+                loginError = smartLoginError(error)
+            }
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func startPhoneLogin() async {
+        isLoggingIn = true
+        loginError = nil
+        defer { isLoggingIn = false }
+        do {
+            let response = try await account.startPhoneLogin(phone: normalizedUZPhoneInput(loginPhone), locale: settings.language.rawValue)
+            loginSMSChallengeID = response.challengeID
+            loginSMSCode = ""
+            loginSMSDebugCode = response.debugCode
+            IumrahHaptics.success()
+        } catch {
+            loginError = smartLoginError(error)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func confirmPhoneLogin() async {
+        guard !loginSMSChallengeID.isEmpty else { return }
+        isLoggingIn = true
+        loginError = nil
+        defer { isLoggingIn = false }
+        do {
+            let profile = try await account.confirmPhoneLogin(
+                challengeID: loginSMSChallengeID,
+                code: loginSMSCode,
+                locale: settings.language.rawValue
+            )
+            await completeAuthenticatedLogin(profile)
+            resetPhoneLoginState()
+            IumrahHaptics.success()
+        } catch {
+            loginError = smartLoginError(error)
             IumrahHaptics.error()
         }
     }
@@ -1542,6 +1744,7 @@ struct IumrahAccountView: View {
     private func startGuestEmailRegistration() async {
         isRegistering = true
         loginError = nil
+        registrationEmailIssue = nil
         defer { isRegistering = false }
         do {
             let response = try await IumrahAccountActivationBridge().startEmailRegistration(
@@ -1552,7 +1755,12 @@ struct IumrahAccountView: View {
             registrationEmailCode = ""
             IumrahHaptics.success()
         } catch {
-            loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            if let issue = serverIssueForRegistrationEmail(error) {
+                registrationEmailIssue = issue
+                loginError = nil
+            } else {
+                loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            }
             IumrahHaptics.error()
         }
     }
@@ -1562,6 +1770,7 @@ struct IumrahAccountView: View {
         guard !registrationEmailChallengeID.isEmpty else { return }
         isRegistering = true
         loginError = nil
+        registrationEmailIssue = nil
         defer { isRegistering = false }
         do {
             let response = try await IumrahAccountActivationBridge().confirmEmailRegistration(
@@ -1805,6 +2014,210 @@ struct IumrahAccountView: View {
         let digits = value.filter(\.isNumber)
         guard digits.count == 6 || digits.count == 8 else { return value }
         return normalizedID(digits)
+    }
+
+    @ViewBuilder
+    private func fieldIssueView(_ issue: IumrahFieldIssue) -> some View {
+        Text(issue.message)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(issue.tone.color)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var loginEmailFieldIssue: IumrahFieldIssue? {
+        if let loginEmailServerIssue { return loginEmailServerIssue }
+        return emailFieldIssue(for: loginEmail)
+    }
+
+    private var registrationEmailFieldIssue: IumrahFieldIssue? {
+        if let registrationEmailIssue { return registrationEmailIssue }
+        return emailFieldIssue(for: registrationEmail)
+    }
+
+    private func emailFieldIssue(for raw: String) -> IumrahFieldIssue? {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !value.isEmpty else { return nil }
+        if value.contains(" ") {
+            return IumrahFieldIssue(
+                message: tr(
+                    "Email must not contain spaces.",
+                    "Email не должен содержать пробелы.",
+                    "Email ichida bo‘sh joy bo‘lmasligi kerak.",
+                    "Email ичида бўш жой бўлмаслиги керак."
+                ),
+                tone: .error
+            )
+        }
+        if !value.contains("@") {
+            return IumrahFieldIssue(
+                message: tr(
+                    "Add @ to the email address.",
+                    "Добавьте @ в адрес email.",
+                    "Email manziliga @ qo‘shing.",
+                    "Email манзилига @ қўшинг."
+                ),
+                tone: .warning
+            )
+        }
+        let parts = value.split(separator: "@", omittingEmptySubsequences: false)
+        if parts.count != 2 || parts[0].isEmpty || parts[1].isEmpty {
+            return IumrahFieldIssue(
+                message: tr(
+                    "Check the email format.",
+                    "Проверьте формат email.",
+                    "Email formatini tekshiring.",
+                    "Email форматини текширинг."
+                ),
+                tone: .error
+            )
+        }
+        if !parts[1].contains(".") {
+            return IumrahFieldIssue(
+                message: tr(
+                    "Add a domain such as .com or .uz.",
+                    "Добавьте домен, например .com или .uz.",
+                    "Masalan .com yoki .uz domenini qo‘shing.",
+                    "Масалан .com ёки .uz доменини қўшинг."
+                ),
+                tone: .warning
+            )
+        }
+        let domainPieces = parts[1].split(separator: ".")
+        if domainPieces.last?.count ?? 0 < 2 {
+            return IumrahFieldIssue(
+                message: tr(
+                    "The email domain looks incomplete.",
+                    "Домен email выглядит неполным.",
+                    "Email domeni to‘liq emasga o‘xshaydi.",
+                    "Email домени тўлиқ эмасга ўхшайди."
+                ),
+                tone: .error
+            )
+        }
+        return nil
+    }
+
+    private func smartLoginError(_ error: Error) -> String {
+        if case APIError.server(_, let message) = error {
+            let code = message.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            switch code {
+            case "INVALID_CREDENTIALS":
+                if guestAuthMethod == .sms {
+                    return tr(
+                        "We could not verify this phone sign-in. Check the number or code and try again.",
+                        "Не удалось подтвердить вход по телефону. Проверьте номер или код и попробуйте снова.",
+                        "Telefon orqali kirishni tasdiqlab bo‘lmadi. Raqam yoki kodni tekshirib, qayta urinib ko‘ring.",
+                        "Телефон орқали киришни тасдиқлаб бўлмади. Рақам ёки кодни текшириб, қайта уриниб кўринг."
+                    )
+                }
+                return tr(
+                    "The account was not found or the password is incorrect.",
+                    "Аккаунт не найден или пароль введён неверно.",
+                    "Akkaunt topilmadi yoki parol noto‘g‘ri kiritildi.",
+                    "Аккаунт топилмади ёки парол нотўғри киритилди."
+                )
+            case "VERIFICATION_CODE_INVALID":
+                return tr(
+                    "The SMS code is incorrect or has expired.",
+                    "SMS-код неверный или уже истёк.",
+                    "SMS kod noto‘g‘ri yoki muddati tugagan.",
+                    "SMS код нотўғри ёки муддати тугаган."
+                )
+            case "PHONE_INVALID":
+                return tr(
+                    "Enter a valid Uzbekistan phone number.",
+                    "Введите корректный номер Узбекистана.",
+                    "To‘g‘ri O‘zbekiston telefon raqamini kiriting.",
+                    "Тўғри Ўзбекистон телефон рақамини киритинг."
+                )
+            case "SMS_RATE_LIMITED":
+                return tr(
+                    "Too many SMS attempts. Please wait a little and try again.",
+                    "Слишком много попыток по SMS. Подождите немного и попробуйте снова.",
+                    "SMS urinishlari juda ko‘p bo‘ldi. Biroz kutib, yana urinib ko‘ring.",
+                    "SMS уринишлари жуда кўп бўлди. Бироз кутиб, яна уриниб кўринг."
+                )
+            default:
+                break
+            }
+        }
+        return IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+    }
+
+    private func serverIssueForEmailLogin(_ error: Error) -> IumrahFieldIssue? {
+        guard case APIError.server(_, let message) = error else { return nil }
+        let code = message.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        switch code {
+        case "INVALID_CREDENTIALS":
+            return IumrahFieldIssue(
+                message: tr(
+                    "We couldn’t sign you in. Check the email and password.",
+                    "Не удалось войти. Проверьте email и пароль.",
+                    "Kirish amalga oshmadi. Email va parolni tekshiring.",
+                    "Кириш амалга ошмади. Email ва паролни текширинг."
+                ),
+                tone: .error
+            )
+        case "EMAIL_INVALID":
+            return IumrahFieldIssue(
+                message: tr(
+                    "This email address looks invalid.",
+                    "Этот email-адрес выглядит некорректным.",
+                    "Bu email manzili noto‘g‘ri ko‘rinmoqda.",
+                    "Бу email манзили нотўғри кўринмоқда."
+                ),
+                tone: .error
+            )
+        default:
+            return nil
+        }
+    }
+
+    private func serverIssueForRegistrationEmail(_ error: Error) -> IumrahFieldIssue? {
+        guard case APIError.server(_, let message) = error else { return nil }
+        let code = message.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        switch code {
+        case "EMAIL_INVALID":
+            return IumrahFieldIssue(
+                message: tr(
+                    "Enter a real email address to continue.",
+                    "Введите реальный email-адрес, чтобы продолжить.",
+                    "Davom etish uchun haqiqiy email manzilini kiriting.",
+                    "Давом этиш учун ҳақиқий email манзилини киритинг."
+                ),
+                tone: .error
+            )
+        case "EMAIL_ALREADY_CONNECTED":
+            return IumrahFieldIssue(
+                message: tr(
+                    "This email is already linked to another iumrah account.",
+                    "Этот email уже привязан к другому аккаунту iumrah.",
+                    "Bu email allaqachon boshqa iumrah akkauntiga ulangan.",
+                    "Бу email аллақачон бошқа iumrah аккаунтига уланган."
+                ),
+                tone: .error
+            )
+        default:
+            return nil
+        }
+    }
+
+    private func resetPhoneLoginState() {
+        loginSMSChallengeID = ""
+        loginSMSCode = ""
+        loginSMSDebugCode = nil
+    }
+
+    private func copyIdentityID(_ profile: IumrahAccountProfile) {
+        UIPasteboard.general.string = normalizedID(profile.iumrahID)
+        identityCopyMessage = tr("UMR ID copied.", "UMR ID скопирован.", "UMR ID nusxalandi.", "UMR ID нусхаланди.")
+        IumrahHaptics.success()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            if identityCopyMessage == tr("UMR ID copied.", "UMR ID скопирован.", "UMR ID nusxalandi.", "UMR ID нусхаланди.") {
+                identityCopyMessage = nil
+            }
+        }
     }
 
     private func fallbackIdentityURL(_ value: String) -> String {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct IumrahTripWalletEntry: View {
     let session: StoredBookingSession
@@ -55,7 +56,7 @@ struct IumrahTripWalletEntry: View {
             let width = proxy.size.width
             ZStack(alignment: .bottom) {
                 compactPass(
-                    title: nonBlank(profile?.displayName) ?? nonBlank(session.travelerName) ?? "iumrah ID",
+                    title: profile?.displayName.nilIfBlank ?? session.travelerName?.nilIfBlank ?? "iumrah ID",
                     detail: profile.map { "ID \($0.iumrahID)" } ?? session.displayBookingNumber,
                     symbol: "person.text.rectangle.fill",
                     fill: Color.black
@@ -111,8 +112,13 @@ struct IumrahTripWalletEntry: View {
                 .frame(width: 34, height: 34)
                 .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.caption.weight(.bold)).lineLimit(1)
-                Text(detail).font(.caption2).foregroundStyle(.white.opacity(0.64)).lineLimit(1)
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.64))
+                    .lineLimit(1)
             }
             Spacer(minLength: 4)
         }
@@ -162,21 +168,22 @@ struct IumrahTripWalletEntry: View {
 
 private struct IumrahTripWalletScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     let session: StoredBookingSession
     let profile: IumrahAccountProfile?
     let language: AppSettingsStore.Language
 
     @State private var page = 0
+    @State private var shareItems: [Any] = []
+    @State private var showShareSheet = false
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.black, Color(red: 0.08, green: 0.07, blue: 0.065), Color.black],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Rectangle()
+                .fill(colorScheme == .dark ? Color.black.opacity(0.54) : Color.white.opacity(0.54))
+                .background(.ultraThinMaterial)
+                .ignoresSafeArea()
 
             VStack(spacing: 16) {
                 header
@@ -206,7 +213,7 @@ private struct IumrahTripWalletScreen: View {
                 VStack(spacing: 5) {
                     Text(session.displayBookingNumber)
                         .font(.caption.monospaced().weight(.bold))
-                        .foregroundStyle(.white.opacity(0.70))
+                        .foregroundStyle(.secondary)
                     Text(tr(
                         "This booking is linked to your trip and is available to the guide assigned to it.",
                         "Эта бронь привязана к поездке и доступна гиду, назначенному на Вашу поездку.",
@@ -214,7 +221,7 @@ private struct IumrahTripWalletScreen: View {
                         "Бу брон сафарингизга боғланган ва сафарга бириктирилган гид учун мавжуд."
                     ))
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.52))
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 }
@@ -222,146 +229,185 @@ private struct IumrahTripWalletScreen: View {
                 .padding(.bottom, 14)
             }
         }
-        .preferredColorScheme(.dark)
+        .sheet(isPresented: $showShareSheet) {
+            IumrahActivityView(activityItems: shareItems)
+        }
     }
 
     private var header: some View {
         HStack(spacing: 12) {
             Image(systemName: "wallet.pass.fill")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .frame(width: 42, height: 42)
-                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .iumrahGlass(
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                    interactive: false,
+                    tint: colorScheme == .dark ? .white.opacity(0.10) : .white.opacity(0.62),
+                    chrome: true
+                )
             VStack(alignment: .leading, spacing: 2) {
                 Text("iumrah Wallet")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                 Text(tr("Swipe through your trip", "Листайте документы поездки", "Safar hujjatlarini suring", "Сафар ҳужжатларини суринг"))
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.58))
+                    .foregroundStyle(.secondary)
             }
             Spacer()
+            if canShareCurrentPage {
+                Button {
+                    shareCurrentPage()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 42, height: 42)
+                        .iumrahGlass(
+                            in: Circle(),
+                            interactive: true,
+                            tint: colorScheme == .dark ? .white.opacity(0.10) : .white.opacity(0.62),
+                            chrome: true
+                        )
+                }
+                .buttonStyle(.plain)
+            }
             Button {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .frame(width: 42, height: 42)
-                    .iumrahGlass(in: Circle(), interactive: true, tint: Color.white.opacity(0.05), chrome: true)
+                    .iumrahGlass(
+                        in: Circle(),
+                        interactive: true,
+                        tint: colorScheme == .dark ? .white.opacity(0.10) : .white.opacity(0.62),
+                        chrome: true
+                    )
             }
             .buttonStyle(.plain)
         }
     }
 
     private var identityCard: some View {
-        walletCard {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("iumrah ID")
-                            .font(.caption.weight(.bold))
-                            .tracking(1.0)
-                            .foregroundStyle(.white.opacity(0.60))
-                        Text(profile?.iumrahID ?? session.displayPilgrimID ?? "—")
-                            .font(.system(size: 31, weight: .bold, design: .monospaced))
-                            .tracking(2)
-                    }
-                    Spacer()
-                    Image(systemName: "person.text.rectangle.fill")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 56, height: 56)
-                        .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                }
+        VStack {
+            Spacer(minLength: 0)
+            businessCard {
+                identityCardContent
+            }
+            Spacer(minLength: 0)
+        }
+    }
 
+    private var identityCardContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("iumrah ID")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Text(tr("PERMANENT PILGRIM ACCOUNT", "ПОСТОЯННЫЙ АККАУНТ ПАЛОМНИКА", "DOIMIY ZIYORATCHI AKKAUNTI", "ДОИМИЙ ЗИЁРАТЧИ АККАУНТИ"))
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(1.4)
+                        .foregroundStyle(.black.opacity(0.45))
+                }
                 Spacer()
+                Image(systemName: "wave.3.right")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(.black.opacity(0.42))
+            }
 
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(nonBlank(profile?.displayName) ?? nonBlank(session.travelerName) ?? tr("Booking holder", "Владелец бронирования", "Bron egasi", "Брон эгаси"))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                    Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination) · \(session.displayBookingNumber)")
-                        .font(.subheadline.monospaced())
-                        .foregroundStyle(.white.opacity(0.68))
-                }
+            VStack(alignment: .leading, spacing: 12) {
+                walletFact(title: tr("First name", "Имя", "Ism", "Исм"), value: firstNameValue)
+                walletFact(title: tr("Last name", "Фамилия", "Familiya", "Фамилия"), value: lastNameValue)
+            }
 
-                HStack {
-                    Label(tr("Trip identity", "ID поездки", "Safar ID", "Сафар ID"), systemImage: "checkmark.shield.fill")
-                    Spacer()
-                    Text(statusLabel)
-                }
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.78))
+            VStack(alignment: .leading, spacing: 8) {
+                Text("UMR ID")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.black.opacity(0.48))
+                Text(normalizedID(identityValue))
+                    .font(.system(size: 28, weight: .bold, design: .monospaced))
+                    .tracking(1.5)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
         }
     }
 
     private func boardingPass(_ flight: FlightOffer, title: String) -> some View {
-        walletCard(background: Color(red: 0.93, green: 0.94, blue: 0.92), foreground: .black) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Label(title, systemImage: flight.direction == .outbound ? "airplane.departure" : "airplane.arrival")
+        walletCard(background: .white, foreground: .black) {
+            boardingPassContent(flight: flight, title: title)
+        }
+    }
+
+    private func boardingPassContent(flight: FlightOffer, title: String) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Label(title, systemImage: flight.direction == .outbound ? "airplane.departure" : "airplane.arrival")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.black.opacity(0.68))
+                Spacer()
+                Text(flight.airline)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.black.opacity(0.64))
+                    .lineLimit(1)
+            }
+
+            HStack(alignment: .center, spacing: 16) {
+                airportBlock(flight.origin, date: flight.departureAt, alignment: .leading)
+                VStack(spacing: 6) {
+                    Image(systemName: "airplane")
+                        .font(.system(size: 22, weight: .semibold))
+                    Capsule()
+                        .fill(Color.black.opacity(0.18))
+                        .frame(height: 1)
+                }
+                .frame(maxWidth: .infinity)
+                airportBlock(flight.destination, date: flight.arrivalAt, alignment: .trailing)
+            }
+
+            Divider().overlay(Color.black.opacity(0.12))
+
+            HStack(spacing: 18) {
+                ticketFact(tr("Flight", "Рейс", "Reys", "Рейс"), flight.flightNumber)
+                ticketFact(tr("Date", "Дата", "Sana", "Сана"), shortDate(flight.departureAt))
+                ticketFact(tr("Class", "Класс", "Klass", "Класс"), flight.cabinClass?.nilIfBlank ?? tr("Economy", "Эконом", "Ekonom", "Эконом"))
+            }
+
+            HStack(spacing: 18) {
+                ticketFact(tr("Terminal", "Терминал", "Terminal", "Терминал"), terminalText(flight))
+                ticketFact(tr("Duration", "В пути", "Davomiyligi", "Давомийлиги"), durationText(flight.durationMinutes))
+                ticketFact(tr("Baggage", "Багаж", "Bagaj", "Багаж"), baggageText(flight))
+            }
+
+            Spacer(minLength: 2)
+
+            HStack(alignment: .bottom, spacing: 14) {
+                barcode.frame(height: 58)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(profile?.displayName.nilIfBlank ?? session.travelerName?.nilIfBlank ?? "iumrah")
                         .font(.caption.weight(.bold))
-                    Spacer()
-                    Text(flight.airline)
-                        .font(.caption.weight(.semibold))
                         .lineLimit(1)
-                }
-                .foregroundStyle(.black.opacity(0.70))
-
-                HStack(alignment: .center, spacing: 16) {
-                    airportBlock(flight.origin, date: flight.departureAt, alignment: .leading)
-                    VStack(spacing: 6) {
-                        Image(systemName: "airplane")
-                            .font(.system(size: 22, weight: .semibold))
-                        Capsule().fill(Color.black.opacity(0.18)).frame(height: 1)
-                    }
-                    .frame(maxWidth: .infinity)
-                    airportBlock(flight.destination, date: flight.arrivalAt, alignment: .trailing)
-                }
-
-                Divider().overlay(Color.black.opacity(0.16))
-
-                HStack(spacing: 18) {
-                    ticketFact(tr("Flight", "Рейс", "Reys", "Рейс"), flight.flightNumber)
-                    ticketFact(tr("Date", "Дата", "Sana", "Сана"), shortDate(flight.departureAt))
-                    ticketFact(tr("Class", "Класс", "Klass", "Класс"), nonBlank(flight.cabinClass) ?? tr("Economy", "Эконом", "Ekonom", "Эконом"))
-                }
-
-                HStack(spacing: 18) {
-                    ticketFact(tr("Terminal", "Терминал", "Terminal", "Терминал"), terminalText(flight))
-                    ticketFact(tr("Duration", "В пути", "Davomiyligi", "Давомийлиги"), durationText(flight.durationMinutes))
-                    ticketFact(tr("Baggage", "Багаж", "Bagaj", "Багаж"), baggageText(flight))
-                }
-
-                Spacer(minLength: 2)
-
-                HStack(alignment: .bottom, spacing: 14) {
-                    barcode
-                        .frame(height: 58)
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text(nonBlank(profile?.displayName) ?? nonBlank(session.travelerName) ?? "iumrah")
-                            .font(.caption.weight(.bold))
-                            .lineLimit(1)
-                        Text(session.displayBookingNumber)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.black.opacity(0.55))
-                    }
+                    Text(session.displayBookingNumber)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.black.opacity(0.55))
                 }
             }
         }
     }
 
     private var bookingCard: some View {
-        walletCard(background: Color(red: 0.17, green: 0.12, blue: 0.10)) {
+        walletCard(background: .white, foreground: .black) {
             VStack(alignment: .leading, spacing: 15) {
                 HStack {
                     Text(tr("Umrah booking", "Бронирование Umrah", "Umrah broni", "Umrah брони"))
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.white.opacity(0.58))
+                        .foregroundStyle(.black.opacity(0.58))
                     Spacer()
                     Image(systemName: "checkmark.seal.fill")
                         .font(.title2)
+                        .foregroundStyle(.green)
                 }
                 Text(session.displayBookingNumber)
                     .font(.system(size: 32, weight: .bold, design: .monospaced))
@@ -374,7 +420,7 @@ private struct IumrahTripWalletScreen: View {
                             .font(.headline)
                         Text("\(dateString(session.booking.input.startDate)) – \(dateString(session.booking.input.endDate))")
                             .font(.caption)
-                            .foregroundStyle(.white.opacity(0.62))
+                            .foregroundStyle(.black.opacity(0.58))
                     }
                     Spacer()
                     Text("\(session.booking.input.travelers.totalPeople)")
@@ -387,48 +433,33 @@ private struct IumrahTripWalletScreen: View {
     }
 
     private func hotelCard(_ hotel: BookingHotelSelectionSnapshot, cityTitle: String) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .fill(Color(red: 0.055, green: 0.055, blue: 0.060))
-
-            if nonBlank(hotel.coverImageURL) != nil {
-                HotelCachedImage(rawURL: hotel.coverImageURL)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .overlay {
-                        LinearGradient(
-                            colors: [Color.black.opacity(0.34), Color.black.opacity(0.72), Color.black.opacity(0.94)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    }
-            }
-
-            VStack(alignment: .leading, spacing: 15) {
+        walletCard(background: .white, foreground: .black) {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(cityTitle.uppercased())
                             .font(.caption.weight(.bold))
                             .tracking(1.1)
-                            .foregroundStyle(.white.opacity(0.66))
+                            .foregroundStyle(.black.opacity(0.58))
                         Text(tr("Hotel", "Отель", "Mehmonxona", "Меҳмонхона"))
                             .font(.caption)
-                            .foregroundStyle(.white.opacity(0.56))
+                            .foregroundStyle(.black.opacity(0.48))
                     }
                     Spacer()
                     Image(systemName: "building.2.fill")
-                        .font(.system(size: 23, weight: .semibold))
-                        .frame(width: 52, height: 52)
-                        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                        .font(.system(size: 21, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .frame(width: 48, height: 48)
+                        .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
-                Spacer()
+                Spacer(minLength: 0)
                 Text(hotel.hotelName)
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .fixedSize(horizontal: false, vertical: true)
-                if let room = nonBlank(hotel.roomName) {
+                if let room = hotel.roomName?.nilIfBlank {
                     Text(room)
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.72))
+                        .foregroundStyle(.black.opacity(0.60))
                 }
                 HStack {
                     Label(session.displayBookingNumber, systemImage: "number")
@@ -436,24 +467,14 @@ private struct IumrahTripWalletScreen: View {
                     Text(statusLabel)
                 }
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.78))
+                .foregroundStyle(.black.opacity(0.74))
             }
-            .foregroundStyle(.white)
-            .padding(22)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.8)
-        }
-        .shadow(color: .black.opacity(0.28), radius: 22, y: 14)
-        .padding(.horizontal, 18)
-        .padding(.vertical, 8)
     }
 
     private func walletCard<Content: View>(
-        background: Color = .black,
-        foreground: Color = .white,
+        background: Color = .white,
+        foreground: Color = .black,
         @ViewBuilder content: () -> Content
     ) -> some View {
         content()
@@ -463,11 +484,39 @@ private struct IumrahTripWalletScreen: View {
             .background(background, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .strokeBorder(foreground.opacity(0.10), lineWidth: 0.8)
+                    .strokeBorder(Color.black.opacity(0.07), lineWidth: 0.8)
             }
-            .shadow(color: .black.opacity(0.28), radius: 22, y: 14)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.26 : 0.10), radius: 22, y: 14)
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
+    }
+
+    private func businessCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .foregroundStyle(.black)
+            .padding(22)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .aspectRatio(1.586, contentMode: .fit)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.07), lineWidth: 0.8)
+            }
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.26 : 0.10), radius: 22, y: 14)
+            .padding(.horizontal, 26)
+    }
+
+    private func walletFact(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.black.opacity(0.46))
+            Text(value)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundStyle(.black)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+        }
     }
 
     private func airportBlock(_ code: String, date: Date, alignment: HorizontalAlignment) -> some View {
@@ -531,9 +580,101 @@ private struct IumrahTripWalletScreen: View {
         }
     }
 
+    private var identityValue: String {
+        profile?.iumrahID ?? session.displayPilgrimID ?? "—"
+    }
+
+    private var firstNameValue: String {
+        if let value = profile?.firstName.nilIfBlank { return value }
+        return firstNameFromDisplayName ?? tr("Pilgrim", "Паломник", "Ziyoratchi", "Зиёратчи")
+    }
+
+    private var lastNameValue: String {
+        if let value = profile?.lastName.nilIfBlank { return value }
+        return lastNameFromDisplayName ?? "—"
+    }
+
+    private var firstNameFromDisplayName: String? {
+        let parts = (profile?.displayName.nilIfBlank ?? session.travelerName?.nilIfBlank ?? "")
+            .split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+        return parts.first.map(String.init)
+    }
+
+    private var lastNameFromDisplayName: String? {
+        let parts = (profile?.displayName.nilIfBlank ?? session.travelerName?.nilIfBlank ?? "")
+            .split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+        return parts.count > 1 ? String(parts[1]) : nil
+    }
+
+    private var canShareCurrentPage: Bool {
+        page == 0 || (page == 1 && session.outboundFlight != nil) || (page == 2 && session.inboundFlight != nil)
+    }
+
+    @MainActor
+    private func shareCurrentPage() {
+        let image: UIImage?
+        if page == 0 {
+            image = renderImage(
+                shareCanvas {
+                    businessCard {
+                        identityCardContent
+                    }
+                    .frame(width: 1000)
+                }
+            )
+        } else if page == 1, let outbound = session.outboundFlight {
+            image = renderImage(
+                shareCanvas {
+                    walletCard(background: .white, foreground: .black) {
+                        boardingPassContent(flight: outbound, title: tr("Outbound", "Туда", "Borish", "Бориш"))
+                    }
+                    .frame(width: 1000, height: 680)
+                }
+            )
+        } else if page == 2, let inbound = session.inboundFlight {
+            image = renderImage(
+                shareCanvas {
+                    walletCard(background: .white, foreground: .black) {
+                        boardingPassContent(flight: inbound, title: tr("Return", "Обратно", "Qaytish", "Қайтиш"))
+                    }
+                    .frame(width: 1000, height: 680)
+                }
+            )
+        } else {
+            image = nil
+        }
+
+        if let image {
+            shareItems = [image]
+            showShareSheet = true
+        }
+    }
+
+    @MainActor
+    private func renderImage<Content: View>(_ view: Content) -> UIImage? {
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = UIScreen.main.scale
+        return renderer.uiImage
+    }
+
+    private func shareCanvas<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        ZStack {
+            Color(.systemBackground)
+            content()
+                .padding(44)
+        }
+    }
+
+    private func normalizedID(_ value: String) -> String {
+        let digits = value.filter(\.isNumber)
+        guard !digits.isEmpty else { return value }
+        if digits.count >= 8 { return digits }
+        return String(repeating: "0", count: 8 - digits.count) + digits
+    }
+
     private func terminalText(_ flight: FlightOffer) -> String {
-        let departure = nonBlank(flight.segments?.first?.origin.terminal)
-        let arrival = nonBlank(flight.segments?.last?.destination.terminal)
+        let departure = flight.segments?.first?.origin.terminal?.nilIfBlank
+        let arrival = flight.segments?.last?.destination.terminal?.nilIfBlank
         switch (departure, arrival) {
         case let (d?, a?) where d != a:
             return "\(d) → \(a)"
@@ -591,9 +732,12 @@ private struct IumrahTripWalletScreen: View {
     }
 }
 
+private struct IumrahActivityView: UIViewControllerRepresentable {
+    let activityItems: [Any]
 
-private func nonBlank(_ value: String?) -> String? {
-    guard let value else { return nil }
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-    return trimmed.isEmpty ? nil : trimmed
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

@@ -92,39 +92,21 @@ final class IumrahAccountStore: ObservableObject {
         return response.account
     }
 
-    func startActivationSMS(bookingID: String, bookingToken: String, phone: String, locale: String) async throws -> IumrahPhoneChallengeStartResponse {
-        try await service.startActivationSMS(
-            bookingID: bookingID,
-            bookingToken: bookingToken,
-            phone: phone,
-            locale: locale
-        )
-    }
-
-    @discardableResult
-    func confirmActivationSMS(
-        bookingID: String,
-        bookingToken: String,
-        challengeID: String,
-        code: String,
-        password: String,
-        locale: String
-    ) async throws -> IumrahAccountProfile {
-        let response = try await service.confirmActivationSMS(
-            bookingID: bookingID,
-            bookingToken: bookingToken,
-            challengeID: challengeID,
-            code: code,
-            password: password,
-            locale: locale
-        )
-        setSession(response)
-        return response.account
-    }
-
     @discardableResult
     func login(identifier: String, password: String, locale: String = Locale.current.identifier) async throws -> IumrahAccountProfile {
         let response = try await service.login(identifier: identifier, password: password, locale: locale)
+        setSession(response)
+        _ = try? await service.registerCurrentSession(token: response.session.token, locale: locale)
+        return response.account
+    }
+
+    func startPhoneLogin(phone: String, locale: String = Locale.current.identifier) async throws -> IumrahPhoneLoginStartResponse {
+        try await service.startPhoneLogin(phone: phone, locale: locale)
+    }
+
+    @discardableResult
+    func confirmPhoneLogin(challengeID: String, code: String, locale: String = Locale.current.identifier) async throws -> IumrahAccountProfile {
+        let response = try await service.confirmPhoneLogin(challengeID: challengeID, code: code, locale: locale)
         setSession(response)
         _ = try? await service.registerCurrentSession(token: response.session.token, locale: locale)
         return response.account

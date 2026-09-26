@@ -1,0 +1,11 @@
+Applied wallet/account restore patch on 2026-09-26:
+- restored locked iumrah ID card above account activation
+- removed extra white promo card above activation block
+- redesigned authenticated iumrah ID card to clean white minimal card with copy action
+- fixed Apple sign-in button hit target / interaction overlay
+- replaced wallet preview asset with new wallet image
+- rebuilt wallet full-screen overlay with system blur and white minimal passes
+- added share sheet export for iumrah ID and boarding passes
+- hid hotel and flight hotel cards until booking exists / confirmed stages
+- added smart email validation messages under fields
+- added SMS phone sign-in flow with backend challenge endpoints and D1 migration

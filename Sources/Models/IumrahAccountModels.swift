@@ -84,6 +84,24 @@ struct IumrahAccountLoginRequest: Encodable {
     let device: IumrahClientDevice
 }
 
+struct IumrahPhoneLoginStartRequest: Encodable {
+    let phone: String
+    let locale: String
+}
+
+struct IumrahPhoneLoginStartResponse: Decodable {
+    let ok: Bool
+    let challengeID: String
+    let expiresAt: String?
+    let debugCode: String?
+}
+
+struct IumrahPhoneLoginConfirmRequest: Encodable {
+    let challengeID: String
+    let code: String
+    let device: IumrahClientDevice
+}
+
 struct IumrahAccountActivateRequest: Encodable {
     let bookingID: String
     let password: String
@@ -102,52 +120,6 @@ struct IumrahAccountActivationEmailConfirmRequest: Encodable {
     let code: String
     let password: String
     let device: IumrahClientDevice
-}
-
-struct IumrahAccountActivationSMSStartRequest: Encodable {
-    let bookingID: String
-    let phone: String
-    let locale: String
-}
-
-struct IumrahAccountActivationSMSConfirmRequest: Encodable {
-    let bookingID: String
-    let challengeID: String
-    let code: String
-    let password: String
-    let device: IumrahClientDevice
-}
-
-struct IumrahBookingPhoneVerificationStartRequest: Encodable {
-    let bookingID: String
-    let phone: String
-    let locale: String
-}
-
-struct IumrahBookingPhoneVerificationConfirmRequest: Encodable {
-    let bookingID: String
-    let challengeID: String
-    let code: String
-}
-
-struct IumrahPhoneChallengeStartResponse: Decodable {
-    let ok: Bool
-    let challengeID: String
-    let expiresAt: String?
-    let phone: String
-}
-
-struct IumrahPhoneVerificationResponse: Decodable {
-    let ok: Bool
-    let phone: String
-    let verifiedAt: String
-}
-
-struct IumrahPhoneVerificationStatusResponse: Decodable {
-    let ok: Bool
-    let verified: Bool
-    let phone: String
-    let verifiedAt: String
 }
 
 struct IumrahAccountTripsResponse: Decodable {
