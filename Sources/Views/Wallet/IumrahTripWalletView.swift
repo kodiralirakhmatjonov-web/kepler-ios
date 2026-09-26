@@ -56,7 +56,7 @@ struct IumrahTripWalletEntry: View {
             let width = proxy.size.width
             ZStack(alignment: .bottom) {
                 compactPass(
-                    title: profile?.displayName.nilIfBlank ?? session.travelerName?.nilIfBlank ?? "iumrah ID",
+                    title: nonBlank(profile?.displayName) ?? nonBlank(session.travelerName) ?? "iumrah ID",
                     detail: profile.map { "ID \($0.iumrahID)" } ?? session.displayBookingNumber,
                     symbol: "person.text.rectangle.fill",
                     fill: Color.black
@@ -372,7 +372,7 @@ private struct IumrahTripWalletScreen: View {
             HStack(spacing: 18) {
                 ticketFact(tr("Flight", "Рейс", "Reys", "Рейс"), flight.flightNumber)
                 ticketFact(tr("Date", "Дата", "Sana", "Сана"), shortDate(flight.departureAt))
-                ticketFact(tr("Class", "Класс", "Klass", "Класс"), flight.cabinClass?.nilIfBlank ?? tr("Economy", "Эконом", "Ekonom", "Эконом"))
+                ticketFact(tr("Class", "Класс", "Klass", "Класс"), nonBlank(flight.cabinClass) ?? tr("Economy", "Эконом", "Ekonom", "Эконом"))
             }
 
             HStack(spacing: 18) {
@@ -386,7 +386,7 @@ private struct IumrahTripWalletScreen: View {
             HStack(alignment: .bottom, spacing: 14) {
                 barcode.frame(height: 58)
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text(profile?.displayName.nilIfBlank ?? session.travelerName?.nilIfBlank ?? "iumrah")
+                    Text(nonBlank(profile?.displayName) ?? nonBlank(session.travelerName) ?? "iumrah")
                         .font(.caption.weight(.bold))
                         .lineLimit(1)
                     Text(session.displayBookingNumber)
@@ -456,7 +456,7 @@ private struct IumrahTripWalletScreen: View {
                 Text(hotel.hotelName)
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .fixedSize(horizontal: false, vertical: true)
-                if let room = hotel.roomName?.nilIfBlank {
+                if let room = nonBlank(hotel.roomName) {
                     Text(room)
                         .font(.subheadline)
                         .foregroundStyle(.black.opacity(0.60))
@@ -585,23 +585,23 @@ private struct IumrahTripWalletScreen: View {
     }
 
     private var firstNameValue: String {
-        if let value = profile?.firstName.nilIfBlank { return value }
+        if let value = nonBlank(profile?.firstName) { return value }
         return firstNameFromDisplayName ?? tr("Pilgrim", "Паломник", "Ziyoratchi", "Зиёратчи")
     }
 
     private var lastNameValue: String {
-        if let value = profile?.lastName.nilIfBlank { return value }
+        if let value = nonBlank(profile?.lastName) { return value }
         return lastNameFromDisplayName ?? "—"
     }
 
     private var firstNameFromDisplayName: String? {
-        let parts = (profile?.displayName.nilIfBlank ?? session.travelerName?.nilIfBlank ?? "")
+        let parts = (nonBlank(profile?.displayName) ?? nonBlank(session.travelerName) ?? "")
             .split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
         return parts.first.map(String.init)
     }
 
     private var lastNameFromDisplayName: String? {
-        let parts = (profile?.displayName.nilIfBlank ?? session.travelerName?.nilIfBlank ?? "")
+        let parts = (nonBlank(profile?.displayName) ?? nonBlank(session.travelerName) ?? "")
             .split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
         return parts.count > 1 ? String(parts[1]) : nil
     }
@@ -665,6 +665,12 @@ private struct IumrahTripWalletScreen: View {
         }
     }
 
+    private func nonBlank(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     private func normalizedID(_ value: String) -> String {
         let digits = value.filter(\.isNumber)
         guard !digits.isEmpty else { return value }
@@ -673,8 +679,8 @@ private struct IumrahTripWalletScreen: View {
     }
 
     private func terminalText(_ flight: FlightOffer) -> String {
-        let departure = flight.segments?.first?.origin.terminal?.nilIfBlank
-        let arrival = flight.segments?.last?.destination.terminal?.nilIfBlank
+        let departure = nonBlank(flight.segments?.first?.origin.terminal)
+        let arrival = nonBlank(flight.segments?.last?.destination.terminal)
         switch (departure, arrival) {
         case let (d?, a?) where d != a:
             return "\(d) → \(a)"

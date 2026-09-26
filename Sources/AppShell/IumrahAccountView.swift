@@ -52,7 +52,6 @@ struct IumrahAccountView: View {
     @State private var loginPhone = "+998"
     @State private var loginSMSCode = ""
     @State private var loginSMSChallengeID = ""
-    @State private var loginSMSDebugCode: String?
     @State private var loginPassword = ""
     @State private var loginEmailServerIssue: IumrahFieldIssue?
     @State private var registrationFirstName = ""
@@ -320,8 +319,8 @@ struct IumrahAccountView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    identityFact(title: tr("First name", "Имя", "Ism", "Исм"), value: first.nilIfBlank ?? profile.firstName.nilIfBlank ?? tr("Pilgrim", "Паломник", "Ziyoratchi", "Зиёратчи"))
-                    identityFact(title: tr("Last name", "Фамилия", "Familiya", "Фамилия"), value: last.nilIfBlank ?? profile.lastName.nilIfBlank ?? "—")
+                    identityFact(title: tr("First name", "Имя", "Ism", "Исм"), value: nonBlank(first) ?? nonBlank(profile.firstName) ?? tr("Pilgrim", "Паломник", "Ziyoratchi", "Зиёратчи"))
+                    identityFact(title: tr("Last name", "Фамилия", "Familiya", "Фамилия"), value: nonBlank(last) ?? nonBlank(profile.lastName) ?? "—")
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -394,7 +393,7 @@ struct IumrahAccountView: View {
 
                 Spacer(minLength: 6)
 
-                qrCodeView(identityPublicURL ?? fallbackIdentityURL(profile.iumrahID), size: 114)
+                qrCodeView(identityPublicURL ?? fallbackIdentityURL(profile.iumrahID), size: 116)
                     .padding(10)
                     .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .overlay {
@@ -1197,17 +1196,6 @@ struct IumrahAccountView: View {
                     let digits = String(raw.filter(\.isNumber).prefix(6))
                     if digits != raw { loginSMSCode = digits }
                 }
-                if let debugCode = loginSMSDebugCode, !debugCode.isEmpty {
-                    Text(tr(
-                        "DevSMS test code: \(debugCode)",
-                        "Тестовый код DevSMS: \(debugCode)",
-                        "DevSMS test kodi: \(debugCode)",
-                        "DevSMS тест коди: \(debugCode)"
-                    ))
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
             }
 
             Button {
@@ -1711,7 +1699,7 @@ struct IumrahAccountView: View {
             let response = try await account.startPhoneLogin(phone: normalizedUZPhoneInput(loginPhone), locale: settings.language.rawValue)
             loginSMSChallengeID = response.challengeID
             loginSMSCode = ""
-            loginSMSDebugCode = response.debugCode
+            loginPhone = normalizedUZPhoneInput(response.phone)
             IumrahHaptics.success()
         } catch {
             loginError = smartLoginError(error)
@@ -2005,6 +1993,12 @@ struct IumrahAccountView: View {
         return String(repeating: "0", count: 8 - digits.count) + digits
     }
 
+    private func nonBlank(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     private func normalizedUZPhoneInput(_ raw: String) -> String {
         let digits = String(raw.filter(\.isNumber).prefix(12))
         return digits.isEmpty ? "" : "+" + digits
@@ -2206,7 +2200,6 @@ struct IumrahAccountView: View {
     private func resetPhoneLoginState() {
         loginSMSChallengeID = ""
         loginSMSCode = ""
-        loginSMSDebugCode = nil
     }
 
     private func copyIdentityID(_ profile: IumrahAccountProfile) {

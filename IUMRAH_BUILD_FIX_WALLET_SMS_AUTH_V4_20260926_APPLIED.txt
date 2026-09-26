@@ -1,0 +1,18 @@
+Iumrah iOS verified build hotfix v4 — 2026-09-26
+
+Fixes:
+- Restores live DevSMS KYC phone verification methods removed by the previous overlay.
+- Keeps SMS account sign-in, implemented on the same live DevSMS challenge flow (no debug OTP).
+- Restores live DevSMS backend route contract and migration 0008_devsms_phone_verification.sql.
+- Removes inaccessible nilIfBlank calls from Account and Wallet views.
+- Keeps native tappable Sign in with Apple control with non-intercepting localized overlay.
+- Keeps requested white minimal iumrah ID card, copy action, adaptive blurred Wallet, shareable ID/boarding passes, new wallet artwork, smart email errors.
+- Restores QR sizing expected by the existing Wallet contract.
+
+Preflight before packaging:
+- Full Swift syntax parse: PASS (213 Swift files)
+- Package Engine TypeScript typecheck: PASS
+- Package Engine contract tests: PASS (75/75)
+- Package Engine runtime tests: PASS (20/20)
+- Regression tests added for KYC DevSMS service methods, live SMS sign-in contract, nilIfBlank visibility, and Apple button hit testing.
+- Wallet artwork file signature verified as real PNG matching the .png asset extension.
