@@ -156,6 +156,12 @@ struct IumrahTripWalletEntry: View {
         }
     }
 
+    private func nonBlank(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch language {
         case .english: return en

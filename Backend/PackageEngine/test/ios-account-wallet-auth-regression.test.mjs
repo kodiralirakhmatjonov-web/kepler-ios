@@ -24,3 +24,9 @@ test("localized Apple sign-in keeps the native authorization control tappable", 
   assert.match(accountView, /onRequest: prepareAppleSignIn/);
   assert.match(accountView, /onCompletion: completeAppleSignIn/);
 });
+
+test("wallet preview keeps its nonBlank helper in IumrahTripWalletEntry scope", () => {
+  const entrySource = walletView.split("private struct IumrahTripWalletScreen", 1)[0];
+  assert.match(entrySource, /private func nonBlank\(_ value: String\?\) -> String\?/);
+  assert.match(entrySource, /title: nonBlank\(profile\?\.displayName\) \?\? nonBlank\(session\.travelerName\)/);
+});

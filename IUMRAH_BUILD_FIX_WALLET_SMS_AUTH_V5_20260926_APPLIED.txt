@@ -1,0 +1,6 @@
+iumrah cumulative build hotfix v5
+
+Fixes Xcode simulator build failure from logs_98175328724.zip:
+- IumrahTripWalletEntry now owns a nonBlank(_:) helper in its lexical scope.
+- Keeps all v4 wallet/account/SMS/DevSMS/backend fixes.
+- Regression test guards the wallet preview helper scope.
