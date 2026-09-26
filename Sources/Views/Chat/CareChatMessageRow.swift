@@ -16,19 +16,19 @@ struct CareChatMessageRow: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 7) {
-            if isMine { Spacer(minLength: 58) }
+            if isMine { Spacer(minLength: 42) }
 
             if !isMine {
                 if groupEnd {
                     Image("CareChatAvatar")
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 28, height: 28)
+                        .frame(width: 26, height: 26)
                         .clipShape(Circle())
                         .overlay { Circle().stroke(Color.white.opacity(0.58), lineWidth: 0.6) }
                         .transition(.scale(scale: 0.82).combined(with: .opacity))
                 } else {
-                    Color.clear.frame(width: 28, height: 1)
+                    Color.clear.frame(width: 26, height: 1)
                 }
             }
 
@@ -51,7 +51,7 @@ struct CareChatMessageRow: View {
                         .padding(10)
                 }
 
-            if !isMine { Spacer(minLength: 58) }
+            if !isMine { Spacer(minLength: 42) }
         }
         .padding(.top, groupStart ? 5 : 0)
     }
@@ -79,7 +79,7 @@ struct CareChatMessageRow: View {
                             )
                         }
                 } else {
-                    shape.fill(Color(uiColor: .systemGray5))
+                    shape.fill(Color(uiColor: .systemGray6))
                 }
             }
             .overlay {
@@ -198,16 +198,8 @@ struct CareMessageBubbleShape: Shape {
     let groupEnd: Bool
 
     func path(in rect: CGRect) -> Path {
-        let tailWidth: CGFloat = groupEnd ? 7 : 0
-        let large: CGFloat = 19.5
-        let tight: CGFloat = 6
-
-        let bodyRect = CGRect(
-            x: isMine ? rect.minX : rect.minX + tailWidth,
-            y: rect.minY,
-            width: max(1, rect.width - tailWidth),
-            height: rect.height
-        )
+        let large: CGFloat = 18
+        let tight: CGFloat = 7
 
         let rounded: UnevenRoundedRectangle
         if isMine {
@@ -227,42 +219,7 @@ struct CareMessageBubbleShape: Shape {
                 style: .continuous
             )
         }
-
-        var path = rounded.path(in: bodyRect)
-        guard groupEnd else { return path }
-
-        var tail = Path()
-        if isMine {
-            let edge = bodyRect.maxX
-            tail.move(to: CGPoint(x: edge - 2, y: bodyRect.maxY - 14))
-            tail.addCurve(
-                to: CGPoint(x: rect.maxX, y: rect.maxY - 1.5),
-                control1: CGPoint(x: edge + 0.5, y: bodyRect.maxY - 7),
-                control2: CGPoint(x: rect.maxX - 1.5, y: rect.maxY - 3)
-            )
-            tail.addCurve(
-                to: CGPoint(x: edge - 5, y: bodyRect.maxY - 4),
-                control1: CGPoint(x: rect.maxX - 3, y: rect.maxY - 0.5),
-                control2: CGPoint(x: edge - 1, y: rect.maxY - 1)
-            )
-            tail.closeSubpath()
-        } else {
-            let edge = bodyRect.minX
-            tail.move(to: CGPoint(x: edge + 2, y: bodyRect.maxY - 14))
-            tail.addCurve(
-                to: CGPoint(x: rect.minX, y: rect.maxY - 1.5),
-                control1: CGPoint(x: edge - 0.5, y: bodyRect.maxY - 7),
-                control2: CGPoint(x: rect.minX + 1.5, y: rect.maxY - 3)
-            )
-            tail.addCurve(
-                to: CGPoint(x: edge + 5, y: bodyRect.maxY - 4),
-                control1: CGPoint(x: rect.minX + 3, y: rect.maxY - 0.5),
-                control2: CGPoint(x: edge + 1, y: rect.maxY - 1)
-            )
-            tail.closeSubpath()
-        }
-        path.addPath(tail)
-        return path
+        return rounded.path(in: rect)
     }
 }
 

@@ -341,7 +341,7 @@ struct BookingChatView: View {
 
     private func pendingBubble(_ pending: PendingOutgoingMessage) -> some View {
         HStack(alignment: .bottom) {
-            Spacer(minLength: 58)
+            Spacer(minLength: 42)
 
             VStack(alignment: .trailing, spacing: 0) {
                 VStack(alignment: .trailing, spacing: 5) {

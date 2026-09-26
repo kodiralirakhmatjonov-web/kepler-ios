@@ -1,0 +1,26 @@
+IUMRAH iOS · KYC / booking status / activation / traveler / chat / push update
+Applied: 2026-09-26
+
+Implemented in this patch:
+- KYC uses native system navigation/back behavior and title "Iumrah Security".
+- KYC automatic-review UX uses a 20-minute window and stores owner contact/personalization fields for reuse.
+- KYC adds phone, email, Telegram, date of birth, gender, citizenship and emergency contact fields.
+- +998 SMS placeholder is prepared for future DevSMS; unsupported country prefixes show an orange availability notice.
+- Account activation adds SMS alongside iumrah ID and Email, plus Continue with Apple and Continue with Google.
+- Booking status no longer uses the generic "Работа идёт" state. It distinguishes availability, payment, pilgrim-data and document states.
+- Booking status uses native SF Symbols hourglass animation and live action cards.
+- KYC action card shows the 20-minute verification timer / manual-review state.
+- Pilgrim action card shows live x/y progress.
+- Self traveler autofills from the owner/KYC/profile data where available; citizenship is the only country field in the UI.
+- Traveler save is blocked until required fields are complete and missing fields are shown explicitly.
+- Gift Cards remain visible but are disabled with "Gift Card ещё недоступна" copy.
+- Care chat bubbles were simplified and spacing tightened.
+- Push client now retries registration when Account is refreshed, reports the real delivery chain state instead of only iOS permission, and clears stale APNs tokens after a registration failure.
+
+Verification performed in this environment:
+- swiftc -parse succeeded for all Swift files under Sources.
+- whitespace diff check passed.
+- xcodebuild is unavailable in this Linux environment, so an Xcode/iOS SDK compile must still run in GitHub Actions/TestFlight.
+
+Push server note:
+The supplied repository contains the iOS APNs client registration code and production entitlement, but the supplied Backend/PackageEngine does not implement the /api/catalog/hotels/client/push/devices or /api/catalog/hotels/client/notifications/devices sender/provider routes. Full remote delivery therefore still depends on the external iumrah catalog/backend service that owns those endpoints.

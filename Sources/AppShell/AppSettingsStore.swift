@@ -56,6 +56,14 @@ final class AppSettingsStore: ObservableObject {
     @AppStorage("iumrah.language") private var languageRaw = Language.uzbek.rawValue
     @AppStorage("iumrah.profile.firstName") var firstName = ""
     @AppStorage("iumrah.profile.lastName") var lastName = ""
+    @AppStorage("iumrah.profile.phone") var phone = ""
+    @AppStorage("iumrah.profile.email") var email = ""
+    @AppStorage("iumrah.profile.dateOfBirth") var dateOfBirth = ""
+    @AppStorage("iumrah.profile.gender") var gender = ""
+    @AppStorage("iumrah.profile.nationality") var nationality = ""
+    @AppStorage("iumrah.profile.emergencyName") var emergencyName = ""
+    @AppStorage("iumrah.profile.emergencyPhone") var emergencyPhone = ""
+    @AppStorage("iumrah.profile.emergencyRelation") var emergencyRelation = ""
     @AppStorage("iumrah.profile.telegram") var telegram = ""
     @AppStorage("iumrah.profile.whatsapp") var whatsapp = ""
 

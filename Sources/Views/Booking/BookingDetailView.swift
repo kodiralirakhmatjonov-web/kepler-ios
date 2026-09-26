@@ -797,10 +797,10 @@ struct BookingDetailView: View {
         if securityConfirmation?.isPendingReview == true { return securityConfirmationPendingTitle }
         if securityConfirmation?.needsResubmission == true {
             switch settings.language {
-            case .russian: return "Исправить данные iUmrah Security"
-            case .english: return "Correct iUmrah Security details"
-            case .uzbek: return "iUmrah Security ma’lumotlarini tuzatish"
-            case .uzbekCyrillic: return "iUmrah Security маълумотларини тузатиш"
+            case .russian: return "Исправить данные Iumrah Security"
+            case .english: return "Correct Iumrah Security details"
+            case .uzbek: return "Iumrah Security ma’lumotlarini tuzatish"
+            case .uzbekCyrillic: return "Iumrah Security маълумотларини тузатиш"
             }
         }
         return securityConfirmationTitle
@@ -815,10 +815,10 @@ struct BookingDetailView: View {
 
     private var securityConfirmationSubtitle: String {
         switch settings.language {
-        case .russian: return "iUmrah Security · защищённое бронирование"
-        case .english: return "iUmrah Security · protected booking"
-        case .uzbek: return "iUmrah Security · himoyalangan bron"
-        case .uzbekCyrillic: return "iUmrah Security · ҳимояланган брон"
+        case .russian: return "Iumrah Security · защищённое бронирование"
+        case .english: return "Iumrah Security · protected booking"
+        case .uzbek: return "Iumrah Security · himoyalangan bron"
+        case .uzbekCyrillic: return "Iumrah Security · ҳимояланган брон"
         }
     }
 

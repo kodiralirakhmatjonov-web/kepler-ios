@@ -1,0 +1,89 @@
+{
+  "name": "iumrah-ios-update-20260926-kyc-status-activation-push-v1.zip",
+  "created": "2026-09-26",
+  "source_of_truth": {
+    "filename": "kepler-ios-main 2(6).zip",
+    "sha256": "d19bce0515fcbcf3201554d284439d93c95533d93b669351fcfecf98f99634d7"
+  },
+  "changed_files": [
+    {
+      "path": "Sources/AppShell/AppSettingsStore.swift",
+      "bytes": 3673,
+      "sha256": "f79584b463755713ce4f605027fdc8f1797bd33a9a8170e86b0c2e8736f3ecc3"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "bytes": 73156,
+      "sha256": "62ede17042e60088b8b8adea7e9b4dd788135185441bc8884d671fc877731782"
+    },
+    {
+      "path": "Sources/Services/PushNotificationManager.swift",
+      "bytes": 4636,
+      "sha256": "89b2181d492284ef2cecacf0690b9833a99f6681449032776f0fc067a5f325f8"
+    },
+    {
+      "path": "Sources/Views/RootView.swift",
+      "bytes": 15726,
+      "sha256": "894f07e5ba4a1e4b3a07813259be3e6a8cf73e8f158330676cff5039eaca9339"
+    },
+    {
+      "path": "Sources/Views/Booking/BookingDetailView.swift",
+      "bytes": 87669,
+      "sha256": "3dfeebfbc6a95b31803cf5456f0c024f59fd15dd5ef9553fa7963bbf91f1b605"
+    },
+    {
+      "path": "Sources/Views/Booking/IumrahSecurityConfirmationView.swift",
+      "bytes": 63206,
+      "sha256": "74d47cb2688c454adeaaaf4cc386139792ca5b9c8984f1d2e05b82b1540a0c1b"
+    },
+    {
+      "path": "Sources/Views/Booking/PilgrimCheckoutView.swift",
+      "bytes": 129548,
+      "sha256": "3d57943d515e0340ec922611cd3cde0f335e30c90d5bff008cf5c4ed831ca5b7"
+    },
+    {
+      "path": "Sources/Views/Chat/BookingChatView.swift",
+      "bytes": 39165,
+      "sha256": "d0a5fa45341a7db59f911888a4133ae94fb21aff4527cfe383a29c410ecff73c"
+    },
+    {
+      "path": "Sources/Views/Chat/CareChatMessageRow.swift",
+      "bytes": 12379,
+      "sha256": "2b4437abb2402d6796d695f5ab8a04098e42b62370fc6247b56f9fde19ce2dfc"
+    },
+    {
+      "path": "Sources/Views/Tabs/BookingsHomeView.swift",
+      "bytes": 126737,
+      "sha256": "a6162296dfe6d767a9f94282642726865d6e68b0683d900306f71c833cff772f"
+    },
+    {
+      "path": "IUMRAH_KYC_STATUS_ACTIVATION_PUSH_20260926_APPLIED.txt",
+      "bytes": 2264,
+      "sha256": "ed4ffb3294c3860821c7e9cd03bbbfe1d85e62c809902619148d9677ab456460"
+    },
+    {
+      "path": "PUSH_DELIVERY_DIAGNOSTIC_20260926.md",
+      "bytes": 1988,
+      "sha256": "4dda373cb79ba85d5e865d3954546d854d09384fcb504d3c71d4c77a913f23fe"
+    }
+  ],
+  "features": [
+    "Native Iumrah Security navigation/back behavior with corrected title.",
+    "KYC owner profile fields + 20-minute review UX + DevSMS-ready +998 placeholder.",
+    "Account activation SMS tab plus Apple and Google continuation.",
+    "Booking status exact payment/traveler/availability states and native animated hourglass.",
+    "Live KYC timer, traveler x/y progress, payment and document status cards.",
+    "Self traveler profile reuse and required-field validation; issuing-country UI removed.",
+    "Gift Cards visible but disabled.",
+    "Care chat bubble cleanup.",
+    "Push registration hardening and delivery readiness diagnostics."
+  ],
+  "qa": {
+    "swift_parse_all_sources": "PASS",
+    "diff_whitespace_check": "PASS",
+    "clean_overlay_reproduction": "PASS",
+    "zip_wrapper_folder": "PASS · no wrapper; files are rooted at repository root",
+    "xcodebuild": "not runnable in Linux container; GitHub macOS/TestFlight is final compile/sign validation",
+    "static_acceptance_checks": "PASS"
+  }
+}

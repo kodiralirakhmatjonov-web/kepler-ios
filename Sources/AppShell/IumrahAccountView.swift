@@ -13,6 +13,7 @@ struct IumrahAccountView: View {
     @EnvironmentObject private var chrome: AppChromeStore
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
+    @ObservedObject private var push = PushNotificationManager.shared
 
     @State private var loginID = ""
     @State private var loginPassword = ""
@@ -1377,7 +1378,20 @@ struct IumrahAccountView: View {
             await bookings.restoreAccountTrips(token: token)
             await bookings.refreshAll()
         }
-        await clientNotifications.refresh(accountToken: account.bearerToken)
+
+        // Revalidate the entire push chain instead of checking only the iOS permission.
+        // This catches the common "notifications enabled but nothing arrives" case where
+        // APNs has a token but the booking/provider registration is not ready.
+        await push.refreshAndRegisterIfAllowed()
+        if let deviceToken = push.deviceToken, !deviceToken.isEmpty {
+            await bookings.syncPushSubscriptions(deviceToken: deviceToken, locale: settings.language.rawValue)
+        }
+        await clientNotifications.sync(
+            deviceToken: push.deviceToken,
+            accountToken: account.bearerToken,
+            hasTrip: !bookings.sessions.isEmpty,
+            locale: settings.language.rawValue
+        )
     }
 
     @MainActor
@@ -1397,6 +1411,8 @@ struct IumrahAccountView: View {
     private func applyProfileToLocalSettings(_ profile: IumrahAccountProfile) {
         settings.firstName = profile.firstName
         settings.lastName = profile.lastName
+        settings.phone = profile.phone
+        settings.email = profile.email
         settings.telegram = profile.telegram
         settings.whatsapp = profile.whatsapp.isEmpty ? profile.phone : profile.whatsapp
     }
@@ -1428,7 +1444,16 @@ struct IumrahAccountView: View {
     private var notificationStatusText: String {
         switch notificationStatus {
         case .authorized, .provisional, .ephemeral:
-            return tr("Enabled", "Включены", "Yoqilgan", "Ёқилган")
+            if push.deviceToken == nil {
+                return tr("Registering with APNs…", "Регистрация APNs…", "APNs ro‘yxatdan o‘tmoqda…", "APNs рўйхатдан ўтмоқда…")
+            }
+            if bookings.pushRegistrationError != nil || clientNotifications.lastError != nil {
+                return tr("Delivery connection error", "Ошибка подключения доставки", "Yetkazish ulanishida xato", "Етказиш уланишида хато")
+            }
+            if bookings.pushRegistrationReady == false || clientNotifications.pushProviderReady == false {
+                return tr("Push service is not ready", "Push-сервис не готов", "Push xizmati tayyor emas", "Push хизмати тайёр эмас")
+            }
+            return tr("Enabled · delivery connected", "Включены · доставка подключена", "Yoqilgan · yetkazish ulangan", "Ёқилган · етказиш уланган")
         case .denied:
             return tr("Disabled in iOS Settings", "Выключены в настройках iOS", "iOS sozlamalarida o‘chirilgan", "iOS созламаларида ўчирилган")
         default:

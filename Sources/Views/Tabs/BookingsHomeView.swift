@@ -27,8 +27,10 @@ struct BookingsHomeView: View {
     @State private var bookingScope: BookingScope = .active
     @State private var bookingPanel: BookingPanel = .booking
     @State private var activeCheckout: IumrahCheckoutResponse?
+    @State private var activeSecurityConfirmation: IumrahSecurityConfirmation?
 
     private let accountService = IumrahAccountService()
+    private let bookingService = BookingService()
 
     private var activeSessions: [StoredBookingSession] {
         bookings.sessions.filter { session in
@@ -62,15 +64,18 @@ struct BookingsHomeView: View {
         .refreshable {
             await bookings.refreshAll()
             await loadActiveCheckout()
+            await loadActiveSecurityConfirmation()
         }
         .task {
             await bookings.refreshAll()
             await loadActiveCheckout()
+            await loadActiveSecurityConfirmation()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
                 guard !Task.isCancelled else { break }
                 await bookings.refreshAll()
                 await loadActiveCheckout()
+                await loadActiveSecurityConfirmation()
             }
         }
         .confirmationDialog(
@@ -259,34 +264,102 @@ struct BookingsHomeView: View {
     @ViewBuilder
     private func bookingTimerOverview(_ session: StoredBookingSession) -> some View {
         if lifecyclePhase(for: session) != nil {
+            let tint = IumrahBookingStatusVisual.color(for: session.effectiveStatus)
             VStack(alignment: .leading, spacing: 15) {
                 HStack(spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 15, style: .continuous)
-                            .fill(IumrahBookingStatusVisual.color(for: session.effectiveStatus).opacity(0.12))
+                            .fill(tint.opacity(0.12))
                             .frame(width: 48, height: 48)
-                        if ["AVAILABILITY_CHECK", "PAYMENT_PENDING", "BOOKING_CONFIRMED"].contains(session.effectiveStatus.uppercased()) {
-                            ProgressView()
-                                .tint(IumrahBookingStatusVisual.color(for: session.effectiveStatus))
-                        } else {
-                            Image(systemName: "clock.fill")
-                                .foregroundStyle(IumrahBookingStatusVisual.color(for: session.effectiveStatus))
-                        }
+                        Image(systemName: bookingOverviewSymbol(session))
+                            .font(.system(size: 21, weight: .semibold))
+                            .foregroundStyle(tint)
+                            .symbolEffect(.pulse, options: .repeating)
                     }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(localized("Работа идёт", "Work is in progress", "Jarayon davom etmoqda", "Жараён давом этмоқда"))
-                            .font(.headline)
-                        Text(localized("Вы можете закрыть приложение — статус обновится автоматически.", "You can close the app — the status will update automatically.", "Ilovani yopishingiz mumkin — holat avtomatik yangilanadi.", "Иловани ёпишингиз мумкин — ҳолат автоматик янгиланади."))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(bookingOverviewTitle(session, checkout: activeCheckout))
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                        Text(bookingOverviewBody(session, checkout: activeCheckout))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                lifecycleTimerPanel(session, tint: IumrahBookingStatusVisual.color(for: session.effectiveStatus))
+                lifecycleTimerPanel(session, tint: tint)
             }
             .padding(18)
             .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7) }
+        }
+    }
+
+    private func bookingOverviewSymbol(_ session: StoredBookingSession) -> String {
+        switch session.effectiveStatus.uppercased() {
+        case "NEW", "AVAILABILITY_CHECK": return "hourglass"
+        case "PAYMENT_PENDING": return session.paymentReceivedAt == nil ? "creditcard" : "hourglass"
+        case "PAID", "BOOKING_CONFIRMED": return "doc.badge.clock"
+        default: return "hourglass"
+        }
+    }
+
+    private func bookingOverviewTitle(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> String {
+        let status = session.effectiveStatus.uppercased()
+        let total = checkout?.travelers.count ?? session.booking.input.travelers.totalPeople
+        let completed = checkout?.travelers.filter(\.completed).count ?? 0
+        let travelersReady = total > 0 && completed >= total
+        let receiptReady = !(checkout?.receipts.isEmpty ?? true) || session.paymentReceivedAt != nil
+
+        switch status {
+        case "NEW", "AVAILABILITY_CHECK":
+            return localized("Проверяем наличие", "Checking availability", "Mavjudlik tekshirilmoqda", "Мавжудлик текширилмоқда")
+        case "PAYMENT_PENDING":
+            if receiptReady && travelersReady {
+                return localized("Проверяем оплату", "Checking payment", "To‘lov tekshirilmoqda", "Тўлов текширилмоқда")
+            }
+            if receiptReady && !travelersReady {
+                return localized("Ожидаем данные паломников", "Waiting for pilgrim details", "Ziyoratchilar ma’lumotlari kutilmoqda", "Зиёратчилар маълумотлари кутилмоқда")
+            }
+            if !receiptReady && travelersReady {
+                return localized("Ожидаем оплату", "Waiting for payment", "To‘lov kutilmoqda", "Тўлов кутилмоқда")
+            }
+            return localized("Ожидаем оплату и данные паломников", "Waiting for payment and pilgrim details", "To‘lov va ziyoratchilar ma’lumotlari kutilmoqda", "Тўлов ва зиёратчилар маълумотлари кутилмоқда")
+        case "PAID", "BOOKING_CONFIRMED":
+            return localized("Готовим документы", "Preparing documents", "Hujjatlar tayyorlanmoqda", "Ҳужжатлар тайёрланмоқда")
+        default:
+            return L10n.status(session.effectiveStatus, settings.language)
+        }
+    }
+
+    private func bookingOverviewBody(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> String {
+        let status = session.effectiveStatus.uppercased()
+        let total = checkout?.travelers.count ?? session.booking.input.travelers.totalPeople
+        let completed = checkout?.travelers.filter(\.completed).count ?? 0
+        let travelersReady = total > 0 && completed >= total
+        let receiptReady = !(checkout?.receipts.isEmpty ?? true) || session.paymentReceivedAt != nil
+
+        switch status {
+        case "NEW", "AVAILABILITY_CHECK":
+            return localized(
+                "Пока iumrah подтверждает авиабилеты, отель и услуги, можно заранее заполнить анкеты всех паломников — это ускорит следующий этап.",
+                "While iumrah confirms flights, hotel and services, you can complete every pilgrim form in advance to make the next step faster.",
+                "iumrah aviachiptalar, mehmonxona va xizmatlarni tasdiqlayotganda barcha ziyoratchilar anketalarini oldindan to‘ldirishingiz mumkin — keyingi bosqich tezroq o‘tadi.",
+                "iumrah авиачипталар, меҳмонхона ва хизматларни тасдиқлаётганда барча зиёратчилар анкеталарини олдиндан тўлдиришингиз мумкин — кейинги босқич тезроқ ўтади."
+            )
+        case "PAYMENT_PENDING":
+            if receiptReady && travelersReady {
+                return localized("Чек и анкеты получены. Бронирование автоматически обновится после проверки оплаты.", "Receipt and pilgrim forms are received. The booking will update automatically after payment verification.", "Chek va anketalar qabul qilindi. To‘lov tekshirilgach bron avtomatik yangilanadi.", "Чек ва анкеталар қабул қилинди. Тўлов текширилгач брон автоматик янгиланади.")
+            }
+            if receiptReady && !travelersReady {
+                return localized("Оплата получена. Осталось заполнить паспортные данные всех паломников.", "Payment is received. Complete the passport details for every pilgrim.", "To‘lov qabul qilindi. Endi barcha ziyoratchilarning pasport ma’lumotlarini to‘ldiring.", "Тўлов қабул қилинди. Энди барча зиёратчиларнинг паспорт маълумотларини тўлдиринг.")
+            }
+            if !receiptReady && travelersReady {
+                return localized("Анкеты паломников заполнены. Осталось оплатить по реквизитам и прикрепить чек.", "Pilgrim forms are complete. Pay using the provided details and attach the receipt.", "Ziyoratchilar anketalari tayyor. Rekvizitlar bo‘yicha to‘lang va chekni biriktiring.", "Зиёратчилар анкеталари тайёр. Реквизитлар бўйича тўланг ва чекни бириктиринг.")
+            }
+            return localized("Заполните паспортные данные паломников и оплатите бронирование. Оба действия можно выполнить в любом порядке.", "Complete pilgrim passport details and pay for the booking. You can do these in either order.", "Ziyoratchilar pasport ma’lumotlarini to‘ldiring va bron uchun to‘lang. Ikkalasini istalgan tartibda bajarish mumkin.", "Зиёратчилар паспорт маълумотларини тўлдиринг ва брон учун тўланг. Иккаласини исталган тартибда бажариш мумкин.")
+        case "PAID", "BOOKING_CONFIRMED":
+            return localized("Оплата и данные получены. iumrah готовит билеты, подтверждения и документы поездки.", "Payment and details are received. iumrah is preparing tickets, confirmations and travel documents.", "To‘lov va ma’lumotlar qabul qilindi. iumrah chiptalar, tasdiqlar va safar hujjatlarini tayyorlamoqda.", "Тўлов ва маълумотлар қабул қилинди. iumrah чипталар, тасдиқлар ва сафар ҳужжатларини тайёрламоқда.")
+        default:
+            return localized("Статус обновится автоматически при следующем изменении.", "The status will update automatically when it changes.", "Holat keyingi o‘zgarishda avtomatik yangilanadi.", "Ҳолат кейинги ўзгаришда автоматик янгиланади.")
         }
     }
 
@@ -302,14 +375,7 @@ struct BookingsHomeView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             NavigationLink { IumrahSecurityConfirmationView(bookingID: session.id) } label: {
-                bookingActionCard(
-                    icon: "person.text.rectangle.fill",
-                    role: .security,
-                    title: "KYC · iumrah Security",
-                    body: localized("Подтвердите личность владельца бронирования.", "Confirm the booking holder’s identity.", "Bron egasining shaxsini tasdiqlang.", "Брон эгасининг шахсини тасдиқланг."),
-                    action: localized("Проверить личность", "Confirm identity", "Shaxsni tasdiqlash", "Шахсни тасдиқлаш"),
-                    ready: false
-                )
+                securityBookingActionCard(activeSecurityConfirmation)
             }
             .buttonStyle(.plain)
 
@@ -324,7 +390,11 @@ struct BookingsHomeView: View {
                     action: completed == total && total > 0
                         ? localized("Проверить анкеты", "Review forms", "Anketalarni tekshirish", "Анкеталарни текшириш")
                         : localized("Заполнить данные заранее", "Complete details in advance", "Ma’lumotlarni oldindan to‘ldirish", "Маълумотларни олдиндан тўлдириш"),
-                    ready: completed == total && total > 0
+                    ready: completed == total && total > 0,
+                    progress: total > 0 ? (completed, total) : nil,
+                    statusLine: completed == total && total > 0
+                        ? localized("Все анкеты заполнены", "All forms are complete", "Barcha anketalar to‘ldirilgan", "Барча анкеталар тўлдирилган")
+                        : localized("Заполнено \(completed) из \(total)", "Completed \(completed) of \(total)", "\(completed)/\(total) to‘ldirildi", "\(completed)/\(total) тўлдирилди")
                 )
             }
             .buttonStyle(.plain)
@@ -360,6 +430,84 @@ struct BookingsHomeView: View {
         }
     }
 
+    @ViewBuilder
+    private func securityBookingActionCard(_ confirmation: IumrahSecurityConfirmation?) -> some View {
+        if let confirmation, confirmation.isPendingReview {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let remaining = securityConfirmationRemainingSeconds(confirmation, now: context.date)
+                let timedOut = remaining <= 0
+                bookingActionCard(
+                    icon: timedOut ? "hourglass.circle.fill" : "lock.shield.fill",
+                    role: .security,
+                    title: "KYC · Iumrah Security",
+                    body: timedOut
+                        ? localized(
+                            "Паспортные данные защищены и ожидают ручной проверки. Вам ничего повторно отправлять не нужно.",
+                            "Your passport data is protected and waiting for manual review. You do not need to submit it again.",
+                            "Pasport ma’lumotlaringiz himoyalangan va qo‘lda tekshirishni kutmoqda. Qayta yuborishingiz shart emas.",
+                            "Паспорт маълумотларингиз ҳимояланган ва қўлда текширишни кутмоқда. Қайта юборишингиз шарт эмас."
+                        )
+                        : localized(
+                            "Паспортные данные получены. Скоро подтвердим личность владельца бронирования.",
+                            "Passport data received. We will confirm the booking holder’s identity shortly.",
+                            "Pasport ma’lumotlari qabul qilindi. Bron egasining shaxsini tez orada tasdiqlaymiz.",
+                            "Паспорт маълумотлари қабул қилинди. Брон эгасининг шахсини тез орада тасдиқлаймиз."
+                        ),
+                    action: localized("Открыть проверку", "Open verification", "Tekshiruvni ochish", "Текширувни очиш"),
+                    ready: false,
+                    statusLine: timedOut
+                        ? localized("Ожидает ручной проверки", "Waiting for manual review", "Qo‘lda tekshirish kutilmoqda", "Қўлда текшириш кутилмоқда")
+                        : localized("Автопроверка · \(securityConfirmationCountdown(remaining))", "Automatic check · \(securityConfirmationCountdown(remaining))", "Avtotekshiruv · \(securityConfirmationCountdown(remaining))", "Автотекширув · \(securityConfirmationCountdown(remaining))")
+                )
+            }
+        } else if let confirmation, confirmation.isConfirmed {
+            bookingActionCard(
+                icon: "checkmark.shield.fill",
+                role: .security,
+                title: "KYC · Iumrah Security",
+                body: localized("Личность и паспортные данные владельца бронирования подтверждены.", "The booking holder’s identity and passport data are confirmed.", "Bron egasining shaxsi va pasport ma’lumotlari tasdiqlandi.", "Брон эгасининг шахси ва паспорт маълумотлари тасдиқланди."),
+                action: localized("Открыть KYC", "Open KYC", "KYC ni ochish", "KYC ни очиш"),
+                ready: true,
+                statusLine: localized("Подтверждено", "Confirmed", "Tasdiqlandi", "Тасдиқланди")
+            )
+        } else if let confirmation, confirmation.needsResubmission {
+            bookingActionCard(
+                icon: "arrow.triangle.2.circlepath",
+                role: .security,
+                title: "KYC · Iumrah Security",
+                body: localized("Проверка просит уточнить паспортные данные. Откройте KYC и исправьте отмеченные поля.", "Verification needs updated passport details. Open KYC and correct the highlighted fields.", "Tekshiruv pasport ma’lumotlarini aniqlashtirishni so‘rayapti. KYC ni ochib, belgilangan maydonlarni tuzating.", "Текширув паспорт маълумотларини аниқлаштиришни сўраяпти. KYC ни очиб, белгиланган майдонларни тузатинг."),
+                action: localized("Исправить данные", "Correct details", "Ma’lumotlarni tuzatish", "Маълумотларни тузатиш"),
+                ready: false,
+                statusLine: localized("Требуется действие", "Action required", "Amal talab qilinadi", "Амал талаб қилинади")
+            )
+        } else {
+            bookingActionCard(
+                icon: "person.text.rectangle.fill",
+                role: .security,
+                title: "KYC · Iumrah Security",
+                body: localized("Подтвердите личность владельца бронирования. После отправки здесь появится таймер проверки.", "Confirm the booking holder’s identity. A verification timer will appear here after submission.", "Bron egasining shaxsini tasdiqlang. Yuborgandan keyin bu yerda tekshiruv taymeri ko‘rinadi.", "Брон эгасининг шахсини тасдиқланг. Юборгандан кейин бу ерда текширув таймери кўринади."),
+                action: localized("Проверить личность", "Confirm identity", "Shaxsni tasdiqlash", "Шахсни тасдиқлаш"),
+                ready: false,
+                statusLine: localized("Ожидает Ваших данных", "Waiting for your details", "Ma’lumotlaringiz kutilmoqda", "Маълумотларингиз кутилмоқда")
+            )
+        }
+    }
+
+    private func securityConfirmationRemainingSeconds(_ confirmation: IumrahSecurityConfirmation, now: Date = .now) -> Int {
+        guard let submitted = securityConfirmationSubmittedDate(confirmation) else { return 0 }
+        return max(0, Int(submitted.addingTimeInterval(20 * 60).timeIntervalSince(now).rounded(.up)))
+    }
+
+    private func securityConfirmationSubmittedDate(_ confirmation: IumrahSecurityConfirmation) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: confirmation.submittedAt) ?? ISO8601DateFormatter().date(from: confirmation.submittedAt)
+    }
+
+    private func securityConfirmationCountdown(_ seconds: Int) -> String {
+        String(format: "%02d:%02d", seconds / 60, seconds % 60)
+    }
+
     private func paymentReceiptStatusCard(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
         let receiptReady = !(checkout?.receipts.isEmpty ?? true)
         return NavigationLink {
@@ -373,7 +521,14 @@ struct BookingsHomeView: View {
                     ? localized("Пока ничего оплачивать не нужно. Оплата откроется после подтверждения наличия.", "No payment is needed yet. It will open after availability is confirmed.", "Hozircha to‘lov kerak emas. Mavjudlik tasdiqlangach ochiladi.", "Ҳозирча тўлов керак эмас. Мавжудлик тасдиқлангач очилади.")
                     : (receiptReady ? localized("Чек получен и сохранён в бронировании.", "The receipt is received and saved with the booking.", "Chek qabul qilindi va bronda saqlandi.", "Чек қабул қилинди ва бронда сақланди.") : localized("Оплатите по реквизитам и прикрепите чек.", "Pay using the provided details and attach the receipt.", "Rekvizitlar bo‘yicha to‘lang va chekni biriktiring.", "Реквизитлар бўйича тўланг ва чекни бириктиринг.")),
                 action: receiptReady ? localized("Открыть чек", "Open receipt", "Chekni ochish", "Чекни очиш") : localized("Перейти к оплате", "Go to payment", "To‘lovga o‘tish", "Тўловга ўтиш"),
-                ready: receiptReady
+                ready: receiptReady,
+                statusLine: session.effectiveStatus.uppercased() == "AVAILABILITY_CHECK"
+                    ? localized("Оплата ещё не открыта", "Payment is not open yet", "To‘lov hali ochilmagan", "Тўлов ҳали очилмаган")
+                    : (receiptReady
+                        ? (session.paymentReceivedAt != nil
+                            ? localized("Проверяем оплату", "Checking payment", "To‘lov tekshirilmoqda", "Тўлов текширилмоқда")
+                            : localized("Чек прикреплён", "Receipt attached", "Chek biriktirilgan", "Чек бириктирилган"))
+                        : localized("Ожидает оплаты", "Waiting for payment", "To‘lov kutilmoqda", "Тўлов кутилмоқда"))
             )
         }
         .buttonStyle(.plain)
@@ -399,13 +554,26 @@ struct BookingsHomeView: View {
                     ? localized("Готово документов: \(documentCount). Каждый файл доступен отдельно.", "Documents ready: \(documentCount). Each file is available separately.", "Tayyor hujjatlar: \(documentCount). Har biri alohida ochiladi.", "Тайёр ҳужжатлар: \(documentCount). Ҳар бири алоҳида очилади.")
                     : localized("После оплаты здесь появятся авиабилет, отель и остальные готовые документы.", "After payment, your ticket, hotel confirmation and other documents will appear here.", "To‘lovdan keyin aviachipta, mehmonxona tasdig‘i va boshqa hujjatlar shu yerda chiqadi.", "Тўловдан кейин авиачипта, меҳмонхона тасдиғи ва бошқа ҳужжатлар шу ерда чиқади."),
                 action: localized("Посмотреть документы", "View documents", "Hujjatlarni ko‘rish", "Ҳужжатларни кўриш"),
-                ready: essentialsReady
+                ready: essentialsReady,
+                progress: documentCount > 0 ? (min(documentCount, 2), 2) : nil,
+                statusLine: documentCount > 0
+                    ? localized("Готово документов: \(documentCount)", "Documents ready: \(documentCount)", "Tayyor hujjatlar: \(documentCount)", "Тайёр ҳужжатлар: \(documentCount)")
+                    : localized("Появятся после оплаты", "Available after payment", "To‘lovdan keyin paydo bo‘ladi", "Тўловдан кейин пайдо бўлади")
             )
         }
         .buttonStyle(.plain)
     }
 
-    private func bookingActionCard(icon: String, role: IumrahIconRole, title: String, body: String, action: String, ready: Bool) -> some View {
+    private func bookingActionCard(
+        icon: String,
+        role: IumrahIconRole,
+        title: String,
+        body: String,
+        action: String,
+        ready: Bool,
+        progress: (Int, Int)? = nil,
+        statusLine: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .top, spacing: 13) {
                 IumrahIconBadge(systemName: ready ? "checkmark.circle.fill" : icon, role: ready ? .success : role, size: 54, symbolSize: 21, cornerRadius: 18)
@@ -415,6 +583,33 @@ struct BookingsHomeView: View {
                 }
                 Spacer(minLength: 0)
             }
+
+            if let progress, progress.1 > 0 {
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack {
+                        Text(statusLine ?? "\(progress.0)/\(progress.1)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(progress.0 >= progress.1 ? Color.green : Color.secondary)
+                        Spacer()
+                        Text("\(progress.0)/\(progress.1)")
+                            .font(.caption.monospacedDigit().weight(.bold))
+                            .foregroundStyle(.secondary)
+                    }
+                    ProgressView(value: Double(progress.0), total: Double(progress.1))
+                        .tint(progress.0 >= progress.1 ? Color.green : Color.iumrahCareDark)
+                }
+                .padding(12)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            } else if let statusLine {
+                Label(statusLine, systemImage: ready ? "checkmark.circle.fill" : "hourglass")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(ready ? Color.green : Color.secondary)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 38)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            }
+
             HStack {
                 Text(action)
                 Spacer()
@@ -1050,7 +1245,7 @@ struct BookingsHomeView: View {
         case .availability:
             return expired
                 ? localized("Мы продолжаем проверку. Статус обновится автоматически, как только все компоненты будут подтверждены.", "We are continuing the check. The status will update automatically once all components are confirmed.", "Tekshiruv davom etmoqda. Barcha qismlar tasdiqlangach holat avtomatik yangilanadi.", "Текширув давом этмоқда. Барча қисмлар тасдиқлангач ҳолат автоматик янгиланади.")
-                : localized("Обычно подтверждение занимает 1–2 часа. Можно закрыть приложение — статус обновится автоматически.", "Confirmation usually takes 1–2 hours. You can close the app — the status will update automatically.", "Tasdiqlash odatda 1–2 soat davom etadi. Ilovani yopishingiz mumkin — holat avtomatik yangilanadi.", "Тасдиқлаш одатда 1–2 соат давом этади. Иловани ёпишингиз мумкин — ҳолат автоматик янгиланади.")
+                : localized("Обычно подтверждение занимает 1–2 часа. Пока мы проверяем наличие, можно заполнить анкеты паломников; статус обновится автоматически.", "Confirmation usually takes 1–2 hours. While availability is checked, you can complete pilgrim forms; the status will update automatically.", "Tasdiqlash odatda 1–2 soat davom etadi. Mavjudlik tekshirilayotganda ziyoratchilar anketalarini to‘ldirishingiz mumkin; holat avtomatik yangilanadi.", "Тасдиқлаш одатда 1–2 соат давом этади. Мавжудлик текширилаётганда зиёратчилар анкеталарини тўлдиришингиз мумкин; ҳолат автоматик янгиланади.")
         case .priceLock:
             return expired
                 ? localized("Перед подтверждением оплаты iumrah повторно проверит актуальную итоговую стоимость.", "Before confirming payment, iumrah will recheck the current total price.", "To‘lovni tasdiqlashdan oldin iumrah yakuniy narxning dolzarbligini qayta tekshiradi.", "Тўловни тасдиқлашдан олдин iumrah якуний нархнинг долзарблигини қайта текширади.")
@@ -1786,6 +1981,22 @@ struct BookingsHomeView: View {
     }
 
     @MainActor
+    private func loadActiveSecurityConfirmation() async {
+        guard let session = activeSession else {
+            activeSecurityConfirmation = nil
+            return
+        }
+        do {
+            let response = try await bookingService.securityConfirmation(id: session.id, accessToken: session.accessToken)
+            activeSecurityConfirmation = response.confirmation
+        } catch APIError.status(let code) where code == 404 {
+            activeSecurityConfirmation = nil
+        } catch {
+            // Keep the last known KYC state if a background refresh temporarily fails.
+        }
+    }
+
+    @MainActor
     private func deleteBooking(_ id: String) async {
         do {
             try await bookings.deleteBooking(id: id)
@@ -1941,7 +2152,7 @@ struct BookingsHomeView: View {
     private var availabilityTitle: String { localized("Проверка наличия", "Availability check", "Mavjudlik tekshiruvi", "Мавжудлик текшируви") }
     private var availabilitySubtitle: String { localized("Подтверждаем перелёт, отель и услуги", "Confirming flight, hotel and services", "Parvoz, mehmonxona va xizmatlar tasdiqlanmoqda", "Парвоз, меҳмонхона ва хизматлар тасдиқланмоқда") }
     private var availabilityCardTitle: String { localized("Проверяем ваш пакет", "Checking your package", "Paketingiz tekshirilmoqda", "Пакетингиз текширилмоқда") }
-    private var availabilityCardBody: String { localized("iumrah подтверждает выбранные позиции. Пока от вас ничего не требуется.", "iumrah is confirming the selected items. No action is required from you yet.", "iumrah tanlangan xizmatlarni tasdiqlamoqda. Hozircha sizdan hech narsa talab qilinmaydi.", "iumrah танланган хизматларни тасдиқламоқда. Ҳозирча сиздан ҳеч нарса талаб қилинмайди.") }
+    private var availabilityCardBody: String { localized("iumrah подтверждает выбранные позиции. Пока идёт проверка, можно заранее заполнить анкеты паломников.", "iumrah is confirming the selected items. While the check is running, you can complete pilgrim forms in advance.", "iumrah tanlangan xizmatlarni tasdiqlamoqda. Tekshiruv davomida ziyoratchilar anketalarini oldindan to‘ldirish mumkin.", "iumrah танланган хизматларни тасдиқламоқда. Текширув давомида зиёратчилар анкеталарини олдиндан тўлдириш мумкин.") }
 
     private var paymentStageTitle: String { localized("Оплата и данные паломников", "Payment and pilgrim details", "To‘lov va ziyoratchi ma’lumotlari", "Тўлов ва зиёратчи маълумотлари") }
     private var paymentStageSubtitle: String { localized("Наличие подтверждено · требуется действие", "Availability confirmed · action required", "Mavjudlik tasdiqlandi · amal kerak", "Мавжудлик тасдиқланди · амал керак") }

@@ -3,10 +3,12 @@ import PhotosUI
 import QuickLook
 import UniformTypeIdentifiers
 import UIKit
+import AuthenticationServices
 
 private enum IumrahActivationMethod: String, CaseIterable, Identifiable {
     case iumrahID
     case email
+    case sms
 
     var id: String { rawValue }
 }
@@ -29,6 +31,7 @@ struct PilgrimCheckoutView: View {
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var account: IumrahAccountStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     let bookingID: String
     let presentation: PilgrimCheckoutPresentation
@@ -45,6 +48,10 @@ struct PilgrimCheckoutView: View {
     @State private var activationEmail = ""
     @State private var activationEmailChallengeID = ""
     @State private var activationEmailCode = ""
+    @State private var activationPhone = "+998"
+    @State private var appleNonce = ""
+    @State private var isAppleSigningIn = false
+    @State private var isGoogleSigningIn = false
     @State private var password = ""
     @State private var passwordConfirm = ""
     @State private var isPasswordVisible = false
@@ -313,6 +320,7 @@ struct PilgrimCheckoutView: View {
             Picker("", selection: $activationMethod) {
                 Text("iumrah ID").tag(IumrahActivationMethod.iumrahID)
                 Text("Email").tag(IumrahActivationMethod.email)
+                Text("SMS").tag(IumrahActivationMethod.sms)
             }
             .pickerStyle(.segmented)
             .onChange(of: activationMethod) { _, _ in
@@ -342,7 +350,7 @@ struct PilgrimCheckoutView: View {
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            } else {
+            } else if activationMethod == .email {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 11) {
                         Image(systemName: "envelope.fill")
@@ -378,7 +386,7 @@ struct PilgrimCheckoutView: View {
                         .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
 
                         Text(tr(
-                            "We sent a verification code with Resend. It expires in 10 minutes.",
+                            "We sent a verification code to your email. It expires in 10 minutes.",
                             "Мы отправили код подтверждения на почту. Он действует 10 минут.",
                             "Tasdiqlash kodi emailingizga yuborildi. U 10 daqiqa amal qiladi.",
                             "Тасдиқлаш коди emailingizга юборилди. У 10 дақиқа амал қилади."
@@ -387,40 +395,90 @@ struct PilgrimCheckoutView: View {
                         .foregroundStyle(.secondary)
                     }
                 }
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 11) {
+                        Image(systemName: "phone.fill")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 22)
+                        TextField("+998 90 123 45 67", text: $activationPhone)
+                            .keyboardType(.phonePad)
+                            .textContentType(.telephoneNumber)
+                            .onChange(of: activationPhone) { _, raw in
+                                let formatted = activationPhoneInput(raw)
+                                if formatted != raw { activationPhone = formatted }
+                            }
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 54)
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: activationSMSCovered ? "message.badge.fill" : "exclamationmark.bubble.fill")
+                            .foregroundStyle(activationSMSCovered ? Color.blue : Color.orange)
+                        Text(activationSMSCovered
+                             ? tr(
+                                "SMS confirmation for Uzbekistan (+998) is being prepared through DevSMS. The number can already be entered here, but sending the code is temporarily disabled.",
+                                "SMS-подтверждение для Узбекистана (+998) готовится через DevSMS. Номер уже можно указать здесь, но отправка кода пока временно недоступна.",
+                                "O‘zbekiston (+998) uchun SMS tasdiqlash DevSMS orqali tayyorlanmoqda. Raqamni hozir kiritish mumkin, ammo kod yuborish vaqtincha o‘chirilgan.",
+                                "Ўзбекистон (+998) учун SMS тасдиқлаш DevSMS орқали тайёрланмоқда. Рақамни ҳозир киритиш мумкин, аммо код юбориш вақтинча ўчирилган."
+                             )
+                             : tr(
+                                "SMS is temporarily unavailable for this country. Please continue by email or use your Google or Apple account. At the moment SMS activation supports only Uzbekistan numbers beginning with +998.",
+                                "SMS для этой страны временно недоступны. Продолжите по электронной почте или воспользуйтесь аккаунтом Google или Apple. Сейчас SMS-активация поддерживает только номера Узбекистана, начинающиеся с +998.",
+                                "Bu davlat uchun SMS vaqtincha mavjud emas. Email orqali davom eting yoki Google/Apple akkauntingizdan foydalaning. Hozir SMS faollashtirish faqat +998 bilan boshlanuvchi O‘zbekiston raqamlarini qo‘llaydi.",
+                                "Бу давлат учун SMS вақтинча мавжуд эмас. Email орқали давом этинг ёки Google/Apple аккаунтингиздан фойдаланинг. Ҳозир SMS фаоллаштириш фақат +998 билан бошланувчи Ўзбекистон рақамларини қўллайди."
+                             ))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(activationSMSCovered ? Color.secondary : Color.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(13)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background((activationSMSCovered ? Color.blue : Color.orange).opacity(0.08), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 17, style: .continuous)
+                            .strokeBorder((activationSMSCovered ? Color.blue : Color.orange).opacity(0.18), lineWidth: 0.8)
+                    }
+                }
             }
 
-            passwordField(
-                tr("Create password", "Создайте пароль", "Parol yarating", "Парол яратинг"),
-                text: $password,
-                isVisible: $isPasswordVisible,
-                newPassword: true
-            )
-            passwordField(
-                tr("Confirm password", "Подтвердите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг"),
-                text: $passwordConfirm,
-                isVisible: $isPasswordConfirmVisible,
-                newPassword: true
-            )
+            if activationMethod != .sms {
+                passwordField(
+                    tr("Create password", "Создайте пароль", "Parol yarating", "Парол яратинг"),
+                    text: $password,
+                    isVisible: $isPasswordVisible,
+                    newPassword: true
+                )
+                passwordField(
+                    tr("Confirm password", "Подтвердите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг"),
+                    text: $passwordConfirm,
+                    isVisible: $isPasswordConfirmVisible,
+                    newPassword: true
+                )
 
-            VStack(alignment: .leading, spacing: 7) {
-                activationRequirement(
-                    tr("At least 8 characters", "Минимум 8 символов", "Kamida 8 belgi", "Камида 8 белги"),
-                    ready: password.count >= 8
-                )
-                activationRequirement(
-                    tr("Passwords match", "Пароли совпадают", "Parollar mos", "Пароллар мос"),
-                    ready: !passwordConfirm.isEmpty && password == passwordConfirm
-                )
+                VStack(alignment: .leading, spacing: 7) {
+                    activationRequirement(
+                        tr("At least 8 characters", "Минимум 8 символов", "Kamida 8 belgi", "Камида 8 белги"),
+                        ready: password.count >= 8
+                    )
+                    activationRequirement(
+                        tr("Passwords match", "Пароли совпадают", "Parollar mos", "Пароллар мос"),
+                        ready: !passwordConfirm.isEmpty && password == passwordConfirm
+                    )
+                }
             }
 
             Button {
                 Task {
-                    if activationMethod == .iumrahID {
+                    switch activationMethod {
+                    case .iumrahID:
                         await activateAccount(value)
-                    } else if activationEmailChallengeID.isEmpty {
-                        await startEmailActivation(value)
-                    } else {
-                        await confirmEmailActivation(value)
+                    case .email:
+                        if activationEmailChallengeID.isEmpty { await startEmailActivation(value) }
+                        else { await confirmEmailActivation(value) }
+                    case .sms:
+                        break
                     }
                 }
             } label: {
@@ -428,7 +486,7 @@ struct PilgrimCheckoutView: View {
                     if isSubmittingAccount { ProgressView().tint(.white) }
                     Text(activationPrimaryTitle)
                     Spacer()
-                    Image(systemName: activationMethod == .email && activationEmailChallengeID.isEmpty ? "envelope.badge.fill" : "arrow.right")
+                    Image(systemName: activationMethod == .sms ? "message.badge" : (activationMethod == .email && activationEmailChallengeID.isEmpty ? "envelope.badge.fill" : "arrow.right"))
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
@@ -457,6 +515,27 @@ struct PilgrimCheckoutView: View {
                     .buttonStyle(.plain)
                     .disabled(isSubmittingAccount)
                 }
+            }
+
+            HStack(spacing: 10) {
+                Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
+                Text(tr("or", "или", "yoki", "ёки"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
+            }
+
+            SignInWithAppleButton(.continue, onRequest: prepareActivationAppleSignIn, onCompletion: completeActivationAppleSignIn)
+                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                .frame(height: IumrahDesign.controlHeight)
+                .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
+                .disabled(isSubmittingAccount || isGoogleSigningIn || !isTravelerEditingAllowed)
+
+            IumrahGoogleAuthButton(
+                title: tr("Continue with Google", "Продолжить с Google", "Google bilan davom etish", "Google билан давом этиш"),
+                isDisabled: isSubmittingAccount || isAppleSigningIn || isGoogleSigningIn || !isTravelerEditingAllowed
+            ) {
+                startActivationGoogleSignIn()
             }
 
             Button {
@@ -581,22 +660,36 @@ struct PilgrimCheckoutView: View {
     }
 
     private var activationPrimaryTitle: String {
-        if activationMethod == .iumrahID {
+        switch activationMethod {
+        case .iumrahID:
             return tr("Activate ID and continue", "Активировать ID и продолжить", "ID ni faollashtirish va davom etish", "ID ни фаоллаштириш ва давом этиш")
+        case .email:
+            if activationEmailChallengeID.isEmpty {
+                return tr("Send verification code", "Отправить код", "Tasdiqlash kodini yuborish", "Тасдиқлаш кодини юбориш")
+            }
+            return tr("Confirm email and continue", "Подтвердить почту и продолжить", "Emailni tasdiqlash va davom etish", "Emailни тасдиқлаш ва давом этиш")
+        case .sms:
+            return tr("SMS activation coming soon", "SMS-активация скоро будет доступна", "SMS faollashtirish tez orada", "SMS фаоллаштириш тез орада")
         }
-        if activationEmailChallengeID.isEmpty {
-            return tr("Send verification code", "Отправить код", "Tasdiqlash kodini yuborish", "Тасдиқлаш кодини юбориш")
-        }
-        return tr("Confirm email and continue", "Подтвердить почту и продолжить", "Emailni tasdiqlash va davom etish", "Emailни тасдиқлаш ва давом этиш")
     }
 
     private var activationPrimaryReady: Bool {
+        if activationMethod == .sms { return false }
         guard password.count >= 8, password == passwordConfirm else { return false }
         if activationMethod == .iumrahID { return true }
         let email = activationEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         guard email.contains("@"), email.contains(".") else { return false }
         if activationEmailChallengeID.isEmpty { return true }
         return activationEmailCode.count == 6
+    }
+
+    private var activationSMSCovered: Bool {
+        activationPhoneInput(activationPhone).hasPrefix("+998")
+    }
+
+    private func activationPhoneInput(_ raw: String) -> String {
+        let digits = String(raw.filter(\.isNumber).prefix(15))
+        return digits.isEmpty ? "" : "+" + digits
     }
 
     private func activationRequirement(_ title: String, ready: Bool) -> some View {
@@ -892,137 +985,45 @@ struct PilgrimCheckoutView: View {
                     )
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("iUmrah Gift Cards")
+                        Text("Iumrah Gift Cards")
                             .font(.headline)
-                        Text(tr("Gift Card & iUmrah Balance", "Gift Card и iUmrah Balance", "Gift Card va iUmrah Balance", "Gift Card ва iUmrah Balance"))
+                        Text(tr("Gift Card & Iumrah Balance", "Gift Card и Iumrah Balance", "Gift Card va Iumrah Balance", "Gift Card ва Iumrah Balance"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    if isApplyingFriendBenefit { ProgressView() }
+                    Image(systemName: "lock.fill")
+                        .foregroundStyle(.secondary)
                 }
 
-                if let summary = friendsSummary {
-                    if !summary.identityConfirmed {
-                        VStack(alignment: .leading, spacing: 11) {
-                            Label(
-                                tr(
-                                    "Confirm the passport holder and wait for manual review before using a Gift Card benefit.",
-                                    "Подтвердите владельца паспорта и дождитесь ручной проверки перед применением Gift Card.",
-                                    "Gift Card ishlatishdan oldin pasport egasini tasdiqlang va qo‘lda tekshirishni kuting.",
-                                    "Gift Card ишлатишдан олдин паспорт эгасини тасдиқланг ва қўлда текширишни кутинг."
-                                ),
-                                systemImage: "lock.shield.fill"
-                            )
-                            .font(.subheadline.weight(.medium))
-                            .fixedSize(horizontal: false, vertical: true)
-
-                            NavigationLink {
-                                IumrahSecurityConfirmationView(bookingID: bookingID)
-                            } label: {
-                                HStack {
-                                    Text("iUmrah Security Confirmation")
-                                    Spacer()
-                                    Image(systemName: "arrow.right")
-                                }
-                                .font(.subheadline.weight(.semibold))
-                                .padding(.horizontal, 15)
-                                .frame(height: 50)
-                                .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    } else {
-                        friendsPricingSummary(summary)
-
-                        if summary.remainingAllowanceUsd >= 100 {
-                            VStack(alignment: .leading, spacing: 9) {
-                                Text(tr("Use a Gift Card", "Применить Gift Card", "Gift Card ishlatish", "Gift Card ишлатиш"))
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-
-                                HStack(spacing: 9) {
-                                    TextField("IUMG-XXXXXXXXX", text: $giftCode)
-                                        .textInputAutocapitalization(.characters)
-                                        .autocorrectionDisabled()
-                                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                                        .padding(.horizontal, 13)
-                                        .frame(height: 50)
-                                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
-
-                                    Button {
-                                        Task { await redeemFriendGift() }
-                                    } label: {
-                                        Text(tr("Apply", "Применить", "Qo‘llash", "Қўллаш"))
-                                            .font(.subheadline.weight(.bold))
-                                            .padding(.horizontal, 15)
-                                            .frame(height: 50)
-                                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 17, style: .continuous), interactive: true)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .disabled(normalizedGiftCode.count < 8 || isApplyingFriendBenefit)
-                                }
-                            }
-                        }
-
-                        if summary.availableCreditUsd >= 100 && summary.remainingAllowanceUsd >= 100 {
-                            let amount = Int(min(200.0, min(summary.availableCreditUsd, summary.remainingAllowanceUsd)) / 100) * 100
-                            Button {
-                                Task { await applyFriendCredit(amountUsd: max(100, amount)) }
-                            } label: {
-                                HStack {
-                                    Image(systemName: "creditcard.and.123")
-                                    Text(tr(
-                                        "Use $\(max(100, amount)) iUmrah Balance",
-                                        "Использовать $\(max(100, amount)) iUmrah Balance",
-                                        "$\(max(100, amount)) iUmrah Balance ishlatish",
-                                        "$\(max(100, amount)) iUmrah Balance ишлатиш"
-                                    ))
-                                    Spacer()
-                                    Image(systemName: "minus.circle.fill")
-                                }
-                                .font(.subheadline.weight(.semibold))
-                                .padding(.horizontal, 15)
-                                .frame(height: 50)
-                                .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(isApplyingFriendBenefit)
-                        }
-
-                        if !summary.appliedGifts.isEmpty {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(summary.appliedGifts) { gift in
-                                    HStack {
-                                        Label(gift.code, systemImage: "checkmark.circle.fill")
-                                            .font(.caption.monospaced().weight(.semibold))
-                                            .foregroundStyle(.green)
-                                        Spacer()
-                                        Text("−\(friendMoney(gift.discountUsd))")
-                                            .font(.caption.weight(.bold))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                        Text(tr("Checking Gift Card benefits…", "Проверяем Gift Card…", "Gift Card imtiyozlari tekshirilmoqda…", "Gift Card имтиёзлари текширилмоқда…"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if let friendsMessage {
-                    Label(friendsMessage, systemImage: "info.circle.fill")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(friendsMessageIsError ? Color.red : Color.green)
+                HStack(alignment: .top, spacing: 11) {
+                    Image(systemName: "clock.badge.exclamationmark.fill")
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(tr("Gift Cards are not available yet", "Gift Card ещё недоступна", "Gift Card hali mavjud emas", "Gift Card ҳали мавжуд эмас"))
+                            .font(.subheadline.weight(.semibold))
+                        Text(tr(
+                            "The section is already visible in the booking, but applying Gift Cards and Iumrah Balance is temporarily disabled. We will enable it after the payment flow is ready.",
+                            "Раздел уже виден в бронировании, но применение Gift Card и Iumrah Balance временно отключено. Мы включим его после готовности платёжного сценария.",
+                            "Bo‘lim bron ichida ko‘rinadi, ammo Gift Card va Iumrah Balance qo‘llash vaqtincha o‘chirilgan. To‘lov jarayoni tayyor bo‘lgach yoqiladi.",
+                            "Бўлим брон ичида кўринади, аммо Gift Card ва Iumrah Balance қўллаш вақтинча ўчирилган. Тўлов жараёни тайёр бўлгач ёқилади."
+                        ))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .strokeBorder(Color.orange.opacity(0.18), lineWidth: 0.8)
                 }
             }
             .padding(14)
             .background(Color.iumrahRaisedBackground.opacity(0.45), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .accessibilityElement(children: .contain)
         }
     }
 
@@ -1044,7 +1045,7 @@ struct PilgrimCheckoutView: View {
             }
             if summary.totalDiscountUsd > 0 {
                 HStack {
-                    Text("iUmrah Gift Cards")
+                    Text("Iumrah Gift Cards")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Text("−\(friendMoney(summary.totalDiscountUsd))")
@@ -1063,7 +1064,7 @@ struct PilgrimCheckoutView: View {
                 }
             }
             HStack {
-                Text(tr("Available iUmrah Balance", "Доступный iUmrah Balance", "Mavjud iUmrah Balance", "Мавжуд iUmrah Balance"))
+                Text(tr("Available Iumrah Balance", "Доступный Iumrah Balance", "Mavjud Iumrah Balance", "Мавжуд Iumrah Balance"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -1143,7 +1144,7 @@ struct PilgrimCheckoutView: View {
                 headers: headers,
                 amountUsd: amountUsd
             )
-            friendsMessage = tr("iUmrah Balance applied.", "iUmrah Balance применён.", "iUmrah Balance qo‘llandi.", "iUmrah Balance қўлланди.")
+            friendsMessage = tr("Iumrah Balance applied.", "Iumrah Balance применён.", "Iumrah Balance qo‘llandi.", "Iumrah Balance қўлланди.")
             IumrahHaptics.success()
         } catch APIError.server(_, let code) {
             friendsMessage = friendError(code)
@@ -1157,7 +1158,7 @@ struct PilgrimCheckoutView: View {
     private func friendError(_ code: String) -> String {
         switch code.uppercased() {
         case "IDENTITY_CONFIRMATION_REQUIRED":
-            return tr("iUmrah Security Confirmation is required.", "Сначала пройдите iUmrah Security Confirmation.", "Avval iUmrah Security Confirmation dan o‘ting.", "Аввал iUmrah Security Confirmation дан ўтинг.")
+            return tr("Iumrah Security Confirmation is required.", "Сначала пройдите Iumrah Security Confirmation.", "Avval Iumrah Security Confirmation dan o‘ting.", "Аввал Iumrah Security Confirmation дан ўтинг.")
         case "FRIENDS_GIFT_INVALID":
             return tr("Check the Gift code.", "Проверьте код Gift-карты.", "Gift kodini tekshiring.", "Gift кодини текширинг.")
         case "FRIENDS_GIFT_NOT_AVAILABLE":
@@ -1169,7 +1170,7 @@ struct PilgrimCheckoutView: View {
         case "FRIENDS_SELF_REFERRAL":
             return tr("You cannot use your own Gift.", "Нельзя применить собственную Gift-карту.", "O‘z Gift kartangizni ishlata olmaysiz.", "Ўз Gift картангизни ишлата олмайсиз.")
         case "FRIENDS_CREDIT_UNAVAILABLE":
-            return tr("There is not enough available iUmrah Balance for this booking.", "Недостаточно доступного iUmrah Balance для этого бронирования.", "Bu bron uchun iUmrah Balance yetarli emas.", "Бу брон учун iUmrah Balance етарли эмас.")
+            return tr("There is not enough available Iumrah Balance for this booking.", "Недостаточно доступного Iumrah Balance для этого бронирования.", "Bu bron uchun Iumrah Balance yetarli emas.", "Бу брон учун Iumrah Balance етарли эмас.")
         default:
             return L10n.error(APIError.server(409, code), settings.language)
         }
@@ -1366,6 +1367,55 @@ struct PilgrimCheckoutView: View {
             if account.isAuthenticated { await loadFriendsSummary() }
         } catch {
             errorMessage = L10n.error(error, settings.language)
+        }
+    }
+
+    private func prepareActivationAppleSignIn(_ request: ASAuthorizationAppleIDRequest) {
+        do {
+            appleNonce = try IumrahAppleSignInSupport.prepare(request)
+            isAppleSigningIn = true
+            errorMessage = nil
+        } catch {
+            isAppleSigningIn = false
+            errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+        }
+    }
+
+    private func completeActivationAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        Task { @MainActor in
+            defer { isAppleSigningIn = false }
+            do {
+                let authorization = try result.get()
+                let credential = try IumrahAppleSignInSupport.credential(from: authorization, nonce: appleNonce)
+                let profile = try await account.signInWithApple(credential, locale: settings.language.rawValue)
+                guard let session else { throw APIError.missingBookingToken }
+                await finishAccountActivation(profile, session: session)
+            } catch let error as ASAuthorizationError where error.code == .canceled {
+                errorMessage = nil
+            } catch {
+                errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+                IumrahHaptics.error()
+            }
+        }
+    }
+
+    private func startActivationGoogleSignIn() {
+        guard !isGoogleSigningIn, !isAppleSigningIn, !isSubmittingAccount else { return }
+        isGoogleSigningIn = true
+        errorMessage = nil
+        Task { @MainActor in
+            defer { isGoogleSigningIn = false }
+            do {
+                let credential = try await IumrahGoogleSignInSupport.signIn()
+                let profile = try await account.signInWithGoogle(credential, locale: settings.language.rawValue)
+                guard let session else { throw APIError.missingBookingToken }
+                await finishAccountActivation(profile, session: session)
+            } catch where IumrahGoogleSignInSupport.isCancellation(error) {
+                errorMessage = nil
+            } catch {
+                errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+                IumrahHaptics.error()
+            }
         }
     }
 
@@ -1619,6 +1669,7 @@ struct PilgrimCheckoutView: View {
 
 private struct TravelerFormEditorSheet: View {
     @EnvironmentObject private var account: IumrahAccountStore
+    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
     let bookingID: String
     let language: AppSettingsStore.Language
@@ -1670,7 +1721,6 @@ private struct TravelerFormEditorSheet: View {
                             autocapitalization: .characters
                         )
                         smartDateField(tr("Expiry date", "Срок действия", "Amal qilish muddati", "Амал қилиш муддати"), text: $passportExpiryDateInput)
-                        countryRow(target: .issuing, title: tr("Issuing country", "Страна выдачи", "Bergan davlat", "Берган давлат"), value: form.passportIssuingCountry)
 
                         PhotosPicker(selection: $passportPhoto, matching: .images) {
                             HStack(spacing: 12) {
@@ -1700,6 +1750,66 @@ private struct TravelerFormEditorSheet: View {
                             .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
                         }
                         .buttonStyle(.plain)
+                    }
+
+                    section(tr("Contacts", "Контакты", "Aloqa", "Алоқа"), icon: "phone.fill") {
+                        field(
+                            tr("Phone", "Номер телефона", "Telefon", "Телефон"),
+                            $form.phone,
+                            keyboard: .phonePad,
+                            contentType: .telephoneNumber,
+                            autocapitalization: .never
+                        )
+                        field(
+                            "Email",
+                            $form.email,
+                            keyboard: .emailAddress,
+                            contentType: .emailAddress,
+                            autocapitalization: .never
+                        )
+
+                        Divider()
+
+                        Text(tr("Emergency contact", "Экстренный контакт", "Favqulodda kontakt", "Фавқулодда контакт"))
+                            .font(.subheadline.weight(.semibold))
+                        field(tr("Contact name", "Имя контакта", "Kontakt ismi", "Контакт исми"), $form.emergencyName, contentType: .name)
+                        field(
+                            tr("Emergency phone", "Экстренный номер телефона", "Favqulodda telefon", "Фавқулодда телефон"),
+                            $form.emergencyPhone,
+                            keyboard: .phonePad,
+                            contentType: .telephoneNumber,
+                            autocapitalization: .never
+                        )
+                        field(tr("Relationship", "Кем приходится", "Qarindoshlik", "Қариндошлик"), $form.emergencyRelation)
+
+                        if (form.relationship ?? "").lowercased() == "self" {
+                            let telegram = account.account?.telegram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                                ? (account.account?.telegram ?? "")
+                                : settings.telegram
+                            if !telegram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "paperplane.fill")
+                                        .foregroundStyle(.secondary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Telegram")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Text(telegram)
+                                            .font(.subheadline.weight(.semibold))
+                                    }
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                }
+                                .padding(.horizontal, 14)
+                                .frame(minHeight: 56)
+                                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                            }
+                        }
+                    }
+
+                    if !canSave {
+                        missingFieldsCard
                     }
 
                     if let errorMessage {
@@ -1733,6 +1843,7 @@ private struct TravelerFormEditorSheet: View {
                     Button(tr("Close", "Закрыть", "Yopish", "Ёпиш")) { dismiss() }
                 }
             }
+            .task { autofillOwnerIfNeeded() }
             .sheet(item: $countryTarget) { target in
                 CountryPickerSheet(
                     language: language,
@@ -1776,6 +1887,7 @@ private struct TravelerFormEditorSheet: View {
             ForEach(["self", "spouse", "mother", "father", "brother", "sister", "child", "relative", "friend", "other"], id: \.self) { value in
                 Button {
                     form.relationship = value
+                    if value == "self" { autofillOwnerIfNeeded(force: true) }
                     IumrahHaptics.selection()
                 } label: {
                     Label(relationshipOptionTitle(value), systemImage: form.relationship == value ? "checkmark" : relationshipOptionIcon(value))
@@ -1863,15 +1975,83 @@ private struct TravelerFormEditorSheet: View {
         }
     }
 
+    @MainActor
+    private func autofillOwnerIfNeeded(force: Bool = false) {
+        guard (form.relationship ?? "").lowercased() == "self" else { return }
+        let profile = account.account
+
+        func set(_ current: inout String, _ value: String?) {
+            guard let value else { return }
+            let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !clean.isEmpty else { return }
+            if force || current.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                current = clean
+            }
+        }
+
+        set(&form.firstName, profile?.firstName.isEmpty == false ? profile?.firstName : settings.firstName)
+        set(&form.lastName, profile?.lastName.isEmpty == false ? profile?.lastName : settings.lastName)
+        set(&form.gender, settings.gender)
+        set(&form.nationality, settings.nationality)
+        set(&form.phone, profile?.phone.isEmpty == false ? profile?.phone : settings.phone)
+        set(&form.email, profile?.email.isEmpty == false ? profile?.email : settings.email)
+        set(&form.emergencyName, settings.emergencyName)
+        set(&form.emergencyPhone, settings.emergencyPhone)
+        set(&form.emergencyRelation, settings.emergencyRelation)
+
+        if (force || dateOfBirthInput.isEmpty), !settings.dateOfBirth.isEmpty {
+            dateOfBirthInput = Self.displayDate(settings.dateOfBirth)
+        }
+        if !form.nationality.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            form.passportIssuingCountry = form.nationality
+        }
+    }
+
     private var canSave: Bool {
-        let required = [
-            form.relationship ?? "", form.firstName, form.lastName, form.gender,
-            form.nationality, form.passportNumber, form.passportIssuingCountry
-        ]
-        return required.allSatisfy { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            && Self.isoDate(dateOfBirthInput) != nil
-            && Self.isoDate(passportExpiryDateInput) != nil
-            && (form.hasPassport || passportPhoto != nil)
+        missingRequiredFields.isEmpty
+    }
+
+    private var missingRequiredFields: [String] {
+        var missing: [String] = []
+        func needs(_ value: String, _ title: String) {
+            if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { missing.append(title) }
+        }
+        needs(form.relationship ?? "", tr("Traveler", "Кто едет", "Kim bormoqda", "Ким бормоқда"))
+        needs(form.firstName, tr("First name", "Имя", "Ism", "Исм"))
+        needs(form.lastName, tr("Last name", "Фамилия", "Familiya", "Фамилия"))
+        needs(form.gender, tr("Gender", "Пол", "Jins", "Жинс"))
+        needs(form.nationality, tr("Citizenship", "Гражданство", "Fuqarolik", "Фуқаролик"))
+        needs(form.passportNumber, tr("Passport number", "Номер паспорта", "Pasport raqami", "Паспорт рақами"))
+        needs(form.phone, tr("Phone", "Телефон", "Telefon", "Телефон"))
+        needs(form.emergencyName, tr("Emergency contact", "Экстренный контакт", "Favqulodda kontakt", "Фавқулодда контакт"))
+        needs(form.emergencyPhone, tr("Emergency phone", "Экстренный телефон", "Favqulodda telefon", "Фавқулодда телефон"))
+        if Self.isoDate(dateOfBirthInput) == nil { missing.append(tr("Date of birth", "Дата рождения", "Tug‘ilgan sana", "Туғилган сана")) }
+        if Self.isoDate(passportExpiryDateInput) == nil { missing.append(tr("Passport expiry", "Срок действия паспорта", "Pasport muddati", "Паспорт муддати")) }
+        if !(form.hasPassport || passportPhoto != nil) { missing.append(tr("Passport photo", "Фото паспорта", "Pasport rasmi", "Паспорт расми")) }
+        return missing
+    }
+
+    private var missingFieldsCard: some View {
+        HStack(alignment: .top, spacing: 11) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(tr("Complete the required fields", "Заполните обязательные поля", "Majburiy maydonlarni to‘ldiring", "Мажбурий майдонларни тўлдиринг"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.red)
+                Text(missingRequiredFields.prefix(5).joined(separator: " · ") + (missingRequiredFields.count > 5 ? " …" : ""))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.red.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.red.opacity(0.16), lineWidth: 0.8)
+        }
     }
 
     private func section<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
@@ -1975,7 +2155,12 @@ private struct TravelerFormEditorSheet: View {
             var payload = form
             payload.dateOfBirth = dob
             payload.passportExpiryDate = expiry
+            // The client asks only for citizenship. Keep the legacy backend field derived from it.
+            payload.passportIssuingCountry = payload.nationality
             _ = try await service.saveTraveler(bookingID: bookingID, position: form.position, form: payload, token: token)
+            if (payload.relationship ?? "").lowercased() == "self" {
+                await persistSelfTravelerProfile(payload)
+            }
             if let passportPhoto, let data = try await passportPhoto.loadTransferable(type: Data.self) {
                 let type = passportPhoto.supportedContentTypes.first?.preferredMIMEType ?? "image/jpeg"
                 try await service.uploadPassport(bookingID: bookingID, position: form.position, data: data, contentType: type, token: token)
@@ -1989,25 +2174,41 @@ private struct TravelerFormEditorSheet: View {
         }
     }
 
+    @MainActor
+    private func persistSelfTravelerProfile(_ payload: IumrahTravelerForm) async {
+        settings.firstName = payload.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.lastName = payload.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.phone = payload.phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.email = payload.email.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.dateOfBirth = payload.dateOfBirth
+        settings.gender = payload.gender
+        settings.nationality = payload.nationality.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.emergencyName = payload.emergencyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.emergencyPhone = payload.emergencyPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.emergencyRelation = payload.emergencyRelation.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard account.isAuthenticated, let current = account.account else { return }
+        let resolvedEmail = payload.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? current.email : payload.email.trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = try? await account.updateProfile(
+            firstName: settings.firstName,
+            lastName: settings.lastName,
+            phone: settings.phone,
+            email: resolvedEmail,
+            telegram: current.telegram,
+            whatsapp: current.whatsapp
+        )
+    }
+
     private func selectedCountry(for target: CountryTarget) -> String {
-        switch target {
-        case .nationality: return form.nationality
-        case .issuing: return form.passportIssuingCountry
-        }
+        form.nationality
     }
 
     private func setCountry(_ value: String, for target: CountryTarget) {
-        switch target {
-        case .nationality: form.nationality = value
-        case .issuing: form.passportIssuingCountry = value
-        }
+        form.nationality = value
     }
 
     private func countryTitle(_ target: CountryTarget) -> String {
-        switch target {
-        case .nationality: return tr("Citizenship", "Гражданство", "Fuqarolik", "Фуқаролик")
-        case .issuing: return tr("Issuing country", "Страна выдачи", "Bergan davlat", "Берган давлат")
-        }
+        tr("Citizenship", "Гражданство", "Fuqarolik", "Фуқаролик")
     }
 
     private static func formatDateInput(_ raw: String) -> String {
@@ -2015,9 +2216,9 @@ private struct TravelerFormEditorSheet: View {
         guard digits.count > 2 else { return digits }
         let day = String(digits.prefix(2))
         let afterDay = digits.dropFirst(2)
-        guard afterDay.count > 2 else { return day + "." + afterDay }
+        guard afterDay.count > 2 else { return day + "." + String(afterDay) }
         let month = String(afterDay.prefix(2))
-        let year = afterDay.dropFirst(2)
+        let year = String(afterDay.dropFirst(2))
         return day + "." + month + "." + year
     }
 
@@ -2057,7 +2258,6 @@ private struct TravelerFormEditorSheet: View {
 
 private enum CountryTarget: String, Identifiable {
     case nationality
-    case issuing
     var id: String { rawValue }
 }
 

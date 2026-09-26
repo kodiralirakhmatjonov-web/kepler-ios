@@ -8,6 +8,7 @@ import UIKit
 struct IumrahSecurityConfirmationView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var bookings: BookingStore
+    @EnvironmentObject private var account: IumrahAccountStore
     @Environment(\.dismiss) private var dismiss
 
     let bookingID: String
@@ -15,6 +16,16 @@ struct IumrahSecurityConfirmationView: View {
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var passportNumber = ""
+    @State private var dateOfBirthInput = ""
+    @State private var passportExpiryDateInput = ""
+    @State private var gender = ""
+    @State private var nationality = ""
+    @State private var phone = "+998"
+    @State private var email = ""
+    @State private var telegram = ""
+    @State private var emergencyName = ""
+    @State private var emergencyPhone = "+998"
+    @State private var emergencyRelation = ""
     @State private var holderConfirmed = false
     @State private var passportPhotoItem: PhotosPickerItem?
     @State private var passportPhotoData: Data?
@@ -28,6 +39,7 @@ struct IumrahSecurityConfirmationView: View {
     @FocusState private var focusedField: Field?
 
     private let service = BookingService()
+    private let accountService = IumrahAccountService()
 
     private enum Field: Hashable {
         case firstName, lastName, passport
@@ -50,10 +62,21 @@ struct IumrahSecurityConfirmationView: View {
             && validName(lastName)
             && normalizedPassport.count >= 5
             && normalizedPassport.count <= 20
+            && Self.isoDate(dateOfBirthInput) != nil
+            && Self.isoDate(passportExpiryDateInput) != nil
+            && !gender.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !nationality.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && isUsablePhone(phone)
+            && validName(emergencyName)
+            && isUsablePhone(emergencyPhone)
             && holderConfirmed
             && hasPassportPhoto
             && !isSubmitting
             && !isPreparingPhoto
+    }
+
+    private var smsCovered: Bool {
+        normalizedPhone(phone).hasPrefix("+998")
     }
 
     var body: some View {
@@ -74,6 +97,8 @@ struct IumrahSecurityConfirmationView: View {
                     }
                     warningCard
                     passportForm
+                    personalDetailsCard
+                    contactDetailsCard
                     passportPhotoCard
                     holderConfirmation
                     privacyCard
@@ -94,9 +119,21 @@ struct IumrahSecurityConfirmationView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color.iumrahPageBackground)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Iumrah Security")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text("Iumrah Security")
+                        .font(.headline)
+                    Text("Security Confirmation · KYC")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
         .task { await load() }
         .task(id: existing?.status) {
             guard existing?.isPendingReview == true else { return }
@@ -106,34 +143,6 @@ struct IumrahSecurityConfirmationView: View {
             guard let item else { return }
             Task { await preparePassportPhoto(item) }
         }
-    }
-
-    private var topBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                IumrahHaptics.soft()
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .bold))
-                    .frame(width: 44, height: 44)
-                    .iumrahGlass(in: Circle(), interactive: true, chrome: true)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("iUmrah Security")
-                    .font(.headline)
-                Text("Security Confirmation · KYC")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, IumrahDesign.pagePadding)
-        .padding(.vertical, 8)
-        // iOS 26 glass belongs to controls, not a hand-built blurred toolbar.
-        .background(Color.iumrahPageBackground)
     }
 
     private var securityHero: some View {
@@ -156,7 +165,7 @@ struct IumrahSecurityConfirmationView: View {
 
     private var introCopy: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Label("iUmrah Security", systemImage: "lock.shield.fill")
+            Label("Iumrah Security", systemImage: "lock.shield.fill")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.secondary)
 
@@ -170,10 +179,10 @@ struct IumrahSecurityConfirmationView: View {
             .tracking(-0.5)
 
             Text(tr(
-                "iUmrah Security links the passport profile to this trip and confirms the booking holder. Your information is used only to process and protect this booking.",
-                "iUmrah Security привязывает паспортный профиль к этой поездке и подтверждает владельца бронирования. Данные используются только для оформления и защиты этого бронирования.",
-                "iUmrah Security pasport profilini ushbu safarga bog‘laydi va bron egasini tasdiqlaydi. Ma’lumotlar faqat ushbu bronni rasmiylashtirish va himoya qilish uchun ishlatiladi.",
-                "iUmrah Security паспорт профилини ушбу сафарга боғлайди ва брон эгасини тасдиқлайди. Маълумотлар фақат ушбу бронни расмийлаштириш ва ҳимоя қилиш учун ишлатилади."
+                "Iumrah Security links the passport profile to this trip and confirms the booking holder. Your information is used only to process and protect this booking.",
+                "Iumrah Security привязывает паспортный профиль к этой поездке и подтверждает владельца бронирования. Данные используются только для оформления и защиты этого бронирования.",
+                "Iumrah Security pasport profilini ushbu safarga bog‘laydi va bron egasini tasdiqlaydi. Ma’lumotlar faqat ushbu bronni rasmiylashtirish va himoya qilish uchun ishlatiladi.",
+                "Iumrah Security паспорт профилини ушбу сафарга боғлайди ва брон эгасини тасдиқлайди. Маълумотлар фақат ушбу бронни расмийлаштириш ва ҳимоя қилиш учун ишлатилади."
             ))
             .font(.subheadline)
             .foregroundStyle(.secondary)
@@ -274,6 +283,260 @@ struct IumrahSecurityConfirmationView: View {
             }
         }
         .iumrahCard()
+    }
+
+    private var personalDetailsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.crop.circle.badge.checkmark")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 42, height: 42)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(tr("Personal details", "Личные данные", "Shaxsiy ma’lumotlar", "Шахсий маълумотлар"))
+                        .font(.headline)
+                    Text(tr("Saved to your owner profile", "Сохраняются в профиле владельца", "Ega profilida saqlanadi", "Эга профилида сақланади"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+
+            securityDateField(
+                title: tr("Date of birth", "Дата рождения", "Tug‘ilgan sana", "Туғилган сана"),
+                text: $dateOfBirthInput
+            )
+
+            Menu {
+                Button { gender = "male"; IumrahHaptics.selection() } label: {
+                    Label(tr("Male", "Мужской", "Erkak", "Эркак"), systemImage: gender == "male" ? "checkmark" : "person.fill")
+                }
+                Button { gender = "female"; IumrahHaptics.selection() } label: {
+                    Label(tr("Female", "Женский", "Ayol", "Аёл"), systemImage: gender == "female" ? "checkmark" : "person.fill")
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "person.2.fill")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22)
+                    Text(gender == "male"
+                         ? tr("Male", "Мужской", "Erkak", "Эркак")
+                         : gender == "female"
+                            ? tr("Female", "Женский", "Ayol", "Аёл")
+                            : tr("Gender", "Пол", "Jins", "Жинс"))
+                        .foregroundStyle(gender.isEmpty ? Color.secondary : Color.primary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 15)
+                .frame(height: 56)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+
+            securityPlainField(
+                title: tr("Citizenship", "Гражданство", "Fuqarolik", "Фуқаролик"),
+                placeholder: tr("Uzbekistan", "Узбекистан", "O‘zbekiston", "Ўзбекистон"),
+                text: $nationality,
+                keyboard: .default,
+                contentType: .countryName,
+                capitalization: .words
+            )
+
+            securityDateField(
+                title: tr("Passport expiry date", "Срок действия паспорта", "Pasport amal qilish muddati", "Паспорт амал қилиш муддати"),
+                text: $passportExpiryDateInput
+            )
+        }
+        .iumrahCard()
+    }
+
+    private var contactDetailsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: "phone.badge.checkmark.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 42, height: 42)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(tr("Contacts & emergency", "Контакты и экстренная связь", "Aloqa va favqulodda kontakt", "Алоқа ва фавқулодда контакт"))
+                        .font(.headline)
+                    Text(tr("Used for this trip and your owner profile", "Используются для этой поездки и профиля владельца", "Safar va ega profili uchun ishlatiladi", "Сафар ва эга профили учун ишлатилади"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+
+            securityPhoneField(
+                title: tr("Phone", "Номер телефона", "Telefon", "Телефон"),
+                text: $phone
+            )
+
+            if !smsCovered && !phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "exclamationmark.bubble.fill")
+                        .foregroundStyle(.orange)
+                    Text(tr(
+                        "SMS is temporarily unavailable for this country. Please continue with email or use your Google or Apple account. SMS verification in iumrah currently supports Uzbekistan numbers beginning with +998.",
+                        "SMS для этой страны временно недоступны. Продолжите по электронной почте или воспользуйтесь аккаунтом Google или Apple. Сейчас SMS-подтверждение iumrah поддерживает номера Узбекистана, начинающиеся с +998.",
+                        "Bu davlat uchun SMS vaqtincha mavjud emas. Email orqali davom eting yoki Google/Apple akkauntingizdan foydalaning. Hozir iumrah SMS tasdiqlashi +998 bilan boshlanuvchi O‘zbekiston raqamlarini qo‘llaydi.",
+                        "Бу давлат учун SMS вақтинча мавжуд эмас. Email орқали давом этинг ёки Google/Apple аккаунтингиздан фойдаланинг. Ҳозир iumrah SMS тасдиқлаши +998 билан бошланувчи Ўзбекистон рақамларини қўллайди."
+                    ))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .strokeBorder(Color.orange.opacity(0.20), lineWidth: 0.8)
+                }
+            } else {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "message.badge.fill")
+                        .foregroundStyle(.blue)
+                    Text(tr(
+                        "SMS confirmation for +998 will be connected through DevSMS. Your number is saved now; the verification action is temporarily disabled.",
+                        "SMS-подтверждение для +998 будет подключено через DevSMS. Номер уже сохраняется, а само подтверждение пока временно недоступно.",
+                        "+998 uchun SMS tasdiqlash DevSMS orqali ulanadi. Raqamingiz hozir saqlanadi, tasdiqlash amali esa vaqtincha o‘chirilgan.",
+                        "+998 учун SMS тасдиқлаш DevSMS орқали уланади. Рақамингиз ҳозир сақланади, тасдиқлаш амали эса вақтинча ўчирилган."
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.blue.opacity(0.06), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            }
+
+            securityPlainField(
+                title: "Email",
+                placeholder: "name@example.com",
+                text: $email,
+                keyboard: .emailAddress,
+                contentType: .emailAddress,
+                capitalization: .never
+            )
+
+            securityPlainField(
+                title: "Telegram",
+                placeholder: "@username",
+                text: $telegram,
+                keyboard: .default,
+                contentType: nil,
+                capitalization: .never
+            )
+
+            Divider()
+
+            Text(tr("Emergency contact", "Экстренный контакт", "Favqulodda kontakt", "Фавқулодда контакт"))
+                .font(.subheadline.weight(.semibold))
+
+            securityPlainField(
+                title: tr("Contact name", "Имя контакта", "Kontakt ismi", "Контакт исми"),
+                placeholder: tr("Name and surname", "Имя и фамилия", "Ism va familiya", "Исм ва фамилия"),
+                text: $emergencyName,
+                keyboard: .default,
+                contentType: .name,
+                capitalization: .words
+            )
+
+            securityPhoneField(
+                title: tr("Emergency phone", "Экстренный номер телефона", "Favqulodda telefon", "Фавқулодда телефон"),
+                text: $emergencyPhone
+            )
+
+            securityPlainField(
+                title: tr("Relationship", "Кем приходится", "Qarindoshlik", "Қариндошлик"),
+                placeholder: tr("For example: mother", "Например: мама", "Masalan: ona", "Масалан: она"),
+                text: $emergencyRelation,
+                keyboard: .default,
+                contentType: .none,
+                capitalization: .words
+            )
+        }
+        .iumrahCard()
+    }
+
+    private func securityPlainField(
+        title: String,
+        placeholder: String,
+        text: Binding<String>,
+        keyboard: UIKeyboardType,
+        contentType: UITextContentType?,
+        capitalization: TextInputAutocapitalization
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+            TextField(placeholder, text: text)
+                .keyboardType(keyboard)
+                .textContentType(contentType)
+                .textInputAutocapitalization(capitalization)
+                .autocorrectionDisabled()
+                .padding(.horizontal, 15)
+                .frame(height: 56)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+                }
+        }
+    }
+
+    private func securityPhoneField(title: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+            TextField("+998 90 123 45 67", text: text)
+                .keyboardType(.phonePad)
+                .textContentType(.telephoneNumber)
+                .padding(.horizontal, 15)
+                .frame(height: 56)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+                }
+                .onChange(of: text.wrappedValue) { _, raw in
+                    let value = Self.formatPhoneInput(raw)
+                    if value != raw { text.wrappedValue = value }
+                }
+        }
+    }
+
+    private func securityDateField(title: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                Image(systemName: "calendar")
+                    .foregroundStyle(.secondary)
+                TextField("DD.MM.YYYY", text: text)
+                    .keyboardType(.numberPad)
+                    .textContentType(.none)
+                    .onChange(of: text.wrappedValue) { _, raw in
+                        let value = Self.formatDateInput(raw)
+                        if value != raw { text.wrappedValue = value }
+                    }
+                Spacer(minLength: 0)
+                if text.wrappedValue.count == 10 {
+                    Image(systemName: Self.isoDate(text.wrappedValue) == nil ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
+                        .foregroundStyle(Self.isoDate(text.wrappedValue) == nil ? Color.red : Color.green)
+                }
+            }
+            .padding(.horizontal, 15)
+            .frame(height: 56)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
     }
 
     private func securityField(
@@ -393,10 +656,10 @@ struct IumrahSecurityConfirmationView: View {
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 17, weight: .semibold))
             Text(tr(
-                "Your passport information is transmitted securely and is available only within the protected booking process. iUmrah Security never displays the full passport number on this status screen.",
-                "Паспортные данные передаются по защищённому соединению и доступны только в защищённом процессе этого бронирования. На экране статуса iUmrah Security полный номер паспорта не отображается.",
-                "Pasport ma’lumotlari himoyalangan aloqa orqali uzatiladi va faqat ushbu bronning xavfsiz jarayonida ishlatiladi. iUmrah Security holat ekranida pasportning to‘liq raqami ko‘rsatilmaydi.",
-                "Паспорт маълумотлари ҳимояланган алоқа орқали узатилади ва фақат ушбу броннинг хавфсиз жараёнида ишлатилади. iUmrah Security ҳолат экранида паспортнинг тўлиқ рақами кўрсатилмайди."
+                "Your passport information is transmitted securely and is available only within the protected booking process. Iumrah Security never displays the full passport number on this status screen.",
+                "Паспортные данные передаются по защищённому соединению и доступны только в защищённом процессе этого бронирования. На экране статуса Iumrah Security полный номер паспорта не отображается.",
+                "Pasport ma’lumotlari himoyalangan aloqa orqali uzatiladi va faqat ushbu bronning xavfsiz jarayonida ishlatiladi. Iumrah Security holat ekranida pasportning to‘liq raqami ko‘rsatilmaydi.",
+                "Паспорт маълумотлари ҳимояланган алоқа орқали узатилади ва фақат ушбу броннинг хавфсиз жараёнида ишлатилади. Iumrah Security ҳолат экранида паспортнинг тўлиқ рақами кўрсатилмайди."
             ))
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -463,16 +726,16 @@ struct IumrahSecurityConfirmationView: View {
 
                         Text(timedOut
                              ? tr(
-                                "The system could not complete confirmation automatically within 30 minutes. Your data remains protected and is now waiting for manual verification. We will notify you as soon as the booking holder is confirmed.",
-                                "Система не смогла завершить подтверждение автоматически в течение 30 минут. Ваши данные остаются защищёнными и теперь ожидают ручной проверки. Мы уведомим Вас сразу после подтверждения владельца бронирования.",
-                                "Tizim 30 daqiqa ichida tasdiqlashni avtomatik yakunlay olmadi. Ma’lumotlaringiz himoyalangan va endi qo‘lda tekshirishni kutmoqda. Bron egasi tasdiqlangach, Sizga xabar beramiz.",
-                                "Тизим 30 дақиқа ичида тасдиқлашни автоматик якунлай олмади. Маълумотларингиз ҳимояланган ва энди қўлда текширишни кутмоқда. Брон эгаси тасдиқлангач, Сизга хабар берамиз."
+                                "The system could not complete confirmation automatically within 20 minutes. Your data remains protected and is now waiting for manual verification. We will notify you as soon as the booking holder is confirmed.",
+                                "Система не смогла завершить подтверждение автоматически в течение 20 минут. Ваши данные остаются защищёнными и теперь ожидают ручной проверки. Мы уведомим Вас сразу после подтверждения владельца бронирования.",
+                                "Tizim 20 daqiqa ichida tasdiqlashni avtomatik yakunlay olmadi. Ma’lumotlaringiz himoyalangan va endi qo‘lda tekshirishni kutmoqda. Bron egasi tasdiqlangach, Sizga xabar beramiz.",
+                                "Тизим 20 дақиқа ичида тасдиқлашни автоматик якунлай олмади. Маълумотларингиз ҳимояланган ва энди қўлда текширишни кутмоқда. Брон эгаси тасдиқлангач, Сизга хабар берамиз."
                              )
                              : tr(
-                                "Your data has been received and the booking security check is running automatically. This usually takes up to 30 minutes.",
-                                "Ваши данные получены. Проверка безопасности бронирования выполняется автоматически. Обычно это занимает до 30 минут.",
-                                "Ma’lumotlaringiz qabul qilindi. Bron xavfsizligi avtomatik tekshirilmoqda. Odatda bu 30 daqiqagacha davom etadi.",
-                                "Маълумотларингиз қабул қилинди. Брон хавфсизлиги автоматик текширилмоқда. Одатда бу 30 дақиқагача давом этади."
+                                "Your passport data has been received. The automatic security check is running now; we will confirm the booking holder shortly. This usually takes up to 20 minutes.",
+                                "Паспортные данные получены. Автоматическая проверка уже идёт — скоро подтвердим владельца бронирования. Обычно это занимает до 20 минут.",
+                                "Pasport ma’lumotlaringiz qabul qilindi. Avtomatik xavfsizlik tekshiruvi boshlandi — bron egasini tez orada tasdiqlaymiz. Odatda bu 20 daqiqagacha davom etadi.",
+                                "Паспорт маълумотларингиз қабул қилинди. Автоматик хавфсизлик текшируви бошланди — брон эгасини тез орада тасдиқлаймиз. Одатда бу 20 дақиқагача давом этади."
                              ))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -525,10 +788,10 @@ struct IumrahSecurityConfirmationView: View {
                     Text(tr("Identity confirmed", "Личность подтверждена", "Shaxs tasdiqlandi", "Шахс тасдиқланди"))
                         .font(.title3.weight(.bold))
                     Text(tr(
-                        "The booking holder has been confirmed. Your passport profile is securely linked to this trip and the booking is protected by iUmrah Security.",
-                        "Владелец бронирования подтверждён. Паспортный профиль безопасно привязан к этой поездке, а бронирование защищено iUmrah Security.",
-                        "Bron egasi tasdiqlandi. Pasport profilingiz ushbu safarga xavfsiz bog‘landi va bron iUmrah Security bilan himoyalangan.",
-                        "Брон эгаси тасдиқланди. Паспорт профилингиз ушбу сафарга хавфсиз боғланди ва брон iUmrah Security билан ҳимояланган."
+                        "The booking holder has been confirmed. Your passport profile is securely linked to this trip and the booking is protected by Iumrah Security.",
+                        "Владелец бронирования подтверждён. Паспортный профиль безопасно привязан к этой поездке, а бронирование защищено Iumrah Security.",
+                        "Bron egasi tasdiqlandi. Pasport profilingiz ushbu safarga xavfsiz bog‘landi va bron Iumrah Security bilan himoyalangan.",
+                        "Брон эгаси тасдиқланди. Паспорт профилингиз ушбу сафарга хавфсиз боғланди ва брон Iumrah Security билан ҳимояланган."
                     ))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -576,7 +839,7 @@ struct IumrahSecurityConfirmationView: View {
 
     private func securityRemainingSeconds(_ value: IumrahSecurityConfirmation, now: Date = .now) -> Int {
         guard let submitted = securitySubmittedDate(value) else { return 0 }
-        let deadline = submitted.addingTimeInterval(30 * 60)
+        let deadline = submitted.addingTimeInterval(20 * 60)
         return max(0, Int(deadline.timeIntervalSince(now).rounded(.up)))
     }
 
@@ -629,8 +892,27 @@ struct IumrahSecurityConfirmationView: View {
             return
         }
 
-        if firstName.isEmpty { firstName = session.booking.pilgrimProfile?.firstName ?? "" }
-        if lastName.isEmpty { lastName = session.booking.pilgrimProfile?.lastName ?? "" }
+        if firstName.isEmpty { firstName = session.booking.pilgrimProfile?.firstName ?? account.account?.firstName ?? settings.firstName }
+        if lastName.isEmpty { lastName = session.booking.pilgrimProfile?.lastName ?? account.account?.lastName ?? settings.lastName }
+        if dateOfBirthInput.isEmpty { dateOfBirthInput = Self.displayDate(settings.dateOfBirth) }
+        if gender.isEmpty { gender = settings.gender }
+        if nationality.isEmpty { nationality = settings.nationality.isEmpty ? "Uzbekistan" : settings.nationality }
+        if phone == "+998" {
+            let accountPhone = account.account?.phone ?? ""
+            let saved = accountPhone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? settings.phone : accountPhone
+            if !saved.isEmpty { phone = Self.formatPhoneInput(saved) }
+        }
+        if email.isEmpty {
+            let accountEmail = account.account?.email ?? ""
+            email = accountEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? settings.email : accountEmail
+        }
+        if telegram.isEmpty {
+            let accountTelegram = account.account?.telegram ?? ""
+            telegram = accountTelegram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? settings.telegram : accountTelegram
+        }
+        if emergencyName.isEmpty { emergencyName = settings.emergencyName }
+        if emergencyPhone == "+998", !settings.emergencyPhone.isEmpty { emergencyPhone = Self.formatPhoneInput(settings.emergencyPhone) }
+        if emergencyRelation.isEmpty { emergencyRelation = settings.emergencyRelation }
 
         do {
             let response = try await service.securityConfirmation(id: bookingID, accessToken: session.accessToken)
@@ -698,6 +980,16 @@ struct IumrahSecurityConfirmationView: View {
             )
             guard let confirmation = response.confirmation else { throw APIError.invalidResponse }
             existing = confirmation
+
+            persistOwnerProfileLocally()
+            await persistOwnerAccountProfile()
+            await syncOwnerTravelerFromKYC(
+                session: session,
+                passportNumber: normalizedPassport,
+                passportPhotoData: passportPhotoData,
+                passportContentType: passportContentType
+            )
+
             passportNumber = ""
             holderConfirmed = false
             passportPhotoData = nil
@@ -724,6 +1016,138 @@ struct IumrahSecurityConfirmationView: View {
             errorMessage = L10n.error(error, settings.language)
             IumrahHaptics.error()
         }
+    }
+
+    @MainActor
+    private func persistOwnerAccountProfile() async {
+        guard account.isAuthenticated, let current = account.account else { return }
+        let resolvedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? current.email : email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedTelegram = telegram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? current.telegram : telegram.trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = try? await account.updateProfile(
+            firstName: firstName.trimmingCharacters(in: .whitespacesAndNewlines),
+            lastName: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
+            phone: normalizedPhone(phone),
+            email: resolvedEmail,
+            telegram: resolvedTelegram,
+            whatsapp: current.whatsapp
+        )
+    }
+
+    @MainActor
+    private func persistOwnerProfileLocally() {
+        settings.firstName = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.lastName = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.phone = normalizedPhone(phone)
+        settings.email = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.dateOfBirth = Self.isoDate(dateOfBirthInput) ?? ""
+        settings.gender = gender
+        settings.nationality = nationality.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.emergencyName = emergencyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.emergencyPhone = normalizedPhone(emergencyPhone)
+        settings.emergencyRelation = emergencyRelation.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.telegram = telegram.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    @MainActor
+    private func syncOwnerTravelerFromKYC(
+        session: StoredBookingSession,
+        passportNumber: String,
+        passportPhotoData: Data?,
+        passportContentType: String
+    ) async {
+        guard let token = account.bearerToken,
+              let dob = Self.isoDate(dateOfBirthInput),
+              let expiry = Self.isoDate(passportExpiryDateInput) else { return }
+        do {
+            let checkout = try await accountService.checkout(
+                bookingID: bookingID,
+                bookingToken: session.accessToken,
+                accountToken: token
+            )
+            guard var owner = checkout.travelers.first(where: { ($0.relationship ?? "").lowercased() == "self" }) ?? checkout.travelers.first(where: { $0.position == 1 }) else { return }
+            owner.relationship = "self"
+            owner.firstName = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+            owner.lastName = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+            owner.gender = gender
+            owner.dateOfBirth = dob
+            owner.nationality = nationality.trimmingCharacters(in: .whitespacesAndNewlines)
+            if owner.residenceCountry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                owner.residenceCountry = owner.nationality
+            }
+            owner.passportNumber = passportNumber
+            owner.passportExpiryDate = expiry
+            // Client asks only for citizenship. The backend compatibility field is derived from it.
+            owner.passportIssuingCountry = owner.nationality
+            owner.phone = normalizedPhone(phone)
+            owner.email = email.trimmingCharacters(in: .whitespacesAndNewlines)
+            owner.emergencyName = emergencyName.trimmingCharacters(in: .whitespacesAndNewlines)
+            owner.emergencyPhone = normalizedPhone(emergencyPhone)
+            owner.emergencyRelation = emergencyRelation.trimmingCharacters(in: .whitespacesAndNewlines)
+            _ = try await accountService.saveTraveler(bookingID: bookingID, position: owner.position, form: owner, token: token)
+            if let passportPhotoData, !passportPhotoData.isEmpty {
+                try await accountService.uploadPassport(
+                    bookingID: bookingID,
+                    position: owner.position,
+                    data: passportPhotoData,
+                    contentType: passportContentType,
+                    token: token
+                )
+            }
+        } catch {
+            // KYC remains successful even if the account traveler mirror is temporarily unavailable.
+            // The traveler editor will still prefill the non-sensitive owner profile locally.
+        }
+    }
+
+    private func normalizedPhone(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = trimmed.filter(\.isNumber)
+        guard !digits.isEmpty else { return "" }
+        return "+" + digits
+    }
+
+    private func isUsablePhone(_ value: String) -> Bool {
+        let digits = value.filter(\.isNumber)
+        return digits.count >= 9 && digits.count <= 15
+    }
+
+    private static func formatPhoneInput(_ raw: String) -> String {
+        let digits = String(raw.filter(\.isNumber).prefix(15))
+        return digits.isEmpty ? "" : "+" + digits
+    }
+
+    private static func formatDateInput(_ raw: String) -> String {
+        let digits = String(raw.filter(\.isNumber).prefix(8))
+        guard digits.count > 2 else { return digits }
+        let day = String(digits.prefix(2))
+        let afterDay = digits.dropFirst(2)
+        guard afterDay.count > 2 else { return day + "." + String(afterDay) }
+        let month = String(afterDay.prefix(2))
+        return day + "." + month + "." + String(afterDay.dropFirst(2))
+    }
+
+    private static func displayDate(_ raw: String) -> String {
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil {
+            let pieces = value.split(separator: "-")
+            if pieces.count == 3 { return "\(pieces[2]).\(pieces[1]).\(pieces[0])" }
+        }
+        return formatDateInput(value)
+    }
+
+    private static func isoDate(_ display: String) -> String? {
+        guard display.range(of: #"^\d{2}\.\d{2}\.\d{4}$"#, options: .regularExpression) != nil else { return nil }
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.calendar = Calendar(identifier: .gregorian)
+        parser.dateFormat = "dd.MM.yyyy"
+        parser.isLenient = false
+        guard let date = parser.date(from: display) else { return nil }
+        let output = DateFormatter()
+        output.locale = Locale(identifier: "en_US_POSIX")
+        output.calendar = Calendar(identifier: .gregorian)
+        output.dateFormat = "yyyy-MM-dd"
+        return output.string(from: date)
     }
 
     private func optimizedPassportImage(_ data: Data) -> (data: Data, contentType: String) {

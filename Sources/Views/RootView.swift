@@ -291,6 +291,12 @@ struct RootView: View {
         if settings.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             settings.lastName = profile.lastName
         }
+        if settings.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            settings.phone = profile.phone
+        }
+        if settings.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            settings.email = profile.email
+        }
         if settings.telegram.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             settings.telegram = profile.telegram
         }

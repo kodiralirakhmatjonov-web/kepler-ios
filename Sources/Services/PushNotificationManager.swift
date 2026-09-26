@@ -99,14 +99,16 @@ final class PushNotificationManager: ObservableObject {
         lastError = nil
 
         #if DEBUG
-        print("[iUmra] APNs device token registered")
+        print("[Iumrah] APNs device token registered")
         #endif
     }
 
     func didFailToRegister(error: Error) {
+        deviceToken = nil
+        UserDefaults.standard.removeObject(forKey: tokenDefaultsKey)
         lastError = error.localizedDescription
         #if DEBUG
-        print("[iUmra] APNs registration failed: \(error.localizedDescription)")
+        print("[Iumrah] APNs registration failed: \(error.localizedDescription)")
         #endif
     }
 
