@@ -1,0 +1,18 @@
+{
+  "name": "iumrah wallet compile hotfix",
+  "version": "20260926-v2",
+  "scope": "iOS client only",
+  "cause": "IumrahTripWalletView referenced fileprivate String.nilIfBlank helpers declared in other files",
+  "files": [
+    {
+      "path": "IUMRAH_WALLET_COMPILE_HOTFIX_20260926_APPLIED.txt",
+      "bytes": 587,
+      "sha256": "7553909203699dfc18fb6b3464a7d2ee394d19f261bd85b0d949200434feeb65"
+    },
+    {
+      "path": "Sources/Views/Wallet/IumrahTripWalletView.swift",
+      "bytes": 26737,
+      "sha256": "1797c03dec0e8663724aa678c1025ddb857b810a43f560054f64c17c875cd617"
+    }
+  ]
+}

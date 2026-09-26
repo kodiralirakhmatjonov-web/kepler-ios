@@ -1,0 +1,7 @@
+iumrah Wallet compile hotfix — 2026-09-26
+
+Fixes the TestFlight/simulator build failure in Sources/Views/Wallet/IumrahTripWalletView.swift.
+The wallet view referenced String.nilIfBlank, but that helper exists only as fileprivate/private extensions in other Swift source files. Cross-file access therefore fails during semantic compilation even though swiftc -parse succeeds.
+
+This hotfix removes those cross-file nilIfBlank references and uses a file-local nonBlank(_:) helper instead.
+No backend, Package Engine, DevSMS, workflow, signing, bundle ID, or Cloudflare files are changed.
