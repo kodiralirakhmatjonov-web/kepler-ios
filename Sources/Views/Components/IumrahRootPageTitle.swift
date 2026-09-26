@@ -11,6 +11,9 @@ struct IumrahRootPageTitle: View {
     var usesBrandLogo = false
     var brandScale: CGFloat = 1.0
     var showsConnectivityStatus = false
+    var showsSignalButton = false
+
+    @ObservedObject private var notifications = ClientNotificationCenter.shared
 
     var body: some View {
         HStack(alignment: .top, spacing: showsConnectivityStatus ? 10 : 14) {
@@ -39,23 +42,55 @@ struct IumrahRootPageTitle: View {
             }
 
             VStack(alignment: .trailing, spacing: showsMakkahTime ? 8 : 0) {
-                Button {
-                    chrome.openSidebar()
-                } label: {
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(lightStyle ? Color.white : Color.primary)
-                        .frame(width: 46, height: 46)
-                        .contentShape(Circle())
-                        .iumrahGlass(
-                            in: Circle(),
-                            interactive: true,
-                            tint: lightStyle ? Color.black.opacity(0.18) : nil,
-                            chrome: true
-                        )
+                HStack(spacing: 8) {
+                    if showsSignalButton {
+                        NavigationLink {
+                            AccountNotificationsView()
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: notifications.unreadCount > 0 ? "bell.fill" : "bell")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundStyle(lightStyle ? Color.white : Color.primary)
+                                    .frame(width: 46, height: 46)
+                                    .contentShape(Circle())
+                                    .iumrahGlass(
+                                        in: Circle(),
+                                        interactive: true,
+                                        tint: lightStyle ? Color.black.opacity(0.18) : nil,
+                                        chrome: true
+                                    )
+
+                                if notifications.unreadCount > 0 {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 9, height: 9)
+                                        .overlay(Circle().stroke(lightStyle ? Color.black.opacity(0.24) : Color.iumrahPageBackground, lineWidth: 1.5))
+                                        .offset(x: -2, y: 2)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("iumrah Signal")
+                    }
+
+                    Button {
+                        chrome.openSidebar()
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(lightStyle ? Color.white : Color.primary)
+                            .frame(width: 46, height: 46)
+                            .contentShape(Circle())
+                            .iumrahGlass(
+                                in: Circle(),
+                                interactive: true,
+                                tint: lightStyle ? Color.black.opacity(0.18) : nil,
+                                chrome: true
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Menu")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Menu")
 
                 if showsMakkahTime {
                     MakkahClockView(lightStyle: lightStyle)

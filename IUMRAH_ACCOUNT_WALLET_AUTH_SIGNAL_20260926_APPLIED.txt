@@ -1,0 +1,22 @@
+IUMRAH ACCOUNT + WALLET + AUTH + SIGNAL UPDATE — 2026-09-26
+
+This patch is intended to be overlaid at the repository root.
+
+Implemented:
+- Account guest screen now has Register / Sign in and SMS / Email / iumrah ID selectors.
+- Existing-account booking login keeps SMS, Email and iumrah ID and exposes Apple + Google.
+- Visible Apple authentication labels follow the selected in-app language.
+- Booking status CTA opens booking status; secondary booking CTA opens booking components/details.
+- Added iumrah Wallet in Booking and Account with folded leather-wallet preview, iumrah ID,
+  outbound/return boarding passes, booking status and confirmed Makkah/Madinah hotel cards.
+- Added iumrah Signal bell on Home with unread indicator.
+- Sign out now requires explicit confirmation.
+- Standalone Email registration is wired through the existing canonical account API.
+- Booking SMS activation uses the DevSMS endpoints introduced by the prior DevSMS backend update.
+
+Compatibility:
+- No .github workflow files are included.
+- No PackageEngine source file is overwritten by this UI patch, so the already-deployed DevSMS
+  backend implementation remains intact when this ZIP is applied on top of the current repository.
+- The project already includes the complete Sources tree and Assets.xcassets in project.yml, so
+  no XcodeGen project-file edit is required for the new Swift files or wallet image asset.

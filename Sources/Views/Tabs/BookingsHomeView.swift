@@ -141,6 +141,9 @@ struct BookingsHomeView: View {
 
                 if bookingPanel == .booking {
                     bookingProgress(session)
+                        .padding(.bottom, 28)
+
+                    IumrahTripWalletEntry(session: session, profile: account.account, language: settings.language)
                         .padding(.bottom, 38)
                 } else {
                     bookingTimerOverview(session)
@@ -1123,20 +1126,20 @@ struct BookingsHomeView: View {
     private func statusCardActions(_ session: StoredBookingSession) -> some View {
         VStack(spacing: 10) {
             NavigationLink {
-                BookingDetailView(bookingID: session.id)
+                PilgrimCheckoutView(bookingID: session.id, presentation: .bookingStatus)
                     .environmentObject(settings)
                     .environmentObject(bookings)
-                    .environmentObject(journey)
+                    .environmentObject(account)
             } label: {
                 statusCardButtonLabel(title: openStatusTitle, isPrimary: true)
             }
             .buttonStyle(.plain)
 
             NavigationLink {
-                PilgrimCheckoutView(bookingID: session.id, presentation: .screen)
+                BookingDetailView(bookingID: session.id)
                     .environmentObject(settings)
                     .environmentObject(bookings)
-                    .environmentObject(account)
+                    .environmentObject(journey)
             } label: {
                 statusCardButtonLabel(title: openBookingTitle, isPrimary: false)
             }

@@ -1,0 +1,76 @@
+{
+  "name": "iumrah-beta-update-account-wallet-auth-signal-20260926-v1.zip",
+  "created": "2026-09-26",
+  "reason": "Account auth UX, corrected booking navigation, iumrah Wallet, Home iumrah Signal entry, and safe sign-out confirmation.",
+  "changed_files": [
+    {
+      "path": "IUMRAH_ACCOUNT_WALLET_AUTH_SIGNAL_20260926_APPLIED.txt",
+      "bytes": 1405,
+      "sha256": "b8f29b77a613cfc80ba6375c8f89c52bdcdaf11a3b951257f30dee653e5d09b3"
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahLeatherWallet.imageset/Contents.json",
+      "bytes": 305,
+      "sha256": "f7cded303b5b5737bf2660806daedaf153d66b60038ed044a4194dafac9c7acb"
+    },
+    {
+      "path": "Resources/Assets.xcassets/IumrahLeatherWallet.imageset/IumrahLeatherWallet.png",
+      "bytes": 998445,
+      "sha256": "f021f28f36bc84e284a0072acd43ce496267bc4a3912e762d08f713a25ae06de"
+    },
+    {
+      "path": "Sources/AppShell/IumrahAccountView.swift",
+      "bytes": 92332,
+      "sha256": "4b2edca200b395f2c25a08ff07248f58d09c6b39b3f28e2e0bdbf64bcefc95b1"
+    },
+    {
+      "path": "Sources/Services/IumrahAccountActivationBridge.swift",
+      "bytes": 3131,
+      "sha256": "18f5006f6eab0afd4d802314e53e4e5f5bf8c2c2be4ce3507e622390f3bc2480"
+    },
+    {
+      "path": "Sources/Views/Booking/PilgrimCheckoutView.swift",
+      "bytes": 139975,
+      "sha256": "ab2a6fb000abb0f47098a0240d94e11de832d54ace1a4ba1c1a669cdac5985b7"
+    },
+    {
+      "path": "Sources/Views/Components/IumrahLocalizedAppleAuthButton.swift",
+      "bytes": 1896,
+      "sha256": "5656520f055ada5357e478c802514520c1db6da37a173be6474e6e1bbedbf427"
+    },
+    {
+      "path": "Sources/Views/Components/IumrahRootPageTitle.swift",
+      "bytes": 5990,
+      "sha256": "f17feaeaba2801f89f55d4bbb836e66d55c8afacf9be0a10523f78862c71dcc4"
+    },
+    {
+      "path": "Sources/Views/Home/HomeDashboardView.swift",
+      "bytes": 82081,
+      "sha256": "db03ecda48e78e4fbb731cc60371e2e261e29897a2adc5b4afeafad5c088db67"
+    },
+    {
+      "path": "Sources/Views/Tabs/BookingsHomeView.swift",
+      "bytes": 126906,
+      "sha256": "811468233828d6917961e7296dd18ca50fe4052ef40f78e5067391b973699e3c"
+    },
+    {
+      "path": "Sources/Views/Wallet/IumrahTripWalletView.swift",
+      "bytes": 26544,
+      "sha256": "d4d296124de535719d403f669f5c329af9bf57d8fdf8bd9a078947eceb79c0ce"
+    }
+  ],
+  "qa": {
+    "clean_overlay_source": "kepler-ios-main 2(6).zip + prior KYC/status/activation/push patch",
+    "zip_root_structure": "PASS — repository-relative files only; no wrapper folder",
+    "github_bot_filename": "PASS — iumrah-beta-update-*.zip",
+    "swift_parse_all_sources": "213/213 PASS",
+    "package_engine_typescript": "PASS — tsc --noEmit",
+    "package_engine_contract_tests": "66/66 PASS",
+    "package_engine_runtime_tests": "20/20 PASS",
+    "whitespace_check": "PASS — git diff --no-index --check reported no whitespace errors",
+    "requirement_contract_scan": "PASS — account modes, SMS/email/ID, Apple/Google localization, booking CTA routing, wallet placement/cards, Signal bell, sign-out confirmation",
+    "xcodebuild": "Not available in this Linux container; GitHub Actions/TestFlight remains the SDK/signing build gate.",
+    "clean_overlay_validation": "PASS — patch overlaid cleanly on source + previous KYC/status patch; 213/213 Swift parse, TS + tests all pass",
+    "wallet_asset_alpha": "PASS — PNG contains transparent background and is registered in Assets.xcassets"
+  }
+}

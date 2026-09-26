@@ -6,6 +6,19 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import PassKit
 
+private enum IumrahGuestAccountMode: String, CaseIterable, Identifiable {
+    case register
+    case signIn
+    var id: String { rawValue }
+}
+
+private enum IumrahGuestAuthMethod: String, CaseIterable, Identifiable {
+    case sms
+    case email
+    case iumrahID
+    var id: String { rawValue }
+}
+
 struct IumrahAccountView: View {
     @EnvironmentObject private var account: IumrahAccountStore
     @EnvironmentObject private var bookings: BookingStore
@@ -15,8 +28,21 @@ struct IumrahAccountView: View {
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
     @ObservedObject private var push = PushNotificationManager.shared
 
+    @State private var guestAccountMode: IumrahGuestAccountMode = .signIn
+    @State private var guestAuthMethod: IumrahGuestAuthMethod = .sms
     @State private var loginID = ""
+    @State private var loginEmail = ""
+    @State private var loginPhone = "+998"
     @State private var loginPassword = ""
+    @State private var registrationFirstName = ""
+    @State private var registrationLastName = ""
+    @State private var registrationEmail = ""
+    @State private var registrationEmailCode = ""
+    @State private var registrationEmailChallengeID = ""
+    @State private var registrationPassword = ""
+    @State private var registrationPasswordConfirm = ""
+    @State private var isRegistering = false
+    @State private var showSignOutConfirmation = false
     @State private var isLoggingIn = false
     @State private var loginError: String?
     @State private var appleNonce = ""
@@ -54,6 +80,9 @@ struct IumrahAccountView: View {
 
                     if let profile = account.account {
                         identityCard(profile)
+                        if let active = activeTrip {
+                            IumrahTripWalletEntry(session: active, profile: profile, language: settings.language)
+                        }
                         walletSection(profile)
                         if let active = activeTrip {
                             activeTripCard(active)
@@ -65,15 +94,9 @@ struct IumrahAccountView: View {
                         settingsSection
                         signOutButton
                     } else {
-                        IumrahLockedIdentityCard(language: settings.language) {
-                            showIdentityUnlockSheet = true
-                        }
                         guestCard
                         loginCard
                             .id("account-login")
-                        if let pending = pendingActivationTrip {
-                            activationShortcut(pending)
-                        }
                         paymentSecuritySection
                         guestSettingsSection
                     }
@@ -137,6 +160,27 @@ struct IumrahAccountView: View {
         } message: {
             Text(walletAlertMessage ?? "")
         }
+        .confirmationDialog(
+            tr("Sign out of iumrah?", "Выйти из iumrah?", "iumrah akkauntidan chiqasizmi?", "iumrah аккаунтидан чиқасизми?"),
+            isPresented: $showSignOutConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(tr("Sign out", "Выйти", "Chiqish", "Чиқиш"), role: .destructive) {
+                Task {
+                    await account.logout()
+                    bookings.setAccountToken(nil)
+                    IumrahHaptics.soft()
+                }
+            }
+            Button(tr("Cancel", "Отмена", "Bekor qilish", "Бекор қилиш"), role: .cancel) {}
+        } message: {
+            Text(tr(
+                "Your trips stay safely linked to your iumrah account. You will need to sign in again on this device.",
+                "Ваши поездки останутся безопасно привязаны к аккаунту iumrah. На этом устройстве потребуется войти снова.",
+                "Safarlaringiz iumrah akkauntingizga xavfsiz bog‘langan holda qoladi. Bu qurilmada qayta kirishingiz kerak bo‘ladi.",
+                "Сафарларингиз iumrah аккаунтингизга хавфсиз боғланган ҳолда қолади. Бу қурилмада қайта киришингиз керак бўлади."
+            ))
+        }
     }
 
     private var accountHeader: some View {
@@ -145,7 +189,7 @@ struct IumrahAccountView: View {
                 Text("Account")
                     .font(.system(size: 38, weight: .bold, design: .rounded))
                     .tracking(-1)
-                Text(account.isAuthenticated ? tr("Your iumrah profile and trips", "Ваш профиль и поездки iumrah", "iumrah profilingiz va safarlaringiz", "iumrah профилингиз ва сафарларингиз") : tr("Sign in with your permanent iumrah ID", "Войдите по постоянному iumrah ID", "Doimiy iumrah ID orqali kiring", "Доимий iumrah ID орқали киринг"))
+                Text(account.isAuthenticated ? tr("Your iumrah profile and trips", "Ваш профиль и поездки iumrah", "iumrah profilingiz va safarlaringiz", "iumrah профилингиз ва сафарларингиз") : tr("Sign in or create your permanent iumrah account", "Войдите или создайте постоянный аккаунт iumrah", "Doimiy iumrah akkauntingizga kiring yoki uni yarating", "Доимий iumrah аккаунтингизга киринг ёки уни яратинг"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -886,11 +930,7 @@ struct IumrahAccountView: View {
 
     private var signOutButton: some View {
         Button(role: .destructive) {
-            Task {
-                await account.logout()
-                bookings.setAccountToken(nil)
-                IumrahHaptics.soft()
-            }
+            showSignOutConfirmation = true
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
@@ -921,35 +961,41 @@ struct IumrahAccountView: View {
     }
 
     private var loginCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(icon: "key.fill", title: tr("Sign in", "Войти в аккаунт", "Akkauntga kirish", "Аккаунтга кириш"), subtitle: tr("Use your eight-digit iumrah ID and password", "Введите восьмизначный iumrah ID и пароль", "Sakkiz xonali iumrah ID va parolni kiriting", "Саккиз хонали iumrah ID ва паролни киритинг"))
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(
+                icon: guestAccountMode == .signIn ? "key.fill" : "person.badge.plus",
+                title: guestAccountMode == .signIn
+                    ? tr("Sign in", "Вход", "Kirish", "Кириш")
+                    : tr("Create account", "Регистрация", "Ro‘yxatdan o‘tish", "Рўйхатдан ўтиш"),
+                subtitle: guestAccountMode == .signIn
+                    ? tr("Use the method linked to your permanent iumrah account", "Используйте способ, привязанный к Вашему постоянному аккаунту iumrah", "Doimiy iumrah akkauntingizga ulangan usuldan foydalaning", "Доимий iumrah аккаунтингизга уланган усулдан фойдаланинг")
+                    : tr("Create one permanent account for all future trips", "Создайте один постоянный аккаунт для всех будущих поездок", "Barcha keyingi safarlar uchun bitta doimiy akkaunt yarating", "Барча кейинги сафарлар учун битта доимий аккаунт яратинг")
+            )
 
-            HStack(spacing: 11) {
-                Image(systemName: "number")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22)
-                TextField("00000016", text: $loginID)
-                    .keyboardType(.numberPad)
-                    .font(.body.monospaced())
-                    .onChange(of: loginID) { _, value in
-                        let digits = String(value.filter(\.isNumber).prefix(8))
-                        if digits != value { loginID = digits }
-                    }
+            Picker("", selection: $guestAccountMode) {
+                Text(tr("Register", "Регистрация", "Ro‘yxatdan o‘tish", "Рўйхатдан ўтиш")).tag(IumrahGuestAccountMode.register)
+                Text(tr("Sign in", "Вход", "Kirish", "Кириш")).tag(IumrahGuestAccountMode.signIn)
             }
-            .padding(.horizontal, 16)
-            .frame(height: 56)
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
+            .pickerStyle(.segmented)
+            .onChange(of: guestAccountMode) { _, _ in
+                loginError = nil
+                registrationEmailChallengeID = ""
+                registrationEmailCode = ""
+            }
 
-            HStack(spacing: 11) {
-                Image(systemName: "lock.fill")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22)
-                SecureField(tr("Password", "Пароль", "Parol", "Парол"), text: $loginPassword)
-                    .textContentType(.password)
+            Picker("", selection: $guestAuthMethod) {
+                Text("SMS").tag(IumrahGuestAuthMethod.sms)
+                Text("Email").tag(IumrahGuestAuthMethod.email)
+                Text("iumrah ID").tag(IumrahGuestAuthMethod.iumrahID)
             }
-            .padding(.horizontal, 16)
-            .frame(height: 56)
-            .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
+            .pickerStyle(.segmented)
+            .onChange(of: guestAuthMethod) { _, _ in loginError = nil }
+
+            if guestAccountMode == .signIn {
+                guestSignInFields
+            } else {
+                guestRegistrationFields
+            }
 
             if let loginError {
                 Text(loginError)
@@ -957,20 +1003,6 @@ struct IumrahAccountView: View {
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            Button {
-                Task { await login() }
-            } label: {
-                HStack(spacing: 10) {
-                    if isLoggingIn { ProgressView().tint(.white) }
-                    Image(systemName: "person.crop.circle.fill")
-                    Text(tr("Sign in to iumrah", "Войти в iumrah", "iumrah ga kirish", "iumrah га кириш"))
-                    Spacer(minLength: 10)
-                    Image(systemName: "arrow.right")
-                }
-            }
-            .buttonStyle(IumrahPrimaryButtonStyle())
-            .disabled(![6, 8].contains(loginID.filter(\.isNumber).count) || loginPassword.count < 8 || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
 
             HStack(spacing: 12) {
                 Rectangle().fill(Color.secondary.opacity(0.20)).frame(height: 1)
@@ -980,34 +1012,263 @@ struct IumrahAccountView: View {
                 Rectangle().fill(Color.secondary.opacity(0.20)).frame(height: 1)
             }
 
-            SignInWithAppleButton(.signIn) { request in
-                prepareAppleSignIn(request)
-            } onCompletion: { result in
-                completeAppleSignIn(result)
-            }
-            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(height: 56)
-            .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
-            .disabled(isAppleSigningIn || isGoogleSigningIn || isLoggingIn)
+            IumrahLocalizedAppleAuthButton(
+                title: guestAccountMode == .signIn
+                    ? tr("Sign in with Apple", "Войти с Apple", "Apple orqali kirish", "Apple орқали кириш")
+                    : tr("Continue with Apple", "Продолжить с Apple", "Apple bilan davom etish", "Apple билан давом этиш"),
+                isDisabled: isAppleSigningIn || isGoogleSigningIn || isLoggingIn || isRegistering,
+                onRequest: prepareAppleSignIn,
+                onCompletion: completeAppleSignIn
+            )
 
             IumrahGoogleAuthButton(
-                title: "Sign in with Google",
-                isDisabled: isGoogleSigningIn || isAppleSigningIn || isLoggingIn
+                title: guestAccountMode == .signIn
+                    ? tr("Sign in with Google", "Войти с Google", "Google orqali kirish", "Google орқали кириш")
+                    : tr("Continue with Google", "Продолжить с Google", "Google bilan davom etish", "Google билан давом этиш"),
+                isDisabled: isGoogleSigningIn || isAppleSigningIn || isLoggingIn || isRegistering
             ) {
                 startGoogleSignIn()
             }
 
             Text(tr(
-                "Apple or Google opens the same account after the sign-in method is connected to your eight-digit iumrah ID in Account Security.",
-                "Apple или Google открывает тот же аккаунт после привязки способа входа к восьмизначному iumrah ID в разделе «Безопасность аккаунта».",
-                "Apple yoki Google kirish usuli Akkaunt xavfsizligida sakkiz xonali iumrah ID’ga ulangandan keyin aynan shu akkauntni ochadi.",
-                "Apple ёки Google кириш усули Аккаунт хавфсизлигида саккиз хонали iumrah ID’га улангандан кейин айнан шу аккаунтни очади."
+                "Apple and Google use the same permanent iumrah account; they do not create a separate trip profile.",
+                "Apple и Google используют тот же постоянный аккаунт iumrah и не создают отдельный профиль поездки.",
+                "Apple va Google aynan shu doimiy iumrah akkauntidan foydalanadi va alohida safar profili yaratmaydi.",
+                "Apple ва Google айнан шу доимий iumrah аккаунтидан фойдаланади ва алоҳида сафар профили яратмайди."
             ))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .iumrahCard()
+    }
+
+    @ViewBuilder
+    private var guestSignInFields: some View {
+        switch guestAuthMethod {
+        case .iumrahID:
+            accountInputField(symbol: "number", placeholder: "00000016", text: $loginID, keyboard: .numberPad, contentType: .username) { raw in
+                let digits = String(raw.filter(\.isNumber).prefix(8))
+                if digits != raw { loginID = digits }
+            }
+        case .email:
+            accountInputField(symbol: "envelope.fill", placeholder: "name@example.com", text: $loginEmail, keyboard: .emailAddress, contentType: .emailAddress) { raw in
+                let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if cleaned != raw { loginEmail = cleaned }
+            }
+        case .sms:
+            accountInputField(symbol: "phone.fill", placeholder: "+998 90 123 45 67", text: $loginPhone, keyboard: .phonePad, contentType: .telephoneNumber) { raw in
+                let formatted = normalizedUZPhoneInput(raw)
+                if formatted != raw { loginPhone = formatted }
+            }
+            if !loginPhone.isEmpty && !normalizedUZPhoneInput(loginPhone).hasPrefix("+998") {
+                unsupportedSMSNotice
+            }
+        }
+
+        accountPasswordField(text: $loginPassword, placeholder: tr("Password", "Пароль", "Parol", "Парол"))
+
+        Button {
+            Task { await login() }
+        } label: {
+            HStack(spacing: 10) {
+                if isLoggingIn { ProgressView().tint(.white) }
+                Image(systemName: "person.crop.circle.fill")
+                Text(tr("Sign in to iumrah", "Войти в iumrah", "iumrah ga kirish", "iumrah га кириш"))
+                Spacer(minLength: 10)
+                Image(systemName: "arrow.right")
+            }
+        }
+        .buttonStyle(IumrahPrimaryButtonStyle())
+        .disabled(!guestLoginReady || isLoggingIn || isAppleSigningIn || isGoogleSigningIn)
+    }
+
+    @ViewBuilder
+    private var guestRegistrationFields: some View {
+        switch guestAuthMethod {
+        case .email:
+            HStack(spacing: 10) {
+                accountInputField(symbol: "person.fill", placeholder: tr("First name", "Имя", "Ism", "Исм"), text: $registrationFirstName, keyboard: .default, contentType: .givenName)
+                accountInputField(symbol: "person.fill", placeholder: tr("Last name", "Фамилия", "Familiya", "Фамилия"), text: $registrationLastName, keyboard: .default, contentType: .familyName)
+            }
+
+            accountInputField(symbol: "envelope.fill", placeholder: "name@example.com", text: $registrationEmail, keyboard: .emailAddress, contentType: .emailAddress) { raw in
+                let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if cleaned != raw { registrationEmail = cleaned }
+            }
+            .disabled(!registrationEmailChallengeID.isEmpty)
+
+            if !registrationEmailChallengeID.isEmpty {
+                accountInputField(symbol: "number.square.fill", placeholder: tr("6-digit code", "Код из 6 цифр", "6 xonali kod", "6 хонали код"), text: $registrationEmailCode, keyboard: .numberPad, contentType: .oneTimeCode) { raw in
+                    let digits = String(raw.filter(\.isNumber).prefix(6))
+                    if digits != raw { registrationEmailCode = digits }
+                }
+                accountPasswordField(text: $registrationPassword, placeholder: tr("Create password", "Создайте пароль", "Parol yarating", "Парол яратинг"))
+                accountPasswordField(text: $registrationPasswordConfirm, placeholder: tr("Confirm password", "Подтвердите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг"))
+            }
+
+            Button {
+                Task {
+                    if registrationEmailChallengeID.isEmpty { await startGuestEmailRegistration() }
+                    else { await confirmGuestEmailRegistration() }
+                }
+            } label: {
+                HStack {
+                    if isRegistering { ProgressView().tint(.white) }
+                    Text(registrationEmailChallengeID.isEmpty
+                         ? tr("Send verification code", "Отправить код", "Tasdiqlash kodini yuborish", "Тасдиқлаш кодини юбориш")
+                         : tr("Create iumrah account", "Создать аккаунт iumrah", "iumrah akkauntini yaratish", "iumrah аккаунтини яратиш"))
+                    Spacer()
+                    Image(systemName: registrationEmailChallengeID.isEmpty ? "envelope.badge.fill" : "arrow.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(!guestEmailRegistrationReady || isRegistering || isAppleSigningIn || isGoogleSigningIn)
+
+        case .sms:
+            accountInputField(symbol: "phone.fill", placeholder: "+998 90 123 45 67", text: $loginPhone, keyboard: .phonePad, contentType: .telephoneNumber) { raw in
+                let formatted = normalizedUZPhoneInput(raw)
+                if formatted != raw { loginPhone = formatted }
+            }
+            if normalizedUZPhoneInput(loginPhone).hasPrefix("+998") {
+                bookingBoundRegistrationNotice(
+                    icon: "message.badge.fill",
+                    title: tr("SMS registration is protected by your booking", "SMS-регистрация защищена Вашей бронью", "SMS ro‘yxatdan o‘tish broningiz bilan himoyalangan", "SMS рўйхатдан ўтиш броннингиз билан ҳимояланган"),
+                    text: tr("For security, the first SMS activation is linked to a booking that issued your iumrah ID.", "Для безопасности первая SMS-активация привязывается к брони, которая выдала Ваш iumrah ID.", "Xavfsizlik uchun birinchi SMS faollashtirish iumrah ID bergan bron bilan bog‘lanadi.", "Хавфсизлик учун биринчи SMS фаоллаштириш iumrah ID берган брон билан боғланади.")
+                )
+            } else {
+                unsupportedSMSNotice
+            }
+            pendingActivationButton
+
+        case .iumrahID:
+            bookingBoundRegistrationNotice(
+                icon: "person.text.rectangle.fill",
+                title: tr("iumrah ID is issued with your booking", "iumrah ID выдаётся вместе с бронью", "iumrah ID bron bilan beriladi", "iumrah ID брон билан берилади"),
+                text: tr("Open a booking that is ready for activation. Your permanent ID will be shown there and can be activated immediately.", "Откройте бронь, готовую к активации. Там будет показан Ваш постоянный ID, который можно сразу активировать.", "Faollashtirishga tayyor bronni oching. Doimiy ID shu yerda ko‘rinadi va uni darhol faollashtirish mumkin.", "Фаоллаштиришга тайёр бронни очинг. Доимий ID шу ерда кўринади ва уни дарҳол фаоллаштириш мумкин.")
+            )
+            pendingActivationButton
+        }
+    }
+
+    @ViewBuilder
+    private var pendingActivationButton: some View {
+        if let pending = pendingActivationTrip {
+            NavigationLink {
+                PilgrimCheckoutView(bookingID: pending.id)
+            } label: {
+                HStack {
+                    Text(tr("Open booking activation", "Открыть активацию брони", "Bron faollashtirishini ochish", "Брон фаоллаштиришини очиш"))
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+        } else {
+            Text(tr(
+                "There is no booking awaiting account activation on this device yet. You can register by Email, Apple or Google now.",
+                "На этом устройстве пока нет брони, ожидающей активации аккаунта. Сейчас можно зарегистрироваться по Email, Apple или Google.",
+                "Bu qurilmada akkaunt faollashtirishini kutayotgan bron hali yo‘q. Hozir Email, Apple yoki Google orqali ro‘yxatdan o‘tishingiz mumkin.",
+                "Бу қурилмада аккаунт фаоллаштиришини кутаётган брон ҳали йўқ. Ҳозир Email, Apple ёки Google орқали рўйхатдан ўтишингиз мумкин."
+            ))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func bookingBoundRegistrationNotice(icon: String, title: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 11) {
+            Image(systemName: icon)
+                .foregroundStyle(Color.blue)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(text).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(Color.blue.opacity(0.075), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.blue.opacity(0.16), lineWidth: 0.8) }
+    }
+
+    private var unsupportedSMSNotice: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.bubble.fill")
+                .foregroundStyle(.orange)
+            Text(tr(
+                "SMS is temporarily unavailable for this country. Continue by Email or use Google or Apple. SMS currently supports Uzbekistan numbers beginning with +998.",
+                "SMS для этой страны временно недоступны. Продолжите по Email или используйте Google либо Apple. Сейчас SMS поддерживает номера Узбекистана, начинающиеся с +998.",
+                "Bu davlat uchun SMS vaqtincha mavjud emas. Email orqali davom eting yoki Google/Apple’dan foydalaning. Hozir SMS faqat +998 bilan boshlanuvchi O‘zbekiston raqamlarini qo‘llaydi.",
+                "Бу давлат учун SMS вақтинча мавжуд эмас. Email орқали давом этинг ёки Google/Apple’дан фойдаланинг. Ҳозир SMS фақат +998 билан бошланувчи Ўзбекистон рақамларини қўллайди."
+            ))
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.orange)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(13)
+        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.orange.opacity(0.18), lineWidth: 0.8) }
+    }
+
+    private func accountInputField(
+        symbol: String,
+        placeholder: String,
+        text: Binding<String>,
+        keyboard: UIKeyboardType,
+        contentType: UITextContentType?,
+        onChange: ((String) -> Void)? = nil
+    ) -> some View {
+        HStack(spacing: 11) {
+            Image(systemName: symbol)
+                .foregroundStyle(.secondary)
+                .frame(width: 22)
+            TextField(placeholder, text: text)
+                .keyboardType(keyboard)
+                .textContentType(contentType)
+                .textInputAutocapitalization(keyboard == .emailAddress ? .never : .words)
+                .autocorrectionDisabled(keyboard == .emailAddress)
+                .onChange(of: text.wrappedValue) { _, raw in onChange?(raw) }
+        }
+        .padding(.horizontal, 16)
+        .frame(minHeight: 56)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
+    }
+
+    private func accountPasswordField(text: Binding<String>, placeholder: String) -> some View {
+        HStack(spacing: 11) {
+            Image(systemName: "lock.fill")
+                .foregroundStyle(.secondary)
+                .frame(width: 22)
+            SecureField(placeholder, text: text)
+                .textContentType(.password)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 56)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
+    }
+
+    private var guestLoginReady: Bool {
+        guard loginPassword.count >= 8 else { return false }
+        switch guestAuthMethod {
+        case .iumrahID:
+            return [6, 8].contains(loginID.filter(\.isNumber).count)
+        case .email:
+            let value = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.contains("@") && value.contains(".")
+        case .sms:
+            return normalizedUZPhoneInput(loginPhone).count == 13 && normalizedUZPhoneInput(loginPhone).hasPrefix("+998")
+        }
+    }
+
+    private var guestEmailRegistrationReady: Bool {
+        let mail = registrationEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard mail.contains("@"), mail.contains("."),
+              !registrationFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !registrationLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        if registrationEmailChallengeID.isEmpty { return true }
+        return registrationEmailCode.count == 6 && registrationPassword.count >= 8 && registrationPassword == registrationPasswordConfirm
     }
 
     private func activationShortcut(_ session: StoredBookingSession) -> some View {
@@ -1261,12 +1522,70 @@ struct IumrahAccountView: View {
         loginError = nil
         defer { isLoggingIn = false }
         do {
-            let profile = try await account.login(identifier: normalizedLoginIdentifier(loginID), password: loginPassword, locale: settings.language.rawValue)
+            let identifier: String
+            switch guestAuthMethod {
+            case .iumrahID: identifier = normalizedLoginIdentifier(loginID)
+            case .email: identifier = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            case .sms: identifier = normalizedUZPhoneInput(loginPhone)
+            }
+            let profile = try await account.login(identifier: identifier, password: loginPassword, locale: settings.language.rawValue)
             await completeAuthenticatedLogin(profile)
             loginPassword = ""
             IumrahHaptics.success()
         } catch {
             loginError = L10n.error(error, settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func startGuestEmailRegistration() async {
+        isRegistering = true
+        loginError = nil
+        defer { isRegistering = false }
+        do {
+            let response = try await IumrahAccountActivationBridge().startEmailRegistration(
+                email: registrationEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                locale: settings.language.rawValue
+            )
+            registrationEmailChallengeID = response.challengeID
+            registrationEmailCode = ""
+            IumrahHaptics.success()
+        } catch {
+            loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func confirmGuestEmailRegistration() async {
+        guard !registrationEmailChallengeID.isEmpty else { return }
+        isRegistering = true
+        loginError = nil
+        defer { isRegistering = false }
+        do {
+            let response = try await IumrahAccountActivationBridge().confirmEmailRegistration(
+                challengeID: registrationEmailChallengeID,
+                code: registrationEmailCode,
+                password: registrationPassword,
+                firstName: registrationFirstName.trimmingCharacters(in: .whitespacesAndNewlines),
+                lastName: registrationLastName.trimmingCharacters(in: .whitespacesAndNewlines),
+                locale: settings.language.rawValue
+            )
+            // Establish the normal app session through IumrahAccountStore so Keychain,
+            // push registration and trip restore follow the same path as every login.
+            let profile = try await account.login(
+                identifier: response.account.iumrahID,
+                password: registrationPassword,
+                locale: settings.language.rawValue
+            )
+            await completeAuthenticatedLogin(profile)
+            registrationPassword = ""
+            registrationPasswordConfirm = ""
+            registrationEmailCode = ""
+            IumrahHaptics.success()
+        } catch {
+            loginError = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
             IumrahHaptics.error()
         }
     }
@@ -1475,6 +1794,11 @@ struct IumrahAccountView: View {
         guard !digits.isEmpty else { return value }
         if digits.count >= 8 { return digits }
         return String(repeating: "0", count: 8 - digits.count) + digits
+    }
+
+    private func normalizedUZPhoneInput(_ raw: String) -> String {
+        let digits = String(raw.filter(\.isNumber).prefix(12))
+        return digits.isEmpty ? "" : "+" + digits
     }
 
     private func normalizedLoginIdentifier(_ value: String) -> String {

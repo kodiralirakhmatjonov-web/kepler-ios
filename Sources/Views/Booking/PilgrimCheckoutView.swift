@@ -16,6 +16,7 @@ private enum IumrahActivationMethod: String, CaseIterable, Identifiable {
 private enum IumrahCheckoutLoginMethod: String, CaseIterable, Identifiable {
     case iumrahID
     case email
+    case sms
 
     var id: String { rawValue }
 }
@@ -61,6 +62,7 @@ struct PilgrimCheckoutView: View {
     @State private var existingLoginMethod: IumrahCheckoutLoginMethod = .iumrahID
     @State private var existingLoginID = ""
     @State private var existingLoginEmail = ""
+    @State private var existingLoginPhone = "+998"
     @State private var loginPassword = ""
     @State private var isLoginPasswordVisible = false
     @State private var showExistingAccountLogin = false
@@ -418,84 +420,96 @@ struct PilgrimCheckoutView: View {
                     .frame(height: 54)
                     .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
 
-                    if !activationSMSChallengeID.isEmpty {
-                        HStack(spacing: 11) {
-                            Image(systemName: "number.square.fill")
-                                .foregroundStyle(.secondary)
-                                .frame(width: 22)
-                            TextField(tr("6-digit SMS code", "Код из SMS — 6 цифр", "SMS kodi — 6 raqam", "SMS коди — 6 рақам"), text: $activationSMSCode)
-                                .keyboardType(.numberPad)
-                                .textContentType(.oneTimeCode)
-                                .font(.body.monospaced())
-                                .onChange(of: activationSMSCode) { _, raw in
-                                    let digits = String(raw.filter(\.isNumber).prefix(6))
-                                    if digits != raw { activationSMSCode = digits }
-                                }
-                        }
-                        .padding(.horizontal, 14)
-                        .frame(height: 54)
-                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
-                    }
-
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: activationSMSCovered ? (activationSMSChallengeID.isEmpty ? "message.badge.fill" : "checkmark.message.fill") : "exclamationmark.bubble.fill")
-                            .foregroundStyle(activationSMSCovered ? Color.blue : Color.orange)
-                        Text(activationSMSCovered
-                             ? (activationSMSChallengeID.isEmpty
-                                ? tr(
-                                    "We will send a one-time verification code to this Uzbekistan number through DevSMS.",
+                    if activationSMSCovered {
+                        if activationSMSChallengeID.isEmpty {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: "message.badge.fill")
+                                    .foregroundStyle(Color.blue)
+                                Text(tr(
+                                    "We will send a one-time confirmation code to this Uzbekistan number through DevSMS.",
                                     "Мы отправим одноразовый код подтверждения на этот номер Узбекистана через DevSMS.",
                                     "Ushbu O‘zbekiston raqamiga DevSMS orqali bir martalik tasdiqlash kodi yuboramiz.",
                                     "Ушбу Ўзбекистон рақамига DevSMS орқали бир марталик тасдиқлаш коди юборамиз."
-                                  )
-                                : tr(
-                                    "The SMS code has been sent. Enter it above within 10 minutes to confirm the number and activate your account.",
-                                    "Код отправлен по SMS. Введите его выше в течение 10 минут, чтобы подтвердить номер и активировать аккаунт.",
-                                    "SMS kodi yuborildi. Raqamni tasdiqlash va akkauntni faollashtirish uchun uni 10 daqiqa ichida yuqoriga kiriting.",
-                                    "SMS коди юборилди. Рақамни тасдиқлаш ва аккаунтни фаоллаштириш учун уни 10 дақиқа ичида юқорига киритинг."
-                                  ))
-                             : tr(
-                                "SMS is temporarily unavailable for this country. Please continue by email or use your Google or Apple account. At the moment SMS activation supports only Uzbekistan numbers beginning with +998.",
-                                "SMS для этой страны временно недоступны. Продолжите по электронной почте или воспользуйтесь аккаунтом Google или Apple. Сейчас SMS-активация поддерживает только номера Узбекистана, начинающиеся с +998.",
-                                "Bu davlat uchun SMS vaqtincha mavjud emas. Email orqali davom eting yoki Google/Apple akkauntingizdan foydalaning. Hozir SMS faollashtirish faqat +998 bilan boshlanuvchi O‘zbekiston raqamlarini qo‘llaydi.",
-                                "Бу давлат учун SMS вақтинча мавжуд эмас. Email орқали давом этинг ёки Google/Apple аккаунтингиздан фойдаланинг. Ҳозир SMS фаоллаштириш фақат +998 билан бошланувчи Ўзбекистон рақамларини қўллайди."
-                             ))
+                                ))
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(13)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                            .overlay { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.blue.opacity(0.18), lineWidth: 0.8) }
+                        } else {
+                            HStack(spacing: 11) {
+                                Image(systemName: "number.square.fill")
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 22)
+                                TextField(tr("6-digit SMS code", "Код SMS из 6 цифр", "6 xonali SMS kodi", "6 хонали SMS коди"), text: $activationSMSCode)
+                                    .keyboardType(.numberPad)
+                                    .textContentType(.oneTimeCode)
+                                    .font(.body.monospaced())
+                                    .onChange(of: activationSMSCode) { _, raw in
+                                        let digits = String(raw.filter(\.isNumber).prefix(6))
+                                        if digits != raw { activationSMSCode = digits }
+                                    }
+                            }
+                            .padding(.horizontal, 14)
+                            .frame(height: 54)
+                            .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+
+                            Text(tr(
+                                "The code was sent by DevSMS and is valid for 10 minutes.",
+                                "Код отправлен через DevSMS и действует 10 минут.",
+                                "Kod DevSMS orqali yuborildi va 10 daqiqa amal qiladi.",
+                                "Код DevSMS орқали юборилди ва 10 дақиқа амал қилади."
+                            ))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "exclamationmark.bubble.fill")
+                                .foregroundStyle(Color.orange)
+                            Text(tr(
+                                "SMS is temporarily unavailable for this country. Please continue by email or use your Google or Apple account. SMS currently supports only Uzbekistan numbers beginning with +998.",
+                                "SMS для этой страны временно недоступны. Продолжите по электронной почте или воспользуйтесь аккаунтом Google или Apple. Сейчас SMS поддерживает только номера Узбекистана, начинающиеся с +998.",
+                                "Bu davlat uchun SMS vaqtincha mavjud emas. Email orqali davom eting yoki Google/Apple akkauntingizdan foydalaning. Hozir SMS faqat +998 bilan boshlanuvchi O‘zbekiston raqamlarini qo‘llaydi.",
+                                "Бу давлат учун SMS вақтинча мавжуд эмас. Email орқали давом этинг ёки Google/Apple аккаунтингиздан фойдаланинг. Ҳозир SMS фақат +998 билан бошланувчи Ўзбекистон рақамларини қўллайди."
+                            ))
                             .font(.caption.weight(.medium))
-                            .foregroundStyle(activationSMSCovered ? Color.secondary : Color.orange)
+                            .foregroundStyle(Color.orange)
                             .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(13)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background((activationSMSCovered ? Color.blue : Color.orange).opacity(0.08), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 17, style: .continuous)
-                            .strokeBorder((activationSMSCovered ? Color.blue : Color.orange).opacity(0.18), lineWidth: 0.8)
+                        }
+                        .padding(13)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                        .overlay { RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Color.orange.opacity(0.18), lineWidth: 0.8) }
                     }
                 }
             }
 
             passwordField(
-                    tr("Create password", "Создайте пароль", "Parol yarating", "Парол яратинг"),
-                    text: $password,
-                    isVisible: $isPasswordVisible,
-                    newPassword: true
-                )
+                tr("Create password", "Создайте пароль", "Parol yarating", "Парол яратинг"),
+                text: $password,
+                isVisible: $isPasswordVisible,
+                newPassword: true
+            )
             passwordField(
                 tr("Confirm password", "Подтвердите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг"),
-                    text: $passwordConfirm,
-                    isVisible: $isPasswordConfirmVisible,
-                    newPassword: true
+                text: $passwordConfirm,
+                isVisible: $isPasswordConfirmVisible,
+                newPassword: true
             )
 
             VStack(alignment: .leading, spacing: 7) {
-                    activationRequirement(
-                        tr("At least 8 characters", "Минимум 8 символов", "Kamida 8 belgi", "Камида 8 белги"),
-                        ready: password.count >= 8
-                    )
-                    activationRequirement(
-                        tr("Passwords match", "Пароли совпадают", "Parollar mos", "Пароллар мос"),
-                        ready: !passwordConfirm.isEmpty && password == passwordConfirm
-                    )
+                activationRequirement(
+                    tr("At least 8 characters", "Минимум 8 символов", "Kamida 8 belgi", "Камида 8 белги"),
+                    ready: password.count >= 8
+                )
+                activationRequirement(
+                    tr("Passwords match", "Пароли совпадают", "Parollar mos", "Пароллар мос"),
+                    ready: !passwordConfirm.isEmpty && password == passwordConfirm
+                )
             }
 
             Button {
@@ -516,7 +530,7 @@ struct PilgrimCheckoutView: View {
                     if isSubmittingAccount { ProgressView().tint(.white) }
                     Text(activationPrimaryTitle)
                     Spacer()
-                    Image(systemName: activationMethod == .sms && activationSMSChallengeID.isEmpty ? "message.badge.fill" : (activationMethod == .email && activationEmailChallengeID.isEmpty ? "envelope.badge.fill" : "arrow.right"))
+                    Image(systemName: activationMethod == .sms ? "message.badge" : (activationMethod == .email && activationEmailChallengeID.isEmpty ? "envelope.badge.fill" : "arrow.right"))
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
@@ -580,11 +594,12 @@ struct PilgrimCheckoutView: View {
                 Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
             }
 
-            SignInWithAppleButton(.continue, onRequest: prepareActivationAppleSignIn, onCompletion: completeActivationAppleSignIn)
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: IumrahDesign.controlHeight)
-                .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
-                .disabled(isSubmittingAccount || isGoogleSigningIn || !isTravelerEditingAllowed)
+            IumrahLocalizedAppleAuthButton(
+                title: tr("Continue with Apple", "Продолжить с Apple", "Apple bilan davom etish", "Apple билан давом этиш"),
+                isDisabled: isSubmittingAccount || isGoogleSigningIn || !isTravelerEditingAllowed,
+                onRequest: prepareActivationAppleSignIn,
+                onCompletion: completeActivationAppleSignIn
+            )
 
             IumrahGoogleAuthButton(
                 title: tr("Continue with Google", "Продолжить с Google", "Google bilan davom etish", "Google билан давом этиш"),
@@ -618,22 +633,22 @@ struct PilgrimCheckoutView: View {
                 "Mavjud akkauntingizga kiring. Shundan keyin bu bron aynan shu doimiy iumrah ID ga xavfsiz ulanadi.",
                 "Мавжуд аккаунтингизга киринг. Шундан кейин бу брон айнан шу доимий iumrah ID га хавфсиз уланади."
             ))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
 
             Picker("", selection: $existingLoginMethod) {
                 Text("iumrah ID").tag(IumrahCheckoutLoginMethod.iumrahID)
                 Text("Email").tag(IumrahCheckoutLoginMethod.email)
+                Text("SMS").tag(IumrahCheckoutLoginMethod.sms)
             }
             .pickerStyle(.segmented)
             .onChange(of: existingLoginMethod) { _, _ in errorMessage = nil }
 
-            if existingLoginMethod == .iumrahID {
+            switch existingLoginMethod {
+            case .iumrahID:
                 HStack(spacing: 11) {
-                    Image(systemName: "number")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22)
+                    Image(systemName: "number").foregroundStyle(.secondary).frame(width: 22)
                     TextField("00000016", text: $existingLoginID)
                         .keyboardType(.numberPad)
                         .textContentType(.username)
@@ -646,11 +661,10 @@ struct PilgrimCheckoutView: View {
                 .padding(.horizontal, 14)
                 .frame(height: 54)
                 .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
-            } else {
+
+            case .email:
                 HStack(spacing: 11) {
-                    Image(systemName: "envelope.fill")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22)
+                    Image(systemName: "envelope.fill").foregroundStyle(.secondary).frame(width: 22)
                     TextField("name@example.com", text: $existingLoginEmail)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
@@ -660,6 +674,39 @@ struct PilgrimCheckoutView: View {
                 .padding(.horizontal, 14)
                 .frame(height: 54)
                 .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+
+            case .sms:
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 11) {
+                        Image(systemName: "phone.fill").foregroundStyle(.secondary).frame(width: 22)
+                        TextField("+998 90 123 45 67", text: $existingLoginPhone)
+                            .keyboardType(.phonePad)
+                            .textContentType(.telephoneNumber)
+                            .onChange(of: existingLoginPhone) { _, raw in
+                                let formatted = activationPhoneInput(raw)
+                                if formatted != raw { existingLoginPhone = formatted }
+                            }
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 54)
+                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
+
+                    if !activationPhoneInput(existingLoginPhone).hasPrefix("+998") {
+                        HStack(alignment: .top, spacing: 9) {
+                            Image(systemName: "exclamationmark.bubble.fill").foregroundStyle(.orange)
+                            Text(tr(
+                                "SMS sign-in is temporarily unavailable for this country. Use Email, iumrah ID, Google or Apple.",
+                                "Вход по SMS для этой страны временно недоступен. Используйте Email, iumrah ID, Google или Apple.",
+                                "Bu davlat uchun SMS orqali kirish vaqtincha mavjud emas. Email, iumrah ID, Google yoki Apple’dan foydalaning.",
+                                "Бу давлат учун SMS орқали кириш вақтинча мавжуд эмас. Email, iumrah ID, Google ёки Apple’дан фойдаланинг."
+                            ))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.orange)
+                        }
+                        .padding(12)
+                        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                }
             }
 
             passwordField(
@@ -679,9 +726,7 @@ struct PilgrimCheckoutView: View {
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Button {
-                    showPasswordRecovery = true
-                } label: {
+                Button { showPasswordRecovery = true } label: {
                     Text(tr("Forgot password?", "Забыли пароль?", "Parolni unutdingizmi?", "Паролни унутдингизми?"))
                         .font(.caption.weight(.semibold))
                 }
@@ -698,7 +743,27 @@ struct PilgrimCheckoutView: View {
                 }
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
-            .disabled(!existingLoginReady || isSubmittingAccount)
+            .disabled(!existingLoginReady || isSubmittingAccount || isAppleSigningIn || isGoogleSigningIn)
+
+            HStack(spacing: 10) {
+                Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
+                Text(tr("or", "или", "yoki", "ёки")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
+            }
+
+            IumrahLocalizedAppleAuthButton(
+                title: tr("Sign in with Apple", "Войти с Apple", "Apple orqali kirish", "Apple орқали кириш"),
+                isDisabled: isSubmittingAccount || isGoogleSigningIn || isAppleSigningIn,
+                onRequest: prepareActivationAppleSignIn,
+                onCompletion: completeActivationAppleSignIn
+            )
+
+            IumrahGoogleAuthButton(
+                title: tr("Sign in with Google", "Войти с Google", "Google orqali kirish", "Google орқали кириш"),
+                isDisabled: isSubmittingAccount || isAppleSigningIn || isGoogleSigningIn
+            ) {
+                startActivationGoogleSignIn()
+            }
         }
         .iumrahCard()
     }
@@ -711,6 +776,9 @@ struct PilgrimCheckoutView: View {
         case .email:
             let email = existingLoginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
             return email.contains("@") && email.contains(".")
+        case .sms:
+            let phone = activationPhoneInput(existingLoginPhone)
+            return phone.hasPrefix("+998") && phone.count == 13
         }
     }
 
@@ -727,7 +795,7 @@ struct PilgrimCheckoutView: View {
             if activationSMSChallengeID.isEmpty {
                 return tr("Send SMS code", "Отправить SMS-код", "SMS kodini yuborish", "SMS кодини юбориш")
             }
-            return tr("Confirm number and continue", "Подтвердить номер и продолжить", "Raqamni tasdiqlash va davom etish", "Рақамни тасдиқлаш ва давом этиш")
+            return tr("Confirm SMS and continue", "Подтвердить SMS и продолжить", "SMSni tasdiqlash va davom etish", "SMSни тасдиқлаш ва давом этиш")
         }
     }
 
@@ -739,20 +807,17 @@ struct PilgrimCheckoutView: View {
         case .email:
             let email = activationEmail.trimmingCharacters(in: .whitespacesAndNewlines)
             guard email.contains("@"), email.contains(".") else { return false }
-            return activationEmailChallengeID.isEmpty || activationEmailCode.count == 6
+            if activationEmailChallengeID.isEmpty { return true }
+            return activationEmailCode.count == 6
         case .sms:
-            guard activationSMSCovered, activationSMSValid else { return false }
-            return activationSMSChallengeID.isEmpty || activationSMSCode.count == 6
+            guard activationSMSCovered, activationPhoneInput(activationPhone).count == 13 else { return false }
+            if activationSMSChallengeID.isEmpty { return true }
+            return activationSMSCode.count == 6
         }
     }
 
     private var activationSMSCovered: Bool {
         activationPhoneInput(activationPhone).hasPrefix("+998")
-    }
-
-    private var activationSMSValid: Bool {
-        let digits = activationPhoneInput(activationPhone).filter(\.isNumber)
-        return digits.hasPrefix("998") && digits.count == 12
     }
 
     private func activationPhoneInput(_ raw: String) -> String {
@@ -1565,18 +1630,17 @@ struct PilgrimCheckoutView: View {
 
     @MainActor
     private func startSMSActivation(_ value: IumrahCheckoutResponse) async {
-        guard let session, !session.accessToken.isEmpty else { return }
+        guard let session, !session.accessToken.isEmpty, activationSMSCovered else { return }
         isSubmittingAccount = true
         errorMessage = nil
         defer { isSubmittingAccount = false }
         do {
-            let response = try await account.startActivationSMS(
+            let response = try await IumrahAccountActivationBridge().startBookingSMS(
                 bookingID: bookingID,
                 bookingToken: session.accessToken,
                 phone: activationPhoneInput(activationPhone),
                 locale: settings.language.rawValue
             )
-            activationPhone = response.phone
             activationSMSChallengeID = response.challengeID
             activationSMSCode = ""
             IumrahHaptics.success()
@@ -1597,11 +1661,17 @@ struct PilgrimCheckoutView: View {
         errorMessage = nil
         defer { isSubmittingAccount = false }
         do {
-            let profile = try await account.confirmActivationSMS(
+            let response = try await IumrahAccountActivationBridge().confirmBookingSMS(
                 bookingID: bookingID,
                 bookingToken: session.accessToken,
                 challengeID: activationSMSChallengeID,
                 code: activationSMSCode,
+                password: password,
+                locale: settings.language.rawValue
+            )
+            // Establish the normal Keychain-backed app session via the canonical login path.
+            let profile = try await account.login(
+                identifier: response.account.iumrahID,
                 password: password,
                 locale: settings.language.rawValue
             )
@@ -1629,8 +1699,8 @@ struct PilgrimCheckoutView: View {
         password = ""
         passwordConfirm = ""
         activationEmailCode = ""
-        activationSMSChallengeID = ""
         activationSMSCode = ""
+        activationSMSChallengeID = ""
         await loadCheckout(showLoader: false)
         IumrahHaptics.success()
     }
@@ -1640,9 +1710,15 @@ struct PilgrimCheckoutView: View {
         isSubmittingAccount = true; errorMessage = nil
         defer { isSubmittingAccount = false }
         do {
-            let identifier = existingLoginMethod == .iumrahID
-                ? normalizedID(existingLoginID)
-                : existingLoginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+            let identifier: String
+            switch existingLoginMethod {
+            case .iumrahID:
+                identifier = normalizedID(existingLoginID)
+            case .email:
+                identifier = existingLoginEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            case .sms:
+                identifier = activationPhoneInput(existingLoginPhone)
+            }
             _ = try await account.login(identifier: identifier, password: loginPassword, locale: settings.language.rawValue)
             bookings.setAccountToken(account.bearerToken)
             guard let session else { throw APIError.missingBookingToken }

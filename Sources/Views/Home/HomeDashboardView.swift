@@ -67,7 +67,7 @@ struct HomeDashboardView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 22) {
-                    IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
+                    IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true, showsSignalButton: true)
                     if !clientNotifications.homeNotifications.isEmpty {
                         SystemNotificationsCarouselView(
                             notifications: Array(clientNotifications.homeNotifications.prefix(5)),
@@ -164,7 +164,8 @@ struct HomeDashboardView: View {
                         showsMakkahTime: true,
                         lightStyle: true,
                         usesBrandLogo: true,
-                        showsConnectivityStatus: true
+                        showsConnectivityStatus: true,
+                        showsSignalButton: true
                     )
 
                     activeBookingCard(session)
