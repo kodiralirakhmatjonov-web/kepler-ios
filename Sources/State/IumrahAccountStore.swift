@@ -142,6 +142,39 @@ final class IumrahAccountStore: ObservableObject {
         return response.account
     }
 
+
+    func startPhoneRegistration(
+        phone: String,
+        firstName: String,
+        lastName: String,
+        locale: String = Locale.current.identifier
+    ) async throws -> IumrahPhoneLoginStartResponse {
+        try await service.startPhoneRegistration(
+            phone: phone,
+            firstName: firstName,
+            lastName: lastName,
+            locale: locale
+        )
+    }
+
+    @discardableResult
+    func confirmPhoneRegistration(
+        challengeID: String,
+        code: String,
+        password: String,
+        locale: String = Locale.current.identifier
+    ) async throws -> IumrahAccountProfile {
+        let response = try await service.confirmPhoneRegistration(
+            challengeID: challengeID,
+            code: code,
+            password: password,
+            locale: locale
+        )
+        setSession(response)
+        _ = try? await service.registerCurrentSession(token: response.session.token, locale: locale)
+        return response.account
+    }
+
     @discardableResult
     func signInWithApple(_ credential: IumrahAppleCredential, locale: String) async throws -> IumrahAccountProfile {
         let response = try await service.signInWithApple(credential, locale: locale)

@@ -109,7 +109,7 @@ function validUzbekPhone(value: string) {
   return /^\+998\d{9}$/.test(value);
 }
 
-type SMSChallengePurpose = "verify_phone" | "activate_account" | "login_phone";
+type SMSChallengePurpose = "verify_phone" | "activate_account" | "login_phone" | "register_phone";
 
 function validPassword(value: unknown): value is string {
   return typeof value === "string" && value.length >= 8 && value.length <= 128;
@@ -1383,6 +1383,149 @@ async function loginWithPassword(request: Request, db: D1Like) {
   });
 }
 
+async function reusableProvisionalPilgrimByPhone(db: D1Like, phoneNormalized: string) {
+  const phoneDigits = phoneNormalized.replace(/\D+/g, "");
+  const result = await db.prepare(
+    `SELECT p.id,p.first_name,p.last_name,p.display_name,p.phone,p.email,p.telegram,p.whatsapp
+     FROM pilgrims p
+     WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(p.phone,''),' ',''),'-',''),'(',''),')',''),'+','')=?1
+       AND NOT EXISTS(SELECT 1 FROM iumrah_accounts a WHERE a.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_client_account_phones ph WHERE ph.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_client_account_emails e WHERE e.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_client_apple_links a WHERE a.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_client_google_links g WHERE g.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_client_devices d WHERE d.pilgrim_id=p.id)
+       AND NOT EXISTS(SELECT 1 FROM iumrah_account_sessions s WHERE s.pilgrim_id=p.id)
+     ORDER BY p.id ASC LIMIT 2`,
+  ).bind(phoneDigits).all<PilgrimRow>();
+  const rows = result.results ?? [];
+  return rows.length === 1 ? rows[0] : null;
+}
+
+async function startStandalonePhoneRegistration(request: Request, env: Env, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    phone?: unknown;
+    firstName?: unknown;
+    lastName?: unknown;
+    locale?: unknown;
+  } | null;
+  const phone = normalizePhone(payload?.phone);
+  if (!phone.startsWith("+998")) throw new RouteError("SMS_COUNTRY_UNSUPPORTED", 400);
+  if (!validUzbekPhone(phone)) throw new RouteError("PHONE_INVALID", 400);
+
+  const firstName = cleanText(payload?.firstName, 120);
+  const lastName = cleanText(payload?.lastName, 120);
+  if (!firstName || !lastName) throw new RouteError("NAME_REQUIRED", 400);
+
+  const linked = await db.prepare(
+    `SELECT pilgrim_id FROM iumrah_client_account_phones WHERE phone_normalized=?1 LIMIT 1`,
+  ).bind(phone).first<{ pilgrim_id: number }>();
+  if (linked) throw new RouteError("PHONE_ALREADY_CONNECTED", 409);
+
+  const phoneDigits = phone.replace(/\D+/g, "");
+  const activeLegacy = await db.prepare(
+    `SELECT p.id AS pilgrim_id
+     FROM pilgrims p
+     INNER JOIN iumrah_accounts a ON a.pilgrim_id=p.id
+     WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(p.phone,''),' ',''),'-',''),'(',''),')',''),'+','')=?1
+     LIMIT 1`,
+  ).bind(phoneDigits).first<{ pilgrim_id: number }>();
+  if (activeLegacy) throw new RouteError("PHONE_ALREADY_CONNECTED", 409);
+
+  const now = new Date().toISOString();
+  const displayName = [firstName, lastName].join(" ").slice(0, 240);
+  let pilgrim = await reusableProvisionalPilgrimByPhone(db, phone);
+  if (!pilgrim) {
+    pilgrim = await db.prepare(
+      `INSERT INTO pilgrims(phone,first_name,last_name,display_name,created_at,updated_at)
+       VALUES(?1,?2,?3,?4,?5,?5)
+       RETURNING id,first_name,last_name,display_name,phone,email,telegram,whatsapp`,
+    ).bind(phone, firstName, lastName, displayName, now).first<PilgrimRow>();
+    if (!pilgrim) throw new RouteError("ACCOUNT_CREATION_FAILED", 503);
+  } else {
+    await db.prepare(
+      `UPDATE pilgrims SET first_name=?1,last_name=?2,display_name=?3,phone=?4,updated_at=?5 WHERE id=?6`,
+    ).bind(firstName, lastName, displayName, phone, now, Number(pilgrim.id)).run();
+  }
+
+  const pilgrimID = Number(pilgrim.id);
+  const challenge = await createSMSChallenge(
+    db,
+    env,
+    request,
+    "register_phone",
+    pilgrimID,
+    phone,
+  );
+  await audit(db, pilgrimID, "phone_registration_code_sent", null, null);
+  return json({
+    ok: true,
+    challengeID: challenge.id,
+    expiresAt: challenge.expiresAt,
+    phone: challenge.phoneNormalized,
+  });
+}
+
+async function confirmStandalonePhoneRegistration(request: Request, db: D1Like) {
+  const payload = await request.json().catch(() => null) as {
+    challengeID?: unknown;
+    code?: unknown;
+    password?: unknown;
+    device?: unknown;
+  } | null;
+  if (!validPassword(payload?.password)) throw new RouteError("PASSWORD_TOO_WEAK", 400);
+
+  const challengeID = cleanText(payload?.challengeID, 120);
+  const hint = await db.prepare(
+    `SELECT pilgrim_id FROM iumrah_client_sms_challenges
+     WHERE id=?1 AND purpose='register_phone' LIMIT 1`,
+  ).bind(challengeID).first<{ pilgrim_id: number }>();
+  const pilgrimID = Number(hint?.pilgrim_id ?? 0);
+  if (!pilgrimID) throw new RouteError("VERIFICATION_CODE_INVALID", 400);
+
+  const challenge = await verifySMSChallenge(
+    db,
+    challengeID,
+    "register_phone",
+    cleanText(payload?.code, 12),
+    pilgrimID,
+  );
+  await ensureActivationAvailable(db, pilgrimID);
+  await ensurePhoneAvailable(db, challenge.phone_normalized, pilgrimID);
+
+  const pilgrim = await db.prepare(
+    `SELECT id,first_name,last_name,display_name,phone,email,telegram,whatsapp
+     FROM pilgrims WHERE id=?1 LIMIT 1`,
+  ).bind(pilgrimID).first<PilgrimRow>();
+  if (!pilgrim) throw new RouteError("ACCOUNT_CREATION_FAILED", 503);
+
+  try {
+    await linkVerifiedPhone(db, pilgrimID, challenge.phone_display, challenge.phone_normalized);
+    const established = await establishNewPasswordCredentials(
+      request,
+      db,
+      pilgrimID,
+      pilgrim,
+      payload?.password,
+      payload?.device,
+      "phone_account_created",
+    );
+    const updated = await accountRow(db, pilgrimID) ?? pilgrim;
+    return json({
+      ok: true,
+      account: accountProfile(updated),
+      session: { token: established.session.token, expiresAt: established.session.expiresAt },
+    });
+  } catch (error) {
+    await db.prepare(
+      `DELETE FROM iumrah_client_account_phones
+       WHERE pilgrim_id=?1
+         AND NOT EXISTS(SELECT 1 FROM iumrah_accounts a WHERE a.pilgrim_id=?1)`,
+    ).bind(pilgrimID).run().catch(() => undefined);
+    throw error;
+  }
+}
+
 async function startPhoneLogin(request: Request, env: Env, db: D1Like) {
   const payload = await request.json().catch(() => null) as {
     phone?: unknown;
@@ -1399,8 +1542,25 @@ async function startPhoneLogin(request: Request, env: Env, db: D1Like) {
      WHERE p.phone_normalized=?1 AND p.verified_at IS NOT NULL
      LIMIT 1`,
   ).bind(phone).first<{ pilgrim_id: number }>();
-  const pilgrimID = Number(linked?.pilgrim_id ?? 0);
-  if (!pilgrimID) throw new RouteError("INVALID_CREDENTIALS", 401);
+
+  let pilgrimID = Number(linked?.pilgrim_id ?? 0);
+  if (!pilgrimID) {
+    // Legacy accounts can already have the phone in pilgrims.phone without a
+    // verified-phone row. Allow the owner to prove the same number by OTP and
+    // bind it during confirmation instead of incorrectly rejecting sign-in.
+    const phoneDigits = phone.replace(/\D+/g, "");
+    const legacy = await db.prepare(
+      `SELECT p.id AS pilgrim_id
+       FROM pilgrims p
+       INNER JOIN iumrah_accounts a ON a.pilgrim_id=p.id
+       WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(p.phone,''),' ',''),'-',''),'(',''),')',''),'+','')=?1
+       ORDER BY p.id ASC
+       LIMIT 2`,
+    ).bind(phoneDigits).all<{ pilgrim_id: number }>();
+    const rows = legacy.results ?? [];
+    if (rows.length === 1) pilgrimID = Number(rows[0].pilgrim_id);
+  }
+  if (!pilgrimID) throw new RouteError("PHONE_ACCOUNT_NOT_FOUND", 404);
 
   const challenge = await createSMSChallenge(
     db,
@@ -1433,13 +1593,26 @@ async function confirmPhoneLogin(request: Request, db: D1Like) {
   const pilgrimID = Number(challengeHint?.pilgrim_id ?? 0);
   if (!pilgrimID) throw new RouteError("VERIFICATION_CODE_INVALID", 400);
 
-  await verifySMSChallenge(
+  const verifiedChallenge = await verifySMSChallenge(
     db,
     challengeID,
     "login_phone",
     cleanText(payload?.code, 12),
     pilgrimID,
   );
+
+  const existingPhone = await db.prepare(
+    `SELECT phone_normalized FROM iumrah_client_account_phones WHERE pilgrim_id=?1 LIMIT 1`,
+  ).bind(pilgrimID).first<{ phone_normalized: string }>();
+  if (!existingPhone) {
+    await ensurePhoneAvailable(db, verifiedChallenge.phone_normalized, pilgrimID);
+    await linkVerifiedPhone(
+      db,
+      pilgrimID,
+      verifiedChallenge.phone_display,
+      verifiedChallenge.phone_normalized,
+    );
+  }
 
   const pilgrim = await accountRow(db, pilgrimID);
   if (!pilgrim) throw new RouteError("INVALID_CREDENTIALS", 401);
@@ -2585,6 +2758,12 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/login") {
       return await loginWithPassword(request, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/register/sms/start") {
+      return await startStandalonePhoneRegistration(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/register/sms/confirm") {
+      return await confirmStandalonePhoneRegistration(request, db);
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/login/sms/start") {
       return await startPhoneLogin(request, env, db);

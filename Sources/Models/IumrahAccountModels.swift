@@ -102,6 +102,20 @@ struct IumrahPhoneLoginConfirmRequest: Encodable {
     let device: IumrahClientDevice
 }
 
+struct IumrahPhoneRegistrationStartRequest: Encodable {
+    let phone: String
+    let firstName: String
+    let lastName: String
+    let locale: String
+}
+
+struct IumrahPhoneRegistrationConfirmRequest: Encodable {
+    let challengeID: String
+    let code: String
+    let password: String
+    let device: IumrahClientDevice
+}
+
 struct IumrahAccountActivateRequest: Encodable {
     let bookingID: String
     let password: String

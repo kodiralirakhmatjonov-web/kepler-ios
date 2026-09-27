@@ -60,6 +60,9 @@ struct IumrahAccountView: View {
     @State private var registrationEmailCode = ""
     @State private var registrationEmailIssue: IumrahFieldIssue?
     @State private var registrationEmailChallengeID = ""
+    @State private var registrationPhone = "+998"
+    @State private var registrationSMSCode = ""
+    @State private var registrationSMSChallengeID = ""
     @State private var registrationPassword = ""
     @State private var registrationPasswordConfirm = ""
     @State private var isRegistering = false
@@ -1046,6 +1049,7 @@ struct IumrahAccountView: View {
                 loginError = nil
                 loginEmailServerIssue = nil
                 resetPhoneLoginState()
+                resetPhoneRegistrationState()
                 registrationEmailChallengeID = ""
                 registrationEmailCode = ""
                 registrationEmailIssue = nil
@@ -1061,6 +1065,7 @@ struct IumrahAccountView: View {
                 loginError = nil
                 loginEmailServerIssue = nil
                 resetPhoneLoginState()
+                resetPhoneRegistrationState()
             }
 
             if guestAccountMode == .signIn {
@@ -1267,20 +1272,102 @@ struct IumrahAccountView: View {
             .disabled(!guestEmailRegistrationReady || isRegistering || isAppleSigningIn || isGoogleSigningIn)
 
         case .sms:
-            accountInputField(symbol: "phone.fill", placeholder: "+998 90 123 45 67", text: $loginPhone, keyboard: .phonePad, contentType: .telephoneNumber) { raw in
-                let formatted = normalizedUZPhoneInput(raw)
-                if formatted != raw { loginPhone = formatted }
-            }
-            if normalizedUZPhoneInput(loginPhone).hasPrefix("+998") {
-                bookingBoundRegistrationNotice(
-                    icon: "message.badge.fill",
-                    title: tr("SMS registration is protected by your booking", "SMS-регистрация защищена Вашей бронью", "SMS ro‘yxatdan o‘tish broningiz bilan himoyalangan", "SMS рўйхатдан ўтиш броннингиз билан ҳимояланган"),
-                    text: tr("For security, the first SMS activation is linked to a booking that issued your iumrah ID.", "Для безопасности первая SMS-активация привязывается к брони, которая выдала Ваш iumrah ID.", "Xavfsizlik uchun birinchi SMS faollashtirish iumrah ID bergan bron bilan bog‘lanadi.", "Хавфсизлик учун биринчи SMS фаоллаштириш iumrah ID берган брон билан боғланади.")
+            HStack(spacing: 10) {
+                accountInputField(
+                    symbol: "person.fill",
+                    placeholder: tr("First name", "Имя", "Ism", "Исм"),
+                    text: $registrationFirstName,
+                    keyboard: .default,
+                    contentType: .givenName
                 )
-            } else {
-                unsupportedSMSNotice
+                .disabled(!registrationSMSChallengeID.isEmpty)
+
+                accountInputField(
+                    symbol: "person.fill",
+                    placeholder: tr("Last name", "Фамилия", "Familiya", "Фамилия"),
+                    text: $registrationLastName,
+                    keyboard: .default,
+                    contentType: .familyName
+                )
+                .disabled(!registrationSMSChallengeID.isEmpty)
             }
-            pendingActivationButton
+
+            accountInputField(
+                symbol: "phone.fill",
+                placeholder: "+998 90 123 45 67",
+                text: $registrationPhone,
+                keyboard: .phonePad,
+                contentType: .telephoneNumber
+            ) { raw in
+                let formatted = normalizedUZPhoneInput(raw)
+                if formatted != raw { registrationPhone = formatted }
+            }
+            .disabled(!registrationSMSChallengeID.isEmpty)
+
+            if !registrationPhone.isEmpty && !normalizedUZPhoneInput(registrationPhone).hasPrefix("+998") {
+                unsupportedSMSNotice
+            } else {
+                Text(registrationSMSChallengeID.isEmpty
+                     ? tr(
+                        "Create your permanent iumrah account with a 6-digit SMS code. Uzbekistan +998 numbers are supported.",
+                        "Создайте постоянный аккаунт iumrah по 6-значному SMS-коду. Поддерживаются номера Узбекистана +998.",
+                        "Doimiy iumrah akkauntingizni 6 xonali SMS kodi bilan yarating. +998 O‘zbekiston raqamlari qo‘llanadi.",
+                        "Доимий iumrah аккаунтингизни 6 хонали SMS коди билан яратинг. +998 Ўзбекистон рақамлари қўлланади."
+                     )
+                     : tr(
+                        "Enter the SMS code, then create a password for iumrah ID sign-in as a backup.",
+                        "Введите SMS-код, затем создайте пароль для резервного входа по iumrah ID.",
+                        "SMS kodni kiriting, so‘ng zaxira iumrah ID kirishi uchun parol yarating.",
+                        "SMS кодни киритинг, сўнг захира iumrah ID кириши учун парол яратинг."
+                     ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if !registrationSMSChallengeID.isEmpty {
+                accountInputField(
+                    symbol: "number.square.fill",
+                    placeholder: tr("6-digit code", "Код из 6 цифр", "6 xonali kod", "6 хонали код"),
+                    text: $registrationSMSCode,
+                    keyboard: .numberPad,
+                    contentType: .oneTimeCode
+                ) { raw in
+                    let digits = String(raw.filter(\.isNumber).prefix(6))
+                    if digits != raw { registrationSMSCode = digits }
+                }
+
+                accountPasswordField(
+                    text: $registrationPassword,
+                    placeholder: tr("Create password", "Создайте пароль", "Parol yarating", "Парол яратинг")
+                )
+                accountPasswordField(
+                    text: $registrationPasswordConfirm,
+                    placeholder: tr("Confirm password", "Подтвердите пароль", "Parolni tasdiqlang", "Паролни тасдиқланг")
+                )
+            }
+
+            Button {
+                Task {
+                    if registrationSMSChallengeID.isEmpty {
+                        await startGuestSMSRegistration()
+                    } else {
+                        await confirmGuestSMSRegistration()
+                    }
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    if isRegistering { ProgressView().tint(.white) }
+                    Image(systemName: registrationSMSChallengeID.isEmpty ? "message.badge.fill" : "person.badge.plus")
+                    Text(registrationSMSChallengeID.isEmpty
+                         ? tr("Send SMS code", "Отправить SMS-код", "SMS kodni yuborish", "SMS кодни юбориш")
+                         : tr("Create iumrah account", "Создать аккаунт iumrah", "iumrah akkauntini yaratish", "iumrah аккаунтини яратиш"))
+                    Spacer(minLength: 10)
+                    Image(systemName: "arrow.right")
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(!guestSMSRegistrationReady || isRegistering || isAppleSigningIn || isGoogleSigningIn)
 
         case .iumrahID:
             bookingBoundRegistrationNotice(
@@ -1374,7 +1461,7 @@ struct IumrahAccountView: View {
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 56)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true, chrome: true)
     }
 
     private func accountPasswordField(text: Binding<String>, placeholder: String) -> some View {
@@ -1387,7 +1474,7 @@ struct IumrahAccountView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true)
+        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true, chrome: true)
     }
 
     private var guestLoginReady: Bool {
@@ -1414,6 +1501,18 @@ struct IumrahAccountView: View {
               !registrationLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         if registrationEmailChallengeID.isEmpty { return true }
         return registrationEmailCode.count == 6 && registrationPassword.count >= 8 && registrationPassword == registrationPasswordConfirm
+    }
+
+
+    private var guestSMSRegistrationReady: Bool {
+        let phone = normalizedUZPhoneInput(registrationPhone)
+        guard phone.hasPrefix("+998"), phone.count == 13,
+              !registrationFirstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !registrationLastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        if registrationSMSChallengeID.isEmpty { return true }
+        return registrationSMSCode.count == 6
+            && registrationPassword.count >= 8
+            && registrationPassword == registrationPasswordConfirm
     }
 
     private func activationShortcut(_ session: StoredBookingSession) -> some View {
@@ -1721,6 +1820,53 @@ struct IumrahAccountView: View {
             )
             await completeAuthenticatedLogin(profile)
             resetPhoneLoginState()
+            IumrahHaptics.success()
+        } catch {
+            loginError = smartLoginError(error)
+            IumrahHaptics.error()
+        }
+    }
+
+
+    @MainActor
+    private func startGuestSMSRegistration() async {
+        isRegistering = true
+        loginError = nil
+        defer { isRegistering = false }
+        do {
+            let response = try await account.startPhoneRegistration(
+                phone: normalizedUZPhoneInput(registrationPhone),
+                firstName: registrationFirstName.trimmingCharacters(in: .whitespacesAndNewlines),
+                lastName: registrationLastName.trimmingCharacters(in: .whitespacesAndNewlines),
+                locale: settings.language.rawValue
+            )
+            registrationSMSChallengeID = response.challengeID
+            registrationSMSCode = ""
+            registrationPhone = normalizedUZPhoneInput(response.phone)
+            IumrahHaptics.success()
+        } catch {
+            loginError = smartLoginError(error)
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func confirmGuestSMSRegistration() async {
+        guard !registrationSMSChallengeID.isEmpty else { return }
+        isRegistering = true
+        loginError = nil
+        defer { isRegistering = false }
+        do {
+            let profile = try await account.confirmPhoneRegistration(
+                challengeID: registrationSMSChallengeID,
+                code: registrationSMSCode,
+                password: registrationPassword,
+                locale: settings.language.rawValue
+            )
+            await completeAuthenticatedLogin(profile)
+            registrationPassword = ""
+            registrationPasswordConfirm = ""
+            resetPhoneRegistrationState()
             IumrahHaptics.success()
         } catch {
             loginError = smartLoginError(error)
@@ -2132,6 +2278,34 @@ struct IumrahAccountView: View {
                     "SMS urinishlari juda ko‘p bo‘ldi. Biroz kutib, yana urinib ko‘ring.",
                     "SMS уринишлари жуда кўп бўлди. Бироз кутиб, яна уриниб кўринг."
                 )
+            case "PHONE_ACCOUNT_NOT_FOUND":
+                return tr(
+                    "No iumrah account is linked to this phone yet. Switch to Register to create one.",
+                    "К этому номеру пока не привязан аккаунт iumrah. Переключитесь на «Регистрация», чтобы создать его.",
+                    "Bu raqamga hali iumrah akkaunti ulanmagan. Akkaunt yaratish uchun Ro‘yxatdan o‘tishga o‘ting.",
+                    "Бу рақамга ҳали iumrah аккаунти уланмаган. Аккаунт яратиш учун Рўйхатдан ўтишга ўтинг."
+                )
+            case "PHONE_ALREADY_CONNECTED", "ACCOUNT_ALREADY_ACTIVE":
+                return tr(
+                    "This phone already belongs to an iumrah account. Switch to Sign in and use the SMS code.",
+                    "Этот номер уже привязан к аккаунту iumrah. Переключитесь на «Вход» и войдите по SMS-коду.",
+                    "Bu raqam allaqachon iumrah akkauntiga ulangan. Kirish bo‘limiga o‘tib SMS kodi bilan kiring.",
+                    "Бу рақам аллақачон iumrah аккаунтига уланган. Кириш бўлимига ўтиб SMS коди билан киринг."
+                )
+            case "SMS_DELIVERY_NOT_CONFIGURED", "SMS_DELIVERY_UNAVAILABLE":
+                return tr(
+                    "The SMS service could not send the code right now. Please try again shortly.",
+                    "Сейчас SMS-сервис не смог отправить код. Попробуйте ещё раз через некоторое время.",
+                    "SMS xizmati hozir kodni yubora olmadi. Birozdan so‘ng yana urinib ko‘ring.",
+                    "SMS хизмати ҳозир кодни юбора олмади. Бироздан сўнг яна уриниб кўринг."
+                )
+            case "PASSWORD_TOO_WEAK":
+                return tr(
+                    "Create a password with at least 8 characters.",
+                    "Создайте пароль минимум из 8 символов.",
+                    "Kamida 8 ta belgidan iborat parol yarating.",
+                    "Камида 8 та белгидан иборат парол яратинг."
+                )
             default:
                 break
             }
@@ -2200,6 +2374,12 @@ struct IumrahAccountView: View {
     private func resetPhoneLoginState() {
         loginSMSChallengeID = ""
         loginSMSCode = ""
+    }
+
+
+    private func resetPhoneRegistrationState() {
+        registrationSMSChallengeID = ""
+        registrationSMSCode = ""
     }
 
     private func copyIdentityID(_ profile: IumrahAccountProfile) {

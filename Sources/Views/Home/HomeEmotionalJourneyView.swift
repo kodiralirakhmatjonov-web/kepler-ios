@@ -49,14 +49,11 @@ struct HomeEmotionalJourneyPrompt: View {
                         .font(.system(size: 11, weight: .bold))
                 }
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 17)
                 .frame(height: 44)
-                .iumrahGlass(
-                    in: Capsule(style: .continuous),
-                    interactive: true,
-                    chrome: true
-                )
+                .background(Color.black, in: Capsule(style: .continuous))
+                .contentShape(Capsule(style: .continuous))
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.emotionalJourney.open")
@@ -150,6 +147,7 @@ struct HomeEmotionalJourneyFullscreen: View {
         .frame(width: size.width, height: size.height)
         .clipped()
         .background(Color.black)
+        .allowsHitTesting(false)
         .accessibilityLabel("Video \(storyIndex(story) + 1) of \(HomeEmotionalStory.all.count)")
     }
 
@@ -199,37 +197,39 @@ struct HomeEmotionalJourneyFullscreen: View {
 
                 Spacer()
 
-                Button {
-                    isMuted.toggle()
-                    IumrahHaptics.soft()
-                } label: {
-                    Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .iumrahGlass(in: Circle(), interactive: true, chrome: true)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isMuted ? "Unmute" : "Mute")
+                IumrahGlassGroup(spacing: 10) {
+                    HStack(spacing: 10) {
+                        IumrahGlassIconButton(
+                            systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                            size: 46,
+                            fontSize: 15,
+                            foreground: .white,
+                            tint: .black.opacity(0.08),
+                            accessibilityLabel: isMuted ? "Unmute" : "Mute"
+                        ) {
+                            isMuted.toggle()
+                        }
 
-                Button {
-                    IumrahHaptics.soft()
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .iumrahGlass(in: Circle(), interactive: true, chrome: true)
+                        IumrahGlassIconButton(
+                            systemName: "xmark",
+                            size: 46,
+                            fontSize: 16,
+                            foreground: .white,
+                            tint: .black.opacity(0.08),
+                            accessibilityLabel: "Close"
+                        ) {
+                            dismiss()
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
             }
             .padding(.horizontal, 20)
             .padding(.top, max(safeTop, 14) + 8)
 
             Spacer()
         }
+        .contentShape(Rectangle())
+        .zIndex(100)
     }
 
     @ViewBuilder

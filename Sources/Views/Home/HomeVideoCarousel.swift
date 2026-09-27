@@ -77,20 +77,19 @@ struct HomeVideoCarousel: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay(alignment: .topTrailing) {
-            Button {
+            IumrahGlassIconButton(
+                systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                size: 46,
+                fontSize: 15,
+                foreground: .white,
+                tint: .black.opacity(0.08),
+                accessibilityLabel: isMuted ? "Unmute" : "Mute"
+            ) {
                 isMuted.toggle()
-                IumrahHaptics.soft()
-            } label: {
-                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
-                    .iumrahGlass(in: Circle(), interactive: true, tint: .black.opacity(0.06), chrome: true)
             }
-            .buttonStyle(.plain)
             .padding(12)
             .opacity(activeStoryID == story.id ? 1 : 0.78)
+            .zIndex(20)
         }
         .overlay(alignment: .bottomLeading) {
             if activeStoryID == story.id {
@@ -106,12 +105,8 @@ struct HomeVideoCarousel: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 15)
                     .frame(height: 43)
-                    .iumrahGlass(
-                        in: Capsule(style: .continuous),
-                        interactive: true,
-                        tint: .black.opacity(0.08),
-                        chrome: true
-                    )
+                    .background(Color.black.opacity(0.78), in: Capsule(style: .continuous))
+                    .contentShape(Capsule(style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, 13)

@@ -1,0 +1,18 @@
+IUMRAH WALLET / LIQUID GLASS / SMS AUTH — 2026-09-27 v7
+
+Cumulative update based on v6, adjusted for the repository's GitHub App apply bot.
+
+Important deployment compatibility fix:
+- Does NOT modify .github/workflows/*, so the GitHub App does not require `workflows` permission.
+- SMS auth schema expansion is folded into the already-deployed 0008_devsms_phone_verification.sql migration.
+- Existing Deploy iumrah Package Engine workflow already executes migration 0008, so no workflow edit is required.
+
+Includes the v6 UI/auth work:
+- transparent wallet artwork presentation;
+- ID/hotel cards with plastic-card aspect ratio;
+- boarding-pass presentation;
+- native Liquid Glass controls where supported;
+- video control hit-testing fixes;
+- Apple/Google auth button geometry alignment;
+- SMS sign-in and registration backend/client flow;
+- regression tests.

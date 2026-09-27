@@ -142,6 +142,41 @@ struct IumrahAccountService {
         )
     }
 
+
+    func startPhoneRegistration(
+        phone: String,
+        firstName: String,
+        lastName: String,
+        locale: String
+    ) async throws -> IumrahPhoneLoginStartResponse {
+        try await api.post(
+            "/api/package/client/account/register/sms/start",
+            body: IumrahPhoneRegistrationStartRequest(
+                phone: phone,
+                firstName: firstName,
+                lastName: lastName,
+                locale: locale
+            )
+        )
+    }
+
+    func confirmPhoneRegistration(
+        challengeID: String,
+        code: String,
+        password: String,
+        locale: String
+    ) async throws -> IumrahAccountAuthResponse {
+        try await api.post(
+            "/api/package/client/account/register/sms/confirm",
+            body: IumrahPhoneRegistrationConfirmRequest(
+                challengeID: challengeID,
+                code: code,
+                password: password,
+                device: IumrahAccountDeviceIdentity.current(locale: locale)
+            )
+        )
+    }
+
     func session(token: String) async throws -> IumrahAccountProfile {
         let value: IumrahAccountSessionResponse = try await api.get(
             "/api/catalog/hotels/client/account/session",
