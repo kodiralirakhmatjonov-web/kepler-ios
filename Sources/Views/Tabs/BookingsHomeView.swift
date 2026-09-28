@@ -1449,6 +1449,28 @@ struct BookingsHomeView: View {
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
+    private var explorePackagesButton: some View {
+        Button {
+            chrome.openHotels(board: .flights)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "suitcase.rolling.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                Text(explorePackagesTitle)
+                    .font(.headline.weight(.semibold))
+                Spacer(minLength: 8)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity)
+            .frame(height: 58)
+            .background(Color.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
     private var emptyBookingHome: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 18) {

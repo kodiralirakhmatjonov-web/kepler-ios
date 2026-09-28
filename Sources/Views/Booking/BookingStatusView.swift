@@ -63,8 +63,8 @@ struct BookingStatusView: View {
                     .frame(width: 54, height: 54)
                     .iumrahGlass(
                         in: RoundedRectangle(cornerRadius: 18, style: .continuous),
-                        allowsStaticGlass: true,
                         tint: visual.tint.opacity(0.08),
+                        allowsStaticGlass: true,
                         chrome: true
                     )
 

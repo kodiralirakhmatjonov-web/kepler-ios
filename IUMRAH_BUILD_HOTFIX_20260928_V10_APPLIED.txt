@@ -1,0 +1,13 @@
+Build hotfix v10 for iumrah iOS.
+
+Fixes exact Xcode 26.6 simulator compiler failures from run logs_98652107370:
+1. BookingStatusView: iumrahGlass named-argument order corrected so tint precedes allowsStaticGlass.
+2. BookingsHomeView: restored explorePackagesButton declaration referenced by emptyBookingHome.
+3. Added regression contract tests for both compile failures.
+
+Verification:
+- all Sources Swift files parse with swiftc -frontend -parse
+- all iumrahGlass calls scanned for declaration-order argument violations
+- PackageEngine TypeScript check passes
+- PackageEngine contract tests pass
+- PackageEngine runtime tests pass
