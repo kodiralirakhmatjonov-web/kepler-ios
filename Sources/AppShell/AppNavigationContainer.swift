@@ -22,6 +22,15 @@ struct AppNavigationContainer<Content: View>: View {
         )
     }
 
+    private var isNotificationsDestinationActive: Binding<Bool> {
+        Binding(
+            get: { chrome.isNotificationsPresented && (tab == nil || chrome.currentTab == tab) },
+            set: { newValue in
+                if !newValue { chrome.isNotificationsPresented = false }
+            }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             content
@@ -32,6 +41,9 @@ struct AppNavigationContainer<Content: View>: View {
                         .environmentObject(settings)
                         .environmentObject(chrome)
                         .environmentObject(bookings)
+                }
+                .navigationDestination(isPresented: isNotificationsDestinationActive) {
+                    AccountNotificationsView()
                 }
         }
     }

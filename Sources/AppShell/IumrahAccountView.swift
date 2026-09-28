@@ -19,6 +19,12 @@ private enum IumrahGuestAuthMethod: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+private enum IumrahAccountTripScope: String, CaseIterable, Identifiable {
+    case active
+    case past
+    var id: String { rawValue }
+}
+
 private enum IumrahFieldIssueTone {
     case warning
     case error
@@ -96,6 +102,7 @@ struct IumrahAccountView: View {
     @State private var walletAlertMessage: String?
     @State private var identityPublicURL: String?
     @State private var identityCopyMessage: String?
+    @State private var tripScope: IumrahAccountTripScope = .active
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -104,7 +111,12 @@ struct IumrahAccountView: View {
                     accountHeader
 
                     if let profile = account.account {
-                        identityCard(profile)
+                        IumrahAccountIdentityHeroCard(
+                            iumrahID: normalizedID(profile.iumrahID),
+                            language: settings.language,
+                            copyMessage: identityCopyMessage,
+                            onCopy: { copyIdentityID(profile) }
+                        )
                         if let active = activeTrip {
                             IumrahTripWalletEntry(session: active, profile: profile, language: settings.language)
                         }
@@ -211,7 +223,7 @@ struct IumrahAccountView: View {
     }
 
     private var accountHeader: some View {
-        HStack(alignment: .center, spacing: 14) {
+        HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Account")
                     .font(.system(size: 38, weight: .bold, design: .rounded))
@@ -220,14 +232,43 @@ struct IumrahAccountView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+
             Spacer(minLength: 10)
-            IumrahIconBadge(
-                systemName: account.isAuthenticated ? "person.crop.circle.badge.checkmark" : "person.crop.circle",
-                role: account.isAuthenticated ? .success : .profile,
-                size: 50,
-                symbolSize: 24,
-                shape: .circle
-            )
+
+            HStack(spacing: 10) {
+                Button {
+                    chrome.openNotifications()
+                } label: {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: clientNotifications.unreadCount > 0 ? "bell.badge.fill" : "bell")
+                            .font(.system(size: 17, weight: .semibold))
+                            .frame(width: 50, height: 50)
+                            .iumrahGlass(in: Circle(), interactive: true, chrome: true)
+
+                        if clientNotifications.unreadCount > 0 {
+                            Text(clientNotifications.unreadCount > 9 ? "9+" : "\(clientNotifications.unreadCount)")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, clientNotifications.unreadCount > 9 ? 5 : 0)
+                                .frame(minWidth: 16, minHeight: 16)
+                                .background(Color.red, in: Capsule())
+                                .overlay { Capsule().stroke(Color.white.opacity(0.95), lineWidth: 1) }
+                                .offset(x: -3, y: 4)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    chrome.openSidebar()
+                } label: {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 50, height: 50)
+                        .iumrahGlass(in: Circle(), interactive: true, chrome: true)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -630,44 +671,99 @@ struct IumrahAccountView: View {
     }
 
     private var tripsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(tr("My trips", "Мои поездки", "Safarlarim", "Сафарларим"))
-                        .font(.system(size: 25, weight: .bold, design: .rounded))
-                    Text(tr("Current, completed and cancelled bookings", "Текущие, завершённые и отменённые бронирования", "Joriy, yakunlangan va bekor qilingan bronlar", "Жорий, якунланган ва бекор қилинган бронлар"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 14) {
+            NavigationLink {
+                IumrahTripsHistoryView(
+                    sessions: allTrips,
+                    initialScopePast: tripScope == .past
+                )
+            } label: {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(tr("My trips", "Мои поездки", "Safarlarim", "Сафарларим"))
+                            .font(.system(size: 25, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(tr("Current and previous journeys", "Активные и прошлые поездки", "Faol va oldingi safarlar", "Фаол ва олдинги сафарлар"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 34, height: 34)
+                        .iumrahGlass(in: Circle(), interactive: false, chrome: true)
                 }
-                Spacer()
-                IumrahIconBadge(systemName: "suitcase.fill", role: .booking, size: 38, symbolSize: 16, shape: .circle)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
-            if allTrips.isEmpty {
+            Picker("", selection: $tripScope) {
+                Text(tr("Active", "Активные", "Faol", "Фаол")).tag(IumrahAccountTripScope.active)
+                Text(tr("Past", "Прошлые", "Oldingi", "Олдинги")).tag(IumrahAccountTripScope.past)
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: tripScope) { _, _ in IumrahHaptics.selection() }
+
+            if scopedAccountTrips.isEmpty {
                 HStack(spacing: 12) {
-                    IumrahIconBadge(systemName: "suitcase", role: .booking, size: 42, symbolSize: 18, cornerRadius: 14)
-                    Text(tr("Your trips will appear here after they are linked to this iumrah ID.", "Все поездки, привязанные к этому iumrah ID, появятся здесь.", "Ushbu iumrah ID ga bog‘langan safarlar shu yerda ko‘rinadi.", "Ушбу iumrah ID га боғланган сафарлар шу ерда кўринади."))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    IumrahIconBadge(
+                        systemName: tripScope == .active ? "suitcase" : "clock.arrow.circlepath",
+                        role: .booking,
+                        size: 42,
+                        symbolSize: 18,
+                        cornerRadius: 14
+                    )
+                    Text(tr(
+                        tripScope == .active ? "No active trips yet." : "Previous trips will appear here.",
+                        tripScope == .active ? "Активных поездок пока нет." : "Здесь появится история прошлых поездок.",
+                        tripScope == .active ? "Hozircha faol safar yo‘q." : "Oldingi safarlar tarixi shu yerda ko‘rinadi.",
+                        tripScope == .active ? "Ҳозирча фаол сафар йўқ." : "Олдинги сафарлар тарихи шу ерда кўринади."
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
                 }
                 .padding(16)
                 .background(Color.iumrahRaisedBackground.opacity(0.58), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(allTrips.enumerated()), id: \.element.id) { index, session in
+                    ForEach(Array(scopedAccountTrips.prefix(3).enumerated()), id: \.element.id) { index, session in
                         NavigationLink {
                             BookingDetailView(bookingID: session.id)
                         } label: {
                             tripRow(session)
                         }
                         .buttonStyle(.plain)
-                        if index < allTrips.count - 1 {
+                        if index < min(scopedAccountTrips.count, 3) - 1 {
                             Divider().padding(.leading, 54)
                         }
                     }
                 }
                 .padding(.horizontal, 4)
+
+                if scopedAccountTrips.count > 3 {
+                    NavigationLink {
+                        IumrahTripsHistoryView(
+                            sessions: allTrips,
+                            initialScopePast: tripScope == .past
+                        )
+                    } label: {
+                        HStack {
+                            Text(tr("Open all trips", "Открыть все поездки", "Barcha safarlarni ochish", "Барча сафарларни очиш"))
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Image(systemName: "arrow.right")
+                                .font(.caption.weight(.bold))
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: 48)
+                        .foregroundStyle(.primary)
+                        .iumrahGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .iumrahCard()
@@ -1726,6 +1822,18 @@ struct IumrahAccountView: View {
         }
     }
 
+    private var scopedAccountTrips: [StoredBookingSession] {
+        allTrips.filter { session in
+            let status = session.effectiveStatus.uppercased()
+            switch tripScope {
+            case .active:
+                return !["COMPLETED", "CANCELLED"].contains(status)
+            case .past:
+                return ["COMPLETED", "CANCELLED"].contains(status)
+            }
+        }
+    }
+
     private var pendingActivationTrip: StoredBookingSession? {
         bookings.sessions.first { $0.effectiveStatus.uppercased() == "PAYMENT_PENDING" && $0.displayPilgrimID != nil }
     }
@@ -2383,11 +2491,12 @@ struct IumrahAccountView: View {
     }
 
     private func copyIdentityID(_ profile: IumrahAccountProfile) {
+        let message = tr("iumrah ID copied.", "iumrah ID скопирован.", "iumrah ID nusxalandi.", "iumrah ID нусхаланди.")
         UIPasteboard.general.string = normalizedID(profile.iumrahID)
-        identityCopyMessage = tr("UMR ID copied.", "UMR ID скопирован.", "UMR ID nusxalandi.", "UMR ID нусхаланди.")
+        identityCopyMessage = message
         IumrahHaptics.success()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-            if identityCopyMessage == tr("UMR ID copied.", "UMR ID скопирован.", "UMR ID nusxalandi.", "UMR ID нусхаланди.") {
+            if identityCopyMessage == message {
                 identityCopyMessage = nil
             }
         }

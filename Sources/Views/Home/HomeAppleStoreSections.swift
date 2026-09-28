@@ -342,381 +342,337 @@ struct IumrahTransferServiceView: View {
     @EnvironmentObject private var settings: AppSettingsStore
 
     @State private var selectedVehicle: TransferVehicleKind = .carnival
-    @State private var transferDate = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-    @State private var showDatePicker = false
-    @State private var searched = false
+    @State private var showPackageOnlyNotice = false
+    @State private var trainPreviewSelected = false
 
     private let vehicles: [TransferVehicleKind] = [.carnival, .yukon, .malibu]
+    private let haramainImages = ["HaramainHero", "HaramainGalleryStation", "HaramainGalleryInterior", "HaramainGalleryTrain"]
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(sectionTitle)
-                        .font(.system(size: 31, weight: .bold, design: .rounded))
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(localized("Выберите трансфер", "Choose your transfer", "Transferni tanlang", "Трансферни танланг"))
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
                         .tracking(-0.7)
-                    Text(sectionSubtitle)
-                        .font(.system(size: 16))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(localized(
+                        "Тот же выбор автомобиля и Haramain, который используется внутри iumrah Configurator.",
+                        "The same vehicle and Haramain choices used inside iumrah Configurator.",
+                        "iumrah Configurator ichidagi xuddi shu avtomobil va Haramain tanlovi.",
+                        "iumrah Configurator ичидаги худди шу автомобиль ва Haramain танлови."
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
 
-                TabView(selection: $selectedVehicle) {
-                    ForEach(vehicles, id: \.self) { vehicle in
-                        transferVehicleCard(vehicle)
-                            .tag(vehicle)
-                            .padding(.horizontal, 1)
-                    }
-                }
-                .frame(height: 410)
-                .tabViewStyle(.page(indexDisplayMode: .automatic))
+                vehiclePicker
+                selectedVehicleInfo
+                haramainCard
 
-                transferBookingCard
+                if showPackageOnlyNotice {
+                    packageOnlyNotice
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
 
                 Button {
-                    withAnimation(.spring(response: 0.36, dampingFraction: 0.88)) {
-                        searched = true
+                    IumrahHaptics.soft()
+                    withAnimation(.spring(response: 0.42, dampingFraction: 0.88)) {
+                        showPackageOnlyNotice = true
                     }
                 } label: {
                     HStack(spacing: 10) {
-                        Text(searchTransferTitle)
-                            .font(.headline.weight(.semibold))
-                        Spacer(minLength: 8)
+                        Image(systemName: "car.fill")
+                        Text(localized("Заказать автомобиль", "Book vehicle", "Avtomobil buyurtma qilish", "Автомобиль буюртма қилиш"))
+                            .font(.headline)
+                        Spacer()
                         Image(systemName: "arrow.right")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.caption.weight(.bold))
                     }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 18)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 58)
-                    .background(Color.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
-                .buttonStyle(.plain)
-
-                if searched {
-                    searchResultCard
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                .buttonStyle(IumrahPrimaryButtonStyle())
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 12)
-            .padding(.bottom, 44)
+            .padding(.top, 14)
+            .padding(.bottom, 48)
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
-        .sheet(isPresented: $showDatePicker) {
-            NavigationStack {
-                VStack(spacing: 0) {
-                    DatePicker(
-                        bookingDateTitle,
-                        selection: $transferDate,
-                        in: Date()...,
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.graphical)
-                    .padding()
-
-                    Spacer()
-                }
-                .navigationTitle(bookingDateTitle)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(doneTitle) { showDatePicker = false }
-                    }
-                }
-            }
-            .presentationDetents([.medium])
-        }
-        .navigationTitle("")
+        .navigationTitle("iumrah Transfer")
         .navigationBarTitleDisplayMode(.inline)
-        .iumrahInternalNavigation(progress: .transfer, showsGeneratorAmbient: true)
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
     }
 
-    private func transferVehicleCard(_ vehicle: TransferVehicleKind) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Image(vehicle.assetName)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .frame(height: 232)
-                .clipped()
+    private var vehiclePicker: some View {
+        VStack(spacing: 12) {
+            TabView(selection: $selectedVehicle) {
+                ForEach(vehicles, id: \.self) { vehicle in
+                    standaloneVehicleStage(vehicle)
+                        .tag(vehicle)
+                        .padding(.horizontal, 4)
+                }
+            }
+            .frame(height: 330)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .onChange(of: selectedVehicle) { _, _ in IumrahHaptics.selection() }
 
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 7) {
+                ForEach(vehicles, id: \.self) { vehicle in
+                    Capsule(style: .continuous)
+                        .fill(vehicle == selectedVehicle ? Color.primary : Color.secondary.opacity(0.22))
+                        .frame(width: vehicle == selectedVehicle ? 24 : 7, height: 7)
+                        .animation(.snappy(duration: 0.2), value: selectedVehicle)
+                }
+            }
+        }
+    }
+
+    private func standaloneVehicleStage(_ vehicle: TransferVehicleKind) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 36, style: .continuous)
+                .fill(vehicle == .yukon ? Color.black : Color.white)
+
+            if vehicle == .yukon {
+                RadialGradient(
+                    colors: [.white.opacity(0.72), .white.opacity(0.20), .clear],
+                    center: .center,
+                    startRadius: 12,
+                    endRadius: 220
+                )
+                .blur(radius: 12)
+            }
+
+            VStack(spacing: 0) {
+                HStack {
+                    Text(vehicleClassTitle(vehicle).uppercased())
+                        .font(.caption.weight(.bold))
+                        .tracking(1.1)
+                        .foregroundStyle(vehicle == .yukon ? Color.white.opacity(0.64) : Color.secondary)
+                    Spacer()
+                    Text("0\(vehicles.firstIndex(of: vehicle).map { $0 + 1 } ?? 1)")
+                        .font(.system(size: 42, weight: .black, design: .rounded))
+                        .foregroundStyle(vehicle == .yukon ? Color.white.opacity(0.10) : Color.black.opacity(0.06))
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 18)
+
+                Spacer(minLength: 2)
+
+                Image(vehicle.assetName)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(.horizontal, vehicle == .malibu ? 24 : 10)
+                    .shadow(color: .black.opacity(vehicle == .yukon ? 0.25 : 0.10), radius: 18, y: 10)
+
+                Spacer(minLength: 4)
+
+                HStack {
                     Text(vehicle.modelName)
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                    Text(vehicleSubtitle(vehicle))
-                        .font(.system(size: 14.5, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundStyle(vehicle == .yukon ? Color.white : Color.black)
+                    Spacer()
+                    Label("\(vehicle.passengerCapacity)", systemImage: "person.2.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(vehicle == .yukon ? Color.white.opacity(0.72) : Color.secondary)
                 }
-
-                HStack(spacing: 10) {
-                    specPill(icon: "person.2.fill", title: passengerTitle(vehicle.passengerCapacity))
-                    specPill(icon: "suitcase.rolling.fill", title: luggageTitle(vehicle.luggageCapacity))
-                    if vehicle == .yukon {
-                        specPill(icon: "sparkles", title: vipTitle)
-                    }
-                }
-
-                Text(vehicleDescription(vehicle))
-                    .font(.system(size: 15))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 22)
+                .padding(.bottom, 20)
             }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .background(Color.iumrahCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+            RoundedRectangle(cornerRadius: 36, style: .continuous)
+                .strokeBorder(vehicle == .yukon ? Color.white.opacity(0.12) : Color.primary.opacity(0.055), lineWidth: 0.8)
         }
-        .shadow(color: .black.opacity(0.06), radius: 18, y: 8)
+        .shadow(color: .black.opacity(0.06), radius: 26, y: 14)
     }
 
-    private var transferBookingCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(bookingCardTitle)
-                .font(.system(size: 21, weight: .bold, design: .rounded))
-
-            Button {
-                showDatePicker = true
-            } label: {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(bookingDateTitle)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(dateLabel(transferDate))
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    Image(systemName: "calendar")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.primary)
+    private var selectedVehicleInfo: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(vehicleClassTitle(selectedVehicle))
+                        .font(.caption.weight(.bold))
+                        .tracking(0.8)
+                        .foregroundStyle(.secondary)
+                    Text(selectedVehicle.modelName)
+                        .font(.system(size: 27, weight: .bold, design: .rounded))
                 }
-                .padding(.horizontal, 16)
-                .frame(maxWidth: .infinity)
-                .frame(height: 60)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                Spacer()
+                Label(localized("Доступен", "Available", "Mavjud", "Мавжуд"), systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.green)
             }
-            .buttonStyle(.plain)
 
-            Text(bookingCardBody)
-                .font(.system(size: 14))
+            Text(vehicleDescription(selectedVehicle))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                transferMetric(icon: "person.2.fill", text: localized("до \(selectedVehicle.passengerCapacity) гостей", "up to \(selectedVehicle.passengerCapacity) guests", "\(selectedVehicle.passengerCapacity) gacha mehmon", "\(selectedVehicle.passengerCapacity) гача меҳмон"))
+                transferMetric(icon: "suitcase.fill", text: localized("багаж \(selectedVehicle.luggageCapacity)", "\(selectedVehicle.luggageCapacity) bags", "\(selectedVehicle.luggageCapacity) bagaj", "\(selectedVehicle.luggageCapacity) багаж"))
+            }
         }
         .padding(18)
-        .background(Color.iumrahCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
         }
     }
 
-    private var searchResultCard: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "info.circle.fill")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Color.iumrahCareLight)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(resultTitle)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                Text(resultBody)
-                    .font(.system(size: 14.5))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+    private var haramainCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Image("HaramainMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Haramain High Speed Railway")
+                        .font(.headline)
+                    Text(localized("Мекка ↔ Медина", "Makkah ↔ Madinah", "Makka ↔ Madina", "Макка ↔ Мадина"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if trainPreviewSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
             }
 
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(haramainImages, id: \.self) { name in
+                        Image(name)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 238, height: 145)
+                            .clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    }
+                }
+            }
+            .contentMargins(.horizontal, 0, for: .scrollContent)
+
+            Text(localized(
+                "Можно заменить междугородний участок Мекка ↔ Медина поездом Haramain. Автомобиль до станции и после прибытия остаётся частью трансфера.",
+                "You can replace the Makkah ↔ Madinah intercity leg with Haramain. The vehicle to the station and after arrival remains part of the transfer.",
+                "Makka ↔ Madina shaharlararo qismini Haramain poyezdiga almashtirish mumkin. Vokzalgacha va keyingi avtomobil transferda qoladi.",
+                "Макка ↔ Мадина шаҳарлараро қисмини Haramain поездига алмаштириш мумкин. Вокзалгача ва кейинги автомобиль трансферда қолади."
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                transferMetric(icon: "speedometer", text: "300 km/h")
+                transferMetric(icon: "clock.fill", text: "≈ 2h 20m")
+                transferMetric(icon: "wifi", text: "Wi‑Fi")
+            }
+
+            Button {
+                trainPreviewSelected.toggle()
+                IumrahHaptics.selection()
+            } label: {
+                HStack {
+                    Image(systemName: trainPreviewSelected ? "checkmark.circle.fill" : "plus.circle.fill")
+                    Text(trainPreviewSelected
+                         ? localized("Поезд выбран", "Train selected", "Poyezd tanlandi", "Поезд танланди")
+                         : localized("Выбрать Haramain", "Choose Haramain", "Haramainni tanlash", "Haramainни танлаш"))
+                        .font(.headline)
+                    Spacer()
+                    Image(systemName: trainPreviewSelected ? "checkmark" : "arrow.right")
+                        .font(.caption.weight(.bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 17)
+                .frame(height: 58)
+                .background(trainPreviewSelected ? Color.green : Color.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(trainPreviewSelected ? Color.green.opacity(0.28) : Color.primary.opacity(0.06), lineWidth: 0.8)
+        }
+    }
+
+    private var packageOnlyNotice: some View {
+        HStack(alignment: .top, spacing: 13) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(Color(red: 0.92, green: 0.42, blue: 0.08))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(localized("Пока только внутри Umrah-пакета", "Currently available only inside an Umrah package", "Hozircha faqat Umrah paketi ichida", "Ҳозирча фақат Umrah пакети ичида"))
+                    .font(.headline)
+                Text(localized(
+                    "Отдельное бронирование трансфера ещё не открыто. Соберите Umrah-пакет — выбранный автомобиль и Haramain будут доступны внутри конфигуратора.",
+                    "Standalone transfer booking is not open yet. Build an Umrah package and choose the vehicle or Haramain inside the configurator.",
+                    "Alohida transfer bronlash hali ochilmagan. Umrah paketini yarating va avtomobil yoki Haramainni konfigurator ichida tanlang.",
+                    "Алоҳида трансфер бронлаш ҳали очилмаган. Umrah пакетини яратинг ва автомобиль ёки Haramainни конфигуратор ичида танланг."
+                ))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
             Spacer(minLength: 0)
         }
         .padding(18)
-        .background(Color(red: 0.95, green: 0.98, blue: 1.0), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(
+            LinearGradient(
+                colors: [Color.orange.opacity(0.18), Color.orange.opacity(0.07)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+        )
         .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(Color.iumrahCareLight.opacity(0.18), lineWidth: 0.8)
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.orange.opacity(0.22), lineWidth: 0.8)
         }
     }
 
-    private func specPill(icon: String, title: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.caption.weight(.semibold))
-            Text(title)
-                .font(.caption.weight(.semibold))
-        }
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(Color.iumrahRaisedBackground, in: Capsule())
+    private func transferMetric(icon: String, text: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .frame(height: 36)
+            .background(Color.iumrahRaisedBackground, in: Capsule())
     }
 
-    private func dateLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: settings.language.localeIdentifier)
-        formatter.dateStyle = .long
-        return formatter.string(from: date)
-    }
-
-    private func vehicleSubtitle(_ vehicle: TransferVehicleKind) -> String {
-        switch settings.language {
-        case .russian:
-            return vehicle == .yukon ? "Просторный VIP-вариант для комфортных поездок" : "Комфортный автомобиль для маршрута паломника"
-        case .english:
-            return vehicle == .yukon ? "A spacious VIP option for a more private ride" : "A comfortable ride for the key parts of your journey"
-        case .uzbek:
-            return vehicle == .yukon ? "Qulay va xususiyroq safar uchun VIP variant" : "Safarning asosiy qismlari uchun qulay avtomobil"
-        case .uzbekCyrillic:
-            return vehicle == .yukon ? "Қулай ва хусусийроқ сафар учун VIP вариант" : "Сафарнинг асосий қисмлари учун қулай автомобиль"
+    private func vehicleClassTitle(_ vehicle: TransferVehicleKind) -> String {
+        switch vehicle {
+        case .carnival: return localized("СЕМЕЙНЫЙ", "FAMILY", "OILAVIY", "ОИЛАВИЙ")
+        case .yukon: return "VIP"
+        case .malibu: return localized("КОМПАКТНЫЙ", "COMPACT", "IXCHAM", "ИХЧАМ")
         }
     }
 
     private func vehicleDescription(_ vehicle: TransferVehicleKind) -> String {
-        switch settings.language {
-        case .russian:
-            switch vehicle {
-            case .carnival: return "Удобный минивэн для семьи и небольших групп: аэропорт, отель и важные точки маршрута без лишних пересадок."
-            case .yukon: return "Флагманский SUV для более приватного и просторного трансфера, когда нужен повышенный комфорт."
-            case .malibu: return "Лёгкий городской седан для компактного маршрута и быстрых перемещений между ключевыми точками."
-            }
-        case .english:
-            switch vehicle {
-            case .carnival: return "A practical minivan for families and small groups, ideal for airport pickup and the main journey points."
-            case .yukon: return "A flagship SUV for a more private, spacious transfer when you want a higher comfort tier."
-            case .malibu: return "A clean city sedan for lighter transfer needs and smooth rides between essential stops."
-            }
-        case .uzbek:
-            switch vehicle {
-            case .carnival: return "Oila va kichik guruhlar uchun qulay miniven: aeroport, mehmonxona va asosiy nuqtalar orasida ortiqcha ovora bo‘lmasdan."
-            case .yukon: return "Ko‘proq maxfiylik va kenglik kerak bo‘lsa, yuqori qulaylikdagi flagman SUV."
-            case .malibu: return "Ixcham yo‘nalish va asosiy nuqtalar orasida yengil harakatlanish uchun toza shahar sedani."
-            }
-        case .uzbekCyrillic:
-            switch vehicle {
-            case .carnival: return "Оила ва кичик гуруҳлар учун қулай минивен: аэропорт, меҳмонхона ва асосий нуқталар орасида ортиқча овора бўлмасдан."
-            case .yukon: return "Кўпроқ махфийлик ва кенглик керак бўлса, юқори қулайликдаги флагман SUV."
-            case .malibu: return "Ихчам йўналиш ва асосий нуқталар орасида енгил ҳаракатланиш учун тоза шаҳар седани."
-            }
+        switch vehicle {
+        case .carnival:
+            return localized("Комфортный минивэн для семьи и небольшой группы.", "A comfortable minivan for families and small groups.", "Oila va kichik guruh uchun qulay miniven.", "Оила ва кичик гуруҳ учун қулай минивен.")
+        case .yukon:
+            return localized("Просторный VIP SUV для более приватной поездки.", "A spacious VIP SUV for a more private journey.", "Xususiyroq safar uchun keng VIP SUV.", "Хусусийроқ сафар учун кенг VIP SUV.")
+        case .malibu:
+            return localized("Городской седан для компактного маршрута.", "A city sedan for a compact itinerary.", "Ixcham yo‘nalish uchun shahar sedani.", "Ихчам йўналиш учун шаҳар седани.")
         }
     }
 
-    private func passengerTitle(_ count: Int) -> String {
+    private func localized(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch settings.language {
-        case .russian: return "до \(count) пассажиров"
-        case .english: return "up to \(count) guests"
-        case .uzbek: return "\(count) gacha yo‘lovchi"
-        case .uzbekCyrillic: return "\(count) гача йўловчи"
-        }
-    }
-
-    private func luggageTitle(_ count: Int) -> String {
-        switch settings.language {
-        case .russian: return "\(count) багажа"
-        case .english: return "\(count) bags"
-        case .uzbek: return "\(count) ta bagaj"
-        case .uzbekCyrillic: return "\(count) та багаж"
-        }
-    }
-
-    private var vipTitle: String {
-        switch settings.language {
-        case .russian: return "VIP"
-        case .english: return "VIP"
-        case .uzbek: return "VIP"
-        case .uzbekCyrillic: return "VIP"
-        }
-    }
-
-    private var sectionTitle: String {
-        switch settings.language {
-        case .russian: return "Iumrah Transfer"
-        case .english: return "Iumrah Transfer"
-        case .uzbek: return "Iumrah Transfer"
-        case .uzbekCyrillic: return "Iumrah Transfer"
-        }
-    }
-
-    private var sectionSubtitle: String {
-        switch settings.language {
-        case .russian: return "Выберите подходящий автомобиль и посмотрите, как устроен трансфер внутри экосистемы iumrah."
-        case .english: return "Browse the vehicle options and see how transfer fits into the iumrah journey."
-        case .uzbek: return "Mos avtomobil variantlarini ko‘ring va transfer iumrah ekotizimida qanday ishlashini tushuning."
-        case .uzbekCyrillic: return "Мос автомобиль вариантларини кўринг ва трансфер iumrah экотизимида қандай ишлашини тушунинг."
-        }
-    }
-
-    private var bookingCardTitle: String {
-        switch settings.language {
-        case .russian: return "Забронировать дату"
-        case .english: return "Reserve a date"
-        case .uzbek: return "Sanani band qilish"
-        case .uzbekCyrillic: return "Санани банд қилиш"
-        }
-    }
-
-    private var bookingDateTitle: String {
-        switch settings.language {
-        case .russian: return "Дата трансфера"
-        case .english: return "Transfer date"
-        case .uzbek: return "Transfer sanasi"
-        case .uzbekCyrillic: return "Трансфер санаси"
-        }
-    }
-
-    private var bookingCardBody: String {
-        switch settings.language {
-        case .russian: return "Выберите ориентировочную дату заказа автомобиля из аэропорта или между точками маршрута."
-        case .english: return "Choose an approximate date for your airport pickup or the transfer between the main journey points."
-        case .uzbek: return "Aeroportdan kutib olish yoki asosiy yo‘nalish nuqtalari orasidagi transfer uchun taxminiy sanani tanlang."
-        case .uzbekCyrillic: return "Аэропортдан кутиб олиш ёки асосий йўналиш нуқталари орасидаги трансфер учун тахминий санани танланг."
-        }
-    }
-
-    private var searchTransferTitle: String {
-        switch settings.language {
-        case .russian: return "Поиск трансфера"
-        case .english: return "Search transfer"
-        case .uzbek: return "Transferni qidirish"
-        case .uzbekCyrillic: return "Трансферни қидириш"
-        }
-    }
-
-    private var resultTitle: String {
-        switch settings.language {
-        case .russian: return "Пока доступно только внутри пакетов"
-        case .english: return "Currently available only inside packages"
-        case .uzbek: return "Hozircha faqat paketlar ichida mavjud"
-        case .uzbekCyrillic: return "Ҳозирча фақат пакетлар ичида мавжуд"
-        }
-    }
-
-    private var resultBody: String {
-        switch settings.language {
-        case .russian: return "На данный момент поиск и бронирование трансферов доступно только внутри Umra пакетов."
-        case .english: return "At the moment, transfer search and booking are available only inside Umrah packages."
-        case .uzbek: return "Hozirda transferlarni qidirish va bron qilish faqat Umra paketlari ichida mavjud."
-        case .uzbekCyrillic: return "Ҳозирда трансферларни қидириш ва брон қилиш фақат Умра пакетлари ичида мавжуд."
-        }
-    }
-
-    private var doneTitle: String {
-        switch settings.language {
-        case .russian: return "Готово"
-        case .english: return "Done"
-        case .uzbek: return "Tayyor"
-        case .uzbekCyrillic: return "Тайёр"
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cy
         }
     }
 }
-
 
 struct HomeStorefrontFlightOptionCard: View {
     let option: StorefrontFlightOption

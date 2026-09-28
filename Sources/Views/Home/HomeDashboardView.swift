@@ -39,7 +39,7 @@ struct HomeDashboardView: View {
                 await storefront.prepareIfNeeded()
                 await storefront.updateDepartureAirport(journey.trip.originCode)
             }
-            .fullScreenCover(isPresented: $showZiyarats) {
+            .navigationDestination(isPresented: $showZiyarats) {
                 ZiyaratJourneyView()
                     .environmentObject(settings)
                     .environmentObject(chrome)
@@ -67,7 +67,7 @@ struct HomeDashboardView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 22) {
-                    IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true, showsSignalButton: true)
+                    IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
                     if !clientNotifications.homeNotifications.isEmpty {
                         SystemNotificationsCarouselView(
                             notifications: Array(clientNotifications.homeNotifications.prefix(5)),
@@ -164,8 +164,7 @@ struct HomeDashboardView: View {
                         showsMakkahTime: true,
                         lightStyle: true,
                         usesBrandLogo: true,
-                        showsConnectivityStatus: true,
-                        showsSignalButton: true
+                        showsConnectivityStatus: true
                     )
 
                     activeBookingCard(session)

@@ -1,0 +1,9 @@
+Updated by ChatGPT on 2026-09-27.
+
+Included changes:
+- Added menu + notifications buttons across main tab headers.
+- Added global notifications navigation route.
+- Replaced Account top-right profile icon with menu + notifications buttons.
+- Replaced Account white ID card with a dark animated iumrah ID hero card and copy feedback.
+- Improved Hotel First package variant cards with distinct colors, stronger date/duration emphasis, and more spacing.
+- Reduced/moved the transfer search top gradient so it sits in the iOS top area instead of covering the page center.

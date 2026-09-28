@@ -122,15 +122,15 @@ struct TransferSelectionView: View {
             LinearGradient(
                 colors: [
                     pageBackground,
-                    pageBackground,
-                    pageBackground.opacity(0.88),
+                    pageBackground.opacity(0.96),
+                    pageBackground.opacity(0.74),
                     .clear
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(maxWidth: .infinity)
-            .frame(height: 248, alignment: .top)
+            .frame(maxWidth: .infinity, alignment: .top)
+            .frame(height: 164, alignment: .top)
             .ignoresSafeArea(edges: .top)
             .allowsHitTesting(false)
 

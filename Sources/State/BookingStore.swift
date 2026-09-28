@@ -246,22 +246,36 @@ final class BookingStore: ObservableObject {
             let bookingToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
             do {
                 if !bookingToken.isEmpty {
-                    let booking = try await bookingService.fetchBooking(id: session.id, accessToken: bookingToken)
-                    var operational: ClientTripResponse?
-                    if let profile = identityProfile(remote: booking.pilgrimProfile, session: session) {
-                        operational = try? await bookingService.syncBookingProfile(
-                            id: session.id,
-                            accessToken: bookingToken,
-                            profile: profile
+                    do {
+                        let booking = try await bookingService.fetchBooking(id: session.id, accessToken: bookingToken)
+                        var operational: ClientTripResponse?
+                        if let profile = identityProfile(remote: booking.pilgrimProfile, session: session) {
+                            operational = try? await bookingService.syncBookingProfile(
+                                id: session.id,
+                                accessToken: bookingToken,
+                                profile: profile
+                            )
+                        }
+                        if operational == nil {
+                            operational = try? await bookingService.fetchOperationalTrip(
+                                id: session.id,
+                                headers: ["x-booking-token": bookingToken]
+                            )
+                        }
+                        mergeRemoteBooking(booking, operational: operational, bookingID: session.id)
+                    } catch {
+                        // Booking proofs are intentionally short-lived. A stale proof must not
+                        // freeze the status page when the same booking already belongs to the
+                        // authenticated permanent iumrah account. Fall back only for auth
+                        // failures; real missing-booking responses still go through cleanup.
+                        guard let accountToken, !accountToken.isEmpty, isAuthorizationFailure(error) else { throw error }
+                        let detail = try await accountService.tripDetail(bookingID: session.id, token: accountToken)
+                        mergeRemoteBooking(
+                            detail.booking,
+                            operational: ClientTripResponse(ok: true, trip: detail.trip, assignment: detail.assignment, esims: detail.esims, statusHistory: detail.statusHistory),
+                            bookingID: session.id
                         )
                     }
-                    if operational == nil {
-                        operational = try? await bookingService.fetchOperationalTrip(
-                            id: session.id,
-                            headers: ["x-booking-token": bookingToken]
-                        )
-                    }
-                    mergeRemoteBooking(booking, operational: operational, bookingID: session.id)
                 } else if let accountToken, !accountToken.isEmpty {
                     let detail = try await accountService.tripDetail(bookingID: session.id, token: accountToken)
                     mergeRemoteBooking(
@@ -461,23 +475,35 @@ final class BookingStore: ObservableObject {
         var firstError: String?
 
         for session in sessions {
-            let headers = clientHeaders(for: session)
-            guard !headers.isEmpty else { continue }
-            do {
-                let ready = try await clientPushService.register(
-                    deviceToken: token,
-                    bookingID: session.id,
-                    headers: headers,
-                    locale: locale
-                )
-                registeredAny = true
-                if let ready {
-                    observedReady = (observedReady ?? true) && ready
+            let candidates = pushHeaderCandidates(for: session)
+            guard !candidates.isEmpty else { continue }
+
+            var lastError: Error?
+            var registered = false
+
+            for headers in candidates {
+                do {
+                    let ready = try await clientPushService.register(
+                        deviceToken: token,
+                        bookingID: session.id,
+                        headers: headers,
+                        locale: locale
+                    )
+                    registeredAny = true
+                    registered = true
+                    if let ready {
+                        observedReady = (observedReady ?? true) && ready
+                    }
+                    break
+                } catch {
+                    lastError = error
                 }
-            } catch {
-                // A stale/deleted booking must not block other trips, but registration
-                // failures may explain missing chat pushes and must no longer disappear silently.
-                if firstError == nil { firstError = error.localizedDescription }
+            }
+
+            if !registered, firstError == nil, let lastError {
+                // Prefer the permanent account session for push registration, but retry
+                // the legacy booking token so older bookings keep receiving pushes.
+                firstError = lastError.localizedDescription
             }
         }
 
@@ -670,6 +696,39 @@ final class BookingStore: ObservableObject {
         if !bookingToken.isEmpty { return ["x-booking-token": bookingToken] }
         if let accountToken, !accountToken.isEmpty { return ["Authorization": "Bearer \(accountToken)"] }
         return [:]
+    }
+
+    private func isAuthorizationFailure(_ error: Error) -> Bool {
+        switch error {
+        case APIError.status(let code):
+            return code == 401 || code == 403
+        case APIError.server(let code, let message):
+            let normalized = message.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            return code == 401 || code == 403
+                || normalized.contains("UNAUTHORIZED")
+                || normalized.contains("BOOKING_PROOF_INVALID")
+                || normalized.contains("TOKEN_EXPIRED")
+        default:
+            return false
+        }
+    }
+
+    private func pushHeaderCandidates(for session: StoredBookingSession) -> [[String: String]] {
+        var candidates: [[String: String]] = []
+
+        if let accountToken {
+            let permanentToken = accountToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !permanentToken.isEmpty {
+                candidates.append(["Authorization": "Bearer \(permanentToken)"])
+            }
+        }
+
+        let bookingToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !bookingToken.isEmpty {
+            candidates.append(["x-booking-token": bookingToken])
+        }
+
+        return candidates
     }
 
     private func remoteBookingIsMissing(id: String, accessToken: String) async -> Bool {

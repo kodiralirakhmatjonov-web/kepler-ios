@@ -44,6 +44,7 @@ struct ZiyaratJourneyView: View {
 
     @State private var panelPresented = false
     @State private var panelLevel: ZiyaratPanelLevel = .compact
+    @State private var panelDetent: PresentationDetent = .medium
     @State private var panelDragY: CGFloat = 0
     @State private var closing = false
 
@@ -70,14 +71,6 @@ struct ZiyaratJourneyView: View {
                         .zIndex(5)
                 }
 
-                if panelPresented {
-                    findMyPanel(metrics: metrics)
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 8)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .zIndex(12)
-                }
-
                 if welcomeVisible {
                     ZiyaratWelcomeOverlay(
                         pretitle: welcomePretitle,
@@ -93,9 +86,24 @@ struct ZiyaratJourneyView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(uiColor: .systemBackground))
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("iumrah Ziyarats")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .navigationBarBackButtonHidden(true)
+        .sheet(isPresented: $panelPresented) {
+            nativePanelSheet
+                .presentationDetents([.height(118), .medium, .large], selection: $panelDetent)
+                .presentationDragIndicator(.visible)
+                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                .presentationCornerRadius(32)
+                .presentationBackground(.clear)
+                .interactiveDismissDisabled(true)
+        }
+        .onChange(of: panelDetent) { _, newValue in
+            if newValue == .large { panelLevel = .full }
+            else if newValue == .medium { panelLevel = .card }
+            else { panelLevel = .compact }
+        }
         .onAppear {
             chrome.setImmersive(true)
         }
@@ -193,14 +201,6 @@ struct ZiyaratJourneyView: View {
 
     private var mapChromeTopRow: some View {
         HStack(alignment: .top) {
-            ZiyaratNativeGlassIconButton(
-                systemName: "xmark",
-                accessibilityLabel: closeLabel,
-                action: closeZiyarats
-            )
-
-            Spacer(minLength: 8)
-
             ZiyaratNativeCitySwitcher(
                 selectedCity: selectedCity,
                 madinahTitle: medinaSwitchTitle,
@@ -225,6 +225,40 @@ struct ZiyaratJourneyView: View {
                     fitEntireRoute(animated: true)
                 }
             )
+        }
+    }
+
+    @ViewBuilder
+    private var nativePanelSheet: some View {
+        if #available(iOS 26.0, *) {
+            nativePanelContent
+                .glassEffect(
+                    .regular.interactive(true),
+                    in: RoundedRectangle(cornerRadius: 32, style: .continuous)
+                )
+        } else {
+            nativePanelContent
+                .background(
+                    Color(uiColor: .systemBackground),
+                    in: RoundedRectangle(cornerRadius: 32, style: .continuous)
+                )
+        }
+    }
+
+    private var nativePanelContent: some View {
+        VStack(spacing: 0) {
+            currentPanelContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+
+            Divider()
+
+            ZiyaratSheetNavigationBar(
+                activeTab: activeTab,
+                title: tabTitle,
+                onSelect: activateTab
+            )
+            .frame(height: 70)
         }
     }
 
@@ -626,10 +660,16 @@ struct ZiyaratJourneyView: View {
     }
 
     private func setPanel(_ level: ZiyaratPanelLevel) {
-        guard panelLevel != level else { return }
-        withAnimation(reduceMotion ? nil : .interactiveSpring(response: 0.38, dampingFraction: 0.90, blendDuration: 0.08)) {
-            panelDragY = 0
-            panelLevel = level
+        panelDragY = 0
+        panelLevel = level
+        let detent: PresentationDetent
+        switch level {
+        case .compact: detent = .height(118)
+        case .card: detent = .medium
+        case .full: detent = .large
+        }
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.28)) {
+            panelDetent = detent
         }
     }
 
@@ -748,6 +788,7 @@ struct ZiyaratJourneyView: View {
             try? await Task.sleep(for: .milliseconds(450))
             welcomeVisible = false
             panelLevel = .card
+            panelDetent = .medium
             panelPresented = true
             return
         }
@@ -767,6 +808,7 @@ struct ZiyaratJourneyView: View {
         withAnimation(.easeInOut(duration: 0.38)) { welcomeVisible = false }
         try? await Task.sleep(for: .milliseconds(90))
         panelLevel = .compact
+        panelDetent = .height(118)
         withAnimation(.interactiveSpring(response: 0.42, dampingFraction: 0.90, blendDuration: 0.08)) {
             panelPresented = true
         }

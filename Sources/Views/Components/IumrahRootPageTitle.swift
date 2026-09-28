@@ -4,6 +4,7 @@ struct IumrahRootPageTitle: View {
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
 
     let title: String
     var showsMakkahTime = false
@@ -11,9 +12,6 @@ struct IumrahRootPageTitle: View {
     var usesBrandLogo = false
     var brandScale: CGFloat = 1.0
     var showsConnectivityStatus = false
-    var showsSignalButton = false
-
-    @ObservedObject private var notifications = ClientNotificationCenter.shared
 
     var body: some View {
         HStack(alignment: .top, spacing: showsConnectivityStatus ? 10 : 14) {
@@ -42,54 +40,9 @@ struct IumrahRootPageTitle: View {
             }
 
             VStack(alignment: .trailing, spacing: showsMakkahTime ? 8 : 0) {
-                HStack(spacing: 8) {
-                    if showsSignalButton {
-                        NavigationLink {
-                            AccountNotificationsView()
-                        } label: {
-                            ZStack(alignment: .topTrailing) {
-                                Image(systemName: notifications.unreadCount > 0 ? "bell.fill" : "bell")
-                                    .font(.system(size: 17, weight: .semibold))
-                                    .foregroundStyle(lightStyle ? Color.white : Color.primary)
-                                    .frame(width: 46, height: 46)
-                                    .contentShape(Circle())
-                                    .iumrahGlass(
-                                        in: Circle(),
-                                        interactive: true,
-                                        tint: lightStyle ? Color.black.opacity(0.18) : nil,
-                                        chrome: true
-                                    )
-
-                                if notifications.unreadCount > 0 {
-                                    Circle()
-                                        .fill(Color.red)
-                                        .frame(width: 9, height: 9)
-                                        .overlay(Circle().stroke(lightStyle ? Color.black.opacity(0.24) : Color.iumrahPageBackground, lineWidth: 1.5))
-                                        .offset(x: -2, y: 2)
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("iumrah Signal")
-                    }
-
-                    Button {
-                        chrome.openSidebar()
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(lightStyle ? Color.white : Color.primary)
-                            .frame(width: 46, height: 46)
-                            .contentShape(Circle())
-                            .iumrahGlass(
-                                in: Circle(),
-                                interactive: true,
-                                tint: lightStyle ? Color.black.opacity(0.18) : nil,
-                                chrome: true
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Menu")
+                HStack(spacing: 10) {
+                    notificationButton
+                    menuButton
                 }
 
                 if showsMakkahTime {
@@ -100,10 +53,84 @@ struct IumrahRootPageTitle: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var notificationButton: some View {
+        Button {
+            chrome.openNotifications()
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: clientNotifications.unreadCount > 0 ? "bell.badge.fill" : "bell")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(lightStyle ? Color.white : Color.primary)
+                    .frame(width: 46, height: 46)
+                    .contentShape(Circle())
+                    .iumrahGlass(
+                        in: Circle(),
+                        interactive: true,
+                        tint: lightStyle ? Color.black.opacity(0.18) : nil,
+                        chrome: true
+                    )
+
+                if clientNotifications.unreadCount > 0 {
+                    unreadDot
+                        .offset(x: -3, y: 4)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(notificationAccessibilityLabel)
+    }
+
+    private var menuButton: some View {
+        Button {
+            chrome.openSidebar()
+        } label: {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(lightStyle ? Color.white : Color.primary)
+                .frame(width: 46, height: 46)
+                .contentShape(Circle())
+                .iumrahGlass(
+                    in: Circle(),
+                    interactive: true,
+                    tint: lightStyle ? Color.black.opacity(0.18) : nil,
+                    chrome: true
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(menuAccessibilityLabel)
+    }
+
+    private var unreadDot: some View {
+        Text(clientNotifications.unreadCount > 9 ? "9+" : "\(clientNotifications.unreadCount)")
+            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .padding(.horizontal, clientNotifications.unreadCount > 9 ? 5 : 0)
+            .frame(minWidth: 16, minHeight: 16)
+            .background(Color.red, in: Capsule())
+            .overlay {
+                Capsule().stroke(Color.white.opacity(0.95), lineWidth: 1)
+            }
+    }
+
+    private var notificationAccessibilityLabel: String {
+        switch settings.language {
+        case .russian: return "Уведомления"
+        case .english: return "Notifications"
+        case .uzbek: return "Bildirishnomalar"
+        case .uzbekCyrillic: return "Билдиришномалар"
+        }
+    }
+
+    private var menuAccessibilityLabel: String {
+        switch settings.language {
+        case .russian: return "Меню"
+        case .english: return "Menu"
+        case .uzbek: return "Menyu"
+        case .uzbekCyrillic: return "Меню"
+        }
+    }
+
     private var brandFrameWidth: CGFloat {
-        // The supplied wordmark asset is height-limited, so this narrower frame
-        // preserves its visible size while freeing genuine layout space for the
-        // compact connectivity control on Home.
         showsConnectivityStatus ? 140 : 180 * brandScale
     }
 

@@ -359,10 +359,11 @@ struct HotelDetailView: View {
                     ForEach(Array(hotelPackagePreviews.enumerated()), id: \.element.packageID) { index, preview in
                         hotelPackageVariantCard(preview, index: index)
                             .tag(index)
-                            .padding(.horizontal, 1)
+                            .padding(.horizontal, 7)
                     }
                 }
-                .frame(height: 520)
+                .padding(.horizontal, -7)
+                .frame(height: 560)
                 .tabViewStyle(.page(indexDisplayMode: .never))
 
                 if hotelPackagePreviews.count > 1 {
@@ -406,12 +407,14 @@ struct HotelDetailView: View {
     }
 
     private func hotelPackageVariantCard(_ preview: StorefrontFlightPackagePreview, index: Int) -> some View {
-        VStack(alignment: .leading, spacing: 15) {
+        let accent = packageVariantAccent(preview, index: index)
+
+        return VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(packageVariantEyebrow(preview, index: index))
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(accent.text.opacity(0.88))
                         .textCase(.uppercase)
                     Text(L10n.text("hotel_detail_package_title", settings.language))
                         .font(.system(size: 24, weight: .bold, design: .rounded))
@@ -421,16 +424,53 @@ struct HotelDetailView: View {
                 Spacer(minLength: 8)
                 Text("\(preview.hotelFirstVariantMinDays ?? preview.durationDays)–\(preview.hotelFirstVariantMaxDays ?? preview.durationDays) \(packageDaysShort)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 10)
-                    .frame(height: 30)
-                    .background(Color.primary.opacity(0.06), in: Capsule())
+                    .foregroundStyle(accent.text)
+                    .padding(.horizontal, 11)
+                    .frame(height: 32)
+                    .background(accent.fill.opacity(0.22), in: Capsule())
             }
 
-            Text(packageVariantSubtitle(preview))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .lastTextBaseline, spacing: 12) {
+                    Text(packageVariantDateRange(preview))
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .tracking(-0.8)
+                        .foregroundStyle(accent.text)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
+
+                    Spacer(minLength: 8)
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(durationFocusLabel)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(accent.text.opacity(0.72))
+                        Text("\(preview.durationDays)")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(accent.text)
+                        Text(packageDaysShort)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(accent.text.opacity(0.76))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(accent.fill.opacity(0.28), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                }
+
+                Text(packageVariantSubtitle(preview))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .background(
+                LinearGradient(
+                    colors: [accent.fill.opacity(0.22), accent.fill.opacity(0.07)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+            )
 
             HStack(spacing: 8) {
                 Image(systemName: "slider.horizontal.3")
@@ -502,7 +542,39 @@ struct HotelDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.6)
+                .strokeBorder(accent.fill.opacity(0.20), lineWidth: 1)
+        }
+    }
+
+    private struct PackageVariantAccent {
+        let fill: Color
+        let text: Color
+    }
+
+    private func packageVariantAccent(_ preview: StorefrontFlightPackagePreview, index: Int) -> PackageVariantAccent {
+        let key = preview.hotelFirstVariant ?? (index == 0 ? "short" : index == 1 ? "balanced" : "extended")
+        switch key {
+        case "short":
+            return PackageVariantAccent(fill: Color(red: 0.48, green: 0.78, blue: 1.0), text: Color(red: 0.03, green: 0.32, blue: 0.58))
+        case "balanced":
+            return PackageVariantAccent(fill: Color(red: 1.0, green: 0.86, blue: 0.44), text: Color(red: 0.44, green: 0.27, blue: 0.02))
+        default:
+            return PackageVariantAccent(fill: Color(red: 0.78, green: 0.67, blue: 1.0), text: Color(red: 0.32, green: 0.18, blue: 0.56))
+        }
+    }
+
+    private func packageVariantDateRange(_ preview: StorefrontFlightPackagePreview) -> String {
+        let start = L10n.date(preview.outbound.departureAt, settings.language)
+        let end = L10n.date(preview.inbound.departureAt, settings.language)
+        return "\(start) — \(end)"
+    }
+
+    private var durationFocusLabel: String {
+        switch settings.language {
+        case .russian: return "ДЛИТЕЛЬНОСТЬ"
+        case .english: return "DURATION"
+        case .uzbek: return "DAVOMIYLIGI"
+        case .uzbekCyrillic: return "ДАВОМИЙЛИГИ"
         }
     }
 

@@ -1,0 +1,28 @@
+Applied cumulative client update on 2026-09-28 (includes previous v8 UI work on top of v7).
+
+Booking / Account
+- Active/Past trip scope moved from Booking ownership into Account > My trips.
+- Added full native trip history page with Active/Past segmented control and system navigation back.
+- Added stable dedicated Booking Status page; checkout authorization is enrichment only and raw UNAUTHORIZED no longer replaces the operational status UI.
+- BookingStore refresh retries the permanent iumrah account session when an old booking proof is unauthorized.
+- Booking components page now uses native navigation back and starts with copyable booking number + iumrah ID.
+- Itinerary calendar remains unchanged.
+- Legacy flight/hotel/service blocks below itinerary replaced with Flight First-style flights, hotel cards and included-services design; Contacts remains below.
+
+Ziyarats / Transfer
+- Ziyarats now opens as a NavigationStack destination with system back button.
+- Bottom interaction uses a native SwiftUI sheet with system detents and iOS 26 native glassEffect; no custom fake-glass entry surface is used.
+- Standalone Transfer page now mirrors the configurator selection experience: vehicles + Haramain, no search phase.
+- Standalone order action preserves the current business rule and displays an orange package-only notice.
+
+Push
+- APNs app registration lifecycle remains enabled.
+- Booking-scoped push registration now prefers the permanent authenticated account session and falls back to legacy booking proof.
+- Foreground/retry flow remains active.
+- Server delivery still depends on the separate HotelsWorker APNs provider being configured with its APNs secrets.
+
+Previous v8 included
+- Bell + menu on main tab headers and Account header.
+- Account animated dark iumrah ID card.
+- Hotel First variant color/date emphasis.
+- Transfer top gradient correction.

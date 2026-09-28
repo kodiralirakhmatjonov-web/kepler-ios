@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct BookingDetailView: View {
     @EnvironmentObject private var bookings: BookingStore
@@ -57,6 +58,8 @@ struct BookingDetailView: View {
                         .frame(height: 0)
 
                         VStack(spacing: 16) {
+                            bookingIdentityStrip(session)
+
                             IumrahBookingDomeCard(
                                 bookingNumber: session.displayBookingNumber,
                                 travelerName: bookingTravelerName(session),
@@ -80,34 +83,12 @@ struct BookingDetailView: View {
                                 booking: session.booking
                             )
 
-                            BookingFlightDisclosureCard(
-                                title: L10n.text("booking_outbound_flight", settings.language),
-                                route: "\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)",
-                                date: session.booking.input.startDate,
-                                fallbackFlight: outboundFallback(session),
-                                offer: session.outboundFlight,
-                                isExpanded: $outboundExpanded
+                            BookingFlightFirstComponentsView(
+                                session: session,
+                                onChangeMakkahHotel: { showMakkahHotelChange = true },
+                                onChangeMadinahHotel: { showMadinahHotelChange = true }
                             )
 
-                            BookingFlightDisclosureCard(
-                                title: L10n.text("booking_return_flight", settings.language),
-                                route: "\(session.booking.route.returnOrigin) → \(session.booking.route.originCode)",
-                                date: session.booking.input.endDate,
-                                fallbackFlight: inboundFallback(session),
-                                offer: session.inboundFlight,
-                                isExpanded: $inboundExpanded
-                            )
-
-                            hotelCard(session, role: .makkah, isExpanded: $makkahHotelExpanded)
-
-                            if session.booking.input.includeMadinah {
-                                hotelCard(session, role: .madinah, isExpanded: $madinahHotelExpanded)
-                            }
-
-                            transferCard(session)
-                            guideCard(session)
-                            ziyaratCard(session)
-                            esimCard(session)
                             contactCard(session)
 
                             if session.pendingChangeConfirmation == true || confirmationSent {
@@ -194,9 +175,10 @@ struct BookingDetailView: View {
                 .background(Color.iumrahPageBackground)
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle(L10n.text("booking_detail_title", settings.language))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .top, spacing: 0) { topBar }
         .overlay {
             if let session, showFullscreenBookingCard {
                 fullscreenBookingPass(session)
@@ -443,6 +425,67 @@ struct BookingDetailView: View {
         .padding(.horizontal, IumrahDesign.pagePadding)
         .padding(.vertical, 8)
         .background(Color.iumrahPageBackground)
+    }
+
+    private func bookingIdentityStrip(_ session: StoredBookingSession) -> some View {
+        HStack(spacing: 12) {
+            identityCopyBlock(
+                title: localizedDetail("Номер брони", "Booking number", "Bron raqami", "Брон рақами"),
+                value: session.displayBookingNumber
+            )
+
+            Divider()
+                .frame(height: 42)
+
+            identityCopyBlock(
+                title: "iumrah ID",
+                value: session.displayPilgrimID ?? "—"
+            )
+        }
+        .padding(.horizontal, 16)
+        .frame(minHeight: 78)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+        }
+    }
+
+    private func identityCopyBlock(title: String, value: String) -> some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.subheadline.monospaced().weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+            Spacer(minLength: 4)
+            Button {
+                UIPasteboard.general.string = value
+                IumrahHaptics.success()
+            } label: {
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(width: 34, height: 34)
+                    .iumrahGlass(in: Circle(), interactive: true, chrome: true)
+            }
+            .buttonStyle(.plain)
+            .disabled(value == "—")
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func localizedDetail(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
+        switch settings.language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cy
+        }
     }
 
     private func outboundFallback(_ session: StoredBookingSession) -> String {
@@ -797,10 +840,10 @@ struct BookingDetailView: View {
         if securityConfirmation?.isPendingReview == true { return securityConfirmationPendingTitle }
         if securityConfirmation?.needsResubmission == true {
             switch settings.language {
-            case .russian: return "Исправить данные Iumrah Security"
-            case .english: return "Correct Iumrah Security details"
-            case .uzbek: return "Iumrah Security ma’lumotlarini tuzatish"
-            case .uzbekCyrillic: return "Iumrah Security маълумотларини тузатиш"
+            case .russian: return "Исправить данные iUmrah Security"
+            case .english: return "Correct iUmrah Security details"
+            case .uzbek: return "iUmrah Security ma’lumotlarini tuzatish"
+            case .uzbekCyrillic: return "iUmrah Security маълумотларини тузатиш"
             }
         }
         return securityConfirmationTitle
@@ -815,10 +858,10 @@ struct BookingDetailView: View {
 
     private var securityConfirmationSubtitle: String {
         switch settings.language {
-        case .russian: return "Iumrah Security · защищённое бронирование"
-        case .english: return "Iumrah Security · protected booking"
-        case .uzbek: return "Iumrah Security · himoyalangan bron"
-        case .uzbekCyrillic: return "Iumrah Security · ҳимояланган брон"
+        case .russian: return "iUmrah Security · защищённое бронирование"
+        case .english: return "iUmrah Security · protected booking"
+        case .uzbek: return "iUmrah Security · himoyalangan bron"
+        case .uzbekCyrillic: return "iUmrah Security · ҳимояланган брон"
         }
     }
 

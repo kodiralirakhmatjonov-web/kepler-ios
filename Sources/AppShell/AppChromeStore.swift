@@ -34,6 +34,7 @@ final class AppChromeStore: ObservableObject {
     @Published var isImmersiveMode = false
     @Published var isSidebarOpen = false
     @Published var isESIMPresented = false
+    @Published var isNotificationsPresented = false
     @Published private(set) var internalNavigationDepth = 0
 
     func navigate(to tab: AppTab) {
@@ -106,6 +107,16 @@ final class AppChromeStore: ObservableObject {
         requestedTab = nil
         isESIMPresented = true
         IumrahHaptics.selection()
+    }
+
+    func openNotifications() {
+        closeSidebar()
+        isNotificationsPresented = true
+        IumrahHaptics.selection()
+    }
+
+    func closeNotifications() {
+        isNotificationsPresented = false
     }
 
     var isInternalNavigationActive: Bool { internalNavigationDepth > 0 }
