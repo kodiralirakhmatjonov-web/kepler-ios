@@ -15,45 +15,42 @@ struct CareChatMessageRow: View {
     let timestampText: String
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 7) {
-            if isMine { Spacer(minLength: 42) }
+        VStack(alignment: isMine ? .trailing : .leading, spacing: 3) {
+            HStack(alignment: .bottom, spacing: 0) {
+                if isMine { Spacer(minLength: 64) }
 
-            if !isMine {
-                if groupEnd {
-                    Image("CareChatAvatar")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 26, height: 26)
-                        .clipShape(Circle())
-                        .overlay { Circle().stroke(Color.white.opacity(0.58), lineWidth: 0.6) }
-                        .transition(.scale(scale: 0.82).combined(with: .opacity))
-                } else {
-                    Color.clear.frame(width: 26, height: 1)
-                }
+                bubbleSurface
+                    .contextMenu {
+                        if !message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Button {
+                                UIPasteboard.general.string = message.body
+                            } label: {
+                                Label(tr("Copy", "Копировать", "Nusxalash", "Нусхалаш"), systemImage: "doc.on.doc")
+                            }
+
+                            ShareLink(item: message.body) {
+                                Label(tr("Share", "Поделиться", "Ulashish", "Улашиш"), systemImage: "square.and.arrow.up")
+                            }
+                        }
+                    } preview: {
+                        bubbleSurface
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(10)
+                    }
+
+                if !isMine { Spacer(minLength: 64) }
             }
 
-            bubbleSurface
-                .contextMenu {
-                    if !message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Button {
-                            UIPasteboard.general.string = message.body
-                        } label: {
-                            Label(tr("Copy", "Копировать", "Nusxalash", "Нусхалаш"), systemImage: "doc.on.doc")
-                        }
-
-                        ShareLink(item: message.body) {
-                            Label(tr("Share", "Поделиться", "Ulashish", "Улашиш"), systemImage: "square.and.arrow.up")
-                        }
-                    }
-                } preview: {
-                    bubbleSurface
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(10)
-                }
-
-            if !isMine { Spacer(minLength: 42) }
+            if isMine && showDelivery && groupEnd {
+                Text(deliveryLabel)
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(wallpaperActive ? Color.white.opacity(0.78) : Color.secondary)
+                    .padding(.trailing, 7)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
         }
-        .padding(.top, groupStart ? 5 : 0)
+        .padding(.top, groupStart ? 4 : 0)
+        .animation(.spring(response: 0.28, dampingFraction: 0.9), value: message.readByStaff)
     }
 
     private var bubbleSurface: some View {
@@ -74,12 +71,12 @@ struct CareChatMessageRow: View {
                         .overlay {
                             shape.fill(
                                 colorScheme == .dark
-                                    ? Color.black.opacity(0.10)
-                                    : Color.white.opacity(0.14)
+                                    ? Color.black.opacity(0.30)
+                                    : Color.white.opacity(0.20)
                             )
                         }
                 } else {
-                    shape.fill(Color(uiColor: .systemGray6))
+                    shape.fill(Color(uiColor: .systemGray5))
                 }
             }
             .overlay {
@@ -92,38 +89,22 @@ struct CareChatMessageRow: View {
 
     @ViewBuilder
     private var bubbleContent: some View {
-        // Keep the bubble content-sized. A Spacer/maxWidth here makes short
-        // messages stretch into oversized pills, which was the main source of
-        // the uneven Telegram/iMessage comparison.
-        VStack(alignment: .trailing, spacing: 5) {
-            VStack(alignment: .leading, spacing: 6) {
-                if message.messageType == "image", let path = message.attachmentURL {
-                    AuthenticatedCareChatImage(path: path, bookingID: bookingID)
-                        .frame(maxWidth: 258)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-
-                let trimmed = message.body.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty {
-                    Text(message.body)
-                        .font(.system(size: 16.5, weight: .regular))
-                        .foregroundStyle(isMine ? Color.white : Color.primary)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .textSelection(.enabled)
-                }
+        VStack(alignment: .leading, spacing: 6) {
+            if message.messageType == "image", let path = message.attachmentURL {
+                AuthenticatedCareChatImage(path: path, bookingID: bookingID)
+                    .frame(maxWidth: 258)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
 
-            HStack(spacing: 4) {
-                Text(timestampText)
-                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-
-                if isMine && showDelivery {
-                    CareDeliveryTicks(isRead: message.readByStaff == true)
-                }
+            let trimmed = message.body.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                Text(message.body)
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(isMine ? Color.white : Color.primary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
-            .foregroundStyle(metadataColor)
         }
     }
 
@@ -144,14 +125,13 @@ struct CareChatMessageRow: View {
     }
 
     private var metadataBottomPadding: CGFloat {
-        message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 5 : 6
+        message.messageType == "image" && message.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 4 : 8
     }
 
     private var outgoingBubbleColor: Color {
-        if colorScheme == .dark {
-            return Color(red: 0.10, green: 0.62, blue: 0.47)
-        }
-        return Color.iumrahCareDark
+        colorScheme == .dark
+            ? Color(red: 0.04, green: 0.52, blue: 1.0)
+            : Color(red: 0.00, green: 0.48, blue: 1.0)
     }
 
     private var incomingStrokeColor: Color {
@@ -165,6 +145,16 @@ struct CareChatMessageRow: View {
     private var metadataColor: Color {
         if isMine { return .white.opacity(0.72) }
         return wallpaperActive ? .white.opacity(0.68) : .secondary
+    }
+
+    private var deliveryLabel: String {
+        let status: String
+        if message.readByStaff == true {
+            status = tr("Read", "Прочитано", "O‘qildi", "Ўқилди")
+        } else {
+            status = tr("Delivered", "Доставлено", "Yetkazildi", "Етказилди")
+        }
+        return "\(status)  \(timestampText)"
     }
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
@@ -198,8 +188,16 @@ struct CareMessageBubbleShape: Shape {
     let groupEnd: Bool
 
     func path(in rect: CGRect) -> Path {
-        let large: CGFloat = 18
-        let tight: CGFloat = 7
+        let tailWidth: CGFloat = groupEnd ? 7 : 0
+        let large: CGFloat = 19.5
+        let tight: CGFloat = 6
+
+        let bodyRect = CGRect(
+            x: isMine ? rect.minX : rect.minX + tailWidth,
+            y: rect.minY,
+            width: max(1, rect.width - tailWidth),
+            height: rect.height
+        )
 
         let rounded: UnevenRoundedRectangle
         if isMine {
@@ -219,7 +217,42 @@ struct CareMessageBubbleShape: Shape {
                 style: .continuous
             )
         }
-        return rounded.path(in: rect)
+
+        var path = rounded.path(in: bodyRect)
+        guard groupEnd else { return path }
+
+        var tail = Path()
+        if isMine {
+            let edge = bodyRect.maxX
+            tail.move(to: CGPoint(x: edge - 2, y: bodyRect.maxY - 14))
+            tail.addCurve(
+                to: CGPoint(x: rect.maxX, y: rect.maxY - 1.5),
+                control1: CGPoint(x: edge + 0.5, y: bodyRect.maxY - 7),
+                control2: CGPoint(x: rect.maxX - 1.5, y: rect.maxY - 3)
+            )
+            tail.addCurve(
+                to: CGPoint(x: edge - 5, y: bodyRect.maxY - 4),
+                control1: CGPoint(x: rect.maxX - 3, y: rect.maxY - 0.5),
+                control2: CGPoint(x: edge - 1, y: rect.maxY - 1)
+            )
+            tail.closeSubpath()
+        } else {
+            let edge = bodyRect.minX
+            tail.move(to: CGPoint(x: edge + 2, y: bodyRect.maxY - 14))
+            tail.addCurve(
+                to: CGPoint(x: rect.minX, y: rect.maxY - 1.5),
+                control1: CGPoint(x: edge - 0.5, y: bodyRect.maxY - 7),
+                control2: CGPoint(x: rect.minX + 1.5, y: rect.maxY - 3)
+            )
+            tail.addCurve(
+                to: CGPoint(x: edge + 5, y: bodyRect.maxY - 4),
+                control1: CGPoint(x: rect.minX + 3, y: rect.maxY - 0.5),
+                control2: CGPoint(x: edge + 1, y: rect.maxY - 1)
+            )
+            tail.closeSubpath()
+        }
+        path.addPath(tail)
+        return path
     }
 }
 

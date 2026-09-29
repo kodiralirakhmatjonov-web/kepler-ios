@@ -83,8 +83,7 @@ private struct IumrahTripWalletScreen: View {
     let language: AppSettingsStore.Language
 
     @State private var page: IumrahWalletPage = .identity
-    @State private var shareItems: [Any] = []
-    @State private var showShareSheet = false
+    @State private var walletIdentityCopyMessage: String?
     @State private var makkahDetail: HotelDetail?
     @State private var madinahDetail: HotelDetail?
 
@@ -118,9 +117,6 @@ private struct IumrahTripWalletScreen: View {
 
                 Spacer(minLength: 24)
             }
-        }
-        .sheet(isPresented: $showShareSheet) {
-            IumrahActivityView(activityItems: shareItems)
         }
         .task {
             await loadHotelDetails()
@@ -233,80 +229,42 @@ private struct IumrahTripWalletScreen: View {
     private var identityCard: some View {
         GeometryReader { proxy in
             let width = min(proxy.size.width - 44, 360)
-            let height = width / 1.586
 
-            identityCardSurface(width: width, height: height)
-                .frame(width: width, height: height)
-                .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+            IumrahIdentityDomeCard(
+                data: IumrahIdentityCardData(
+                    iumrahID: identityValue,
+                    displayName: passengerName,
+                    phone: profile?.phone,
+                    email: profile?.email
+                ),
+                language: language,
+                copyMessage: walletIdentityCopyMessage,
+                allowsFlip: true,
+                onCopy: copyWalletIdentity
+            )
+            .frame(width: width)
+            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
         }
     }
 
-    private func identityCardSurface(width: CGFloat, height: CGFloat) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(Color.white)
-
-            LinearGradient(
-                colors: [Color.black.opacity(0.035), .clear, Color.black.opacity(0.018)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top) {
-                    Text("iumrah ID")
-                        .font(.system(size: 27, weight: .bold, design: .rounded))
-                        .foregroundStyle(.black)
-                    Spacer()
-                    Image(systemName: "wave.3.right")
-                        .font(.system(size: 25, weight: .semibold))
-                        .foregroundStyle(.black.opacity(0.42))
-                }
-
-                Spacer()
-
-                HStack(alignment: .bottom, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(firstNameValue)
-                            .font(.system(size: 21, weight: .bold, design: .rounded))
-                            .foregroundStyle(.black)
-                            .lineLimit(1)
-                        Text(lastNameValue)
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.black.opacity(0.70))
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("UMR ID")
-                            .font(.system(size: 10, weight: .bold))
-                            .tracking(0.9)
-                            .foregroundStyle(.black.opacity(0.42))
-                        Text(normalizedID(identityValue))
-                            .font(.system(size: 20, weight: .bold, design: .monospaced))
-                            .tracking(1.1)
-                            .foregroundStyle(.black)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-                    }
-                }
-            }
-            .padding(22)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.07), lineWidth: 0.8)
-        }
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.11), radius: 22, y: 12)
+    private func identityShareCard(width: CGFloat) -> some View {
+        IumrahIdentityDomeCard(
+            data: IumrahIdentityCardData(
+                iumrahID: identityValue,
+                displayName: passengerName,
+                phone: profile?.phone,
+                email: profile?.email
+            ),
+            language: language,
+            allowsFlip: false
+        )
+        .frame(width: width)
     }
 
     private func boardingPass(_ flight: FlightOffer, title: String) -> some View {
         GeometryReader { proxy in
             let width = min(proxy.size.width - 42, 360)
-            let height = min(max(width * 1.24, 420), 470)
+            let height = min(max(width * 1.48, 500), 540)
 
             boardingPassSurface(flight: flight, title: title, width: width, height: height)
                 .frame(width: width, height: height)
@@ -315,7 +273,9 @@ private struct IumrahTripWalletScreen: View {
     }
 
     private func boardingPassSurface(flight: FlightOffer, title: String, width: CGFloat, height: CGFloat) -> some View {
-        let tearY = height * 0.69
+        let tearY = height * 0.72
+        let departureTerminal = nonBlank(flight.segments?.first?.origin.terminal) ?? "—"
+        let arrivalTerminal = nonBlank(flight.segments?.last?.destination.terminal) ?? "—"
 
         return ZStack {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -323,36 +283,49 @@ private struct IumrahTripWalletScreen: View {
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.10), radius: 22, y: 12)
 
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(flight.airline.uppercased())
-                            .font(.caption.weight(.bold))
-                            .tracking(1.1)
-                            .foregroundStyle(.black.opacity(0.48))
-                        Text(title)
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                HStack(alignment: .center, spacing: 12) {
+                    Image("IumrahFlightsBoardingLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 122, height: 48, alignment: .leading)
+                        .foregroundStyle(.black)
+
+                    Spacer(minLength: 6)
+
+                    AirlineLogoView(airlineCode: flight.airlineCode, size: 54)
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(flight.airline)
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundStyle(.black)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
+                            .lineLimit(1)
                         Text(flight.flightNumber)
-                            .font(.system(size: 16, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.black)
-                        Text(shortDate(flight.departureAt))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.black.opacity(0.52))
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.black.opacity(0.56))
                     }
                 }
 
-                Spacer().frame(height: 28)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(title.uppercased())
+                        .font(.system(size: 10, weight: .bold))
+                        .tracking(1.1)
+                        .foregroundStyle(.black.opacity(0.40))
+                    Spacer()
+                    Text(shortDate(flight.departureAt))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.black.opacity(0.52))
+                }
+                .padding(.top, 10)
+
+                Spacer().frame(height: 20)
 
                 HStack(alignment: .center, spacing: 14) {
-                    routeAirport(code: flight.origin, date: flight.departureAt, alignment: .leading)
+                    routeAirportDetailed(code: flight.origin, date: flight.departureAt, terminal: departureTerminal, trailing: false)
 
-                    VStack(spacing: 7) {
+                    VStack(spacing: 6) {
                         Image(systemName: "airplane")
                             .font(.system(size: 20, weight: .bold))
-                            .rotationEffect(.degrees(0))
+                            .foregroundStyle(.black)
                         Capsule()
                             .fill(Color.black.opacity(0.16))
                             .frame(height: 1)
@@ -362,28 +335,34 @@ private struct IumrahTripWalletScreen: View {
                     }
                     .frame(maxWidth: .infinity)
 
-                    routeAirport(code: flight.destination, date: flight.arrivalAt, alignment: .trailing)
+                    routeAirportDetailed(code: flight.destination, date: flight.arrivalAt, terminal: arrivalTerminal, trailing: true)
                 }
 
-                Spacer().frame(height: 24)
+                Spacer().frame(height: 18)
 
-                HStack(spacing: 18) {
+                HStack(spacing: 12) {
                     passFact(tr("Passenger", "Пассажир", "Yo‘lovchi", "Йўловчи"), passengerName)
                     passFact(tr("Class", "Класс", "Klass", "Класс"), nonBlank(flight.cabinClass) ?? tr("Economy", "Эконом", "Ekonom", "Эконом"))
                 }
 
-                HStack(spacing: 18) {
-                    passFact(tr("Terminal", "Терминал", "Terminal", "Терминал"), terminalText(flight))
-                    passFact(tr("Baggage", "Багаж", "Bagaj", "Багаж"), baggageText(flight))
+                HStack(spacing: 12) {
+                    passFact(tr("Departure terminal", "Терминал вылета", "Jo‘nash terminali", "Жўнаш терминали"), departureTerminal)
+                    passFact(tr("Arrival terminal", "Терминал прилёта", "Kelish terminali", "Келиш терминали"), arrivalTerminal)
                 }
-                .padding(.top, 15)
+                .padding(.top, 12)
 
-                Spacer(minLength: 16)
+                HStack(spacing: 12) {
+                    passFact(tr("Baggage", "Багаж", "Bagaj", "Багаж"), baggageText(flight))
+                    passFact(tr("Stops", "Пересадки", "To‘xtash", "Тўхташ"), stopsText(flight.stops))
+                }
+                .padding(.top, 12)
+
+                Spacer(minLength: 12)
 
                 perforation
                     .frame(height: 18)
 
-                Spacer().frame(height: 14)
+                Spacer().frame(height: 12)
 
                 HStack(alignment: .bottom, spacing: 14) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -403,7 +382,7 @@ private struct IumrahTripWalletScreen: View {
                 }
             }
             .padding(.horizontal, 22)
-            .padding(.vertical, 20)
+            .padding(.vertical, 18)
 
             Circle()
                 .fill(walletBackdropColor)
@@ -431,18 +410,24 @@ private struct IumrahTripWalletScreen: View {
         }
     }
 
-    private func routeAirport(code: String, date: Date, alignment: HorizontalAlignment) -> some View {
-        VStack(alignment: alignment, spacing: 3) {
+    private func routeAirportDetailed(code: String, date: Date, terminal: String, trailing: Bool) -> some View {
+        VStack(alignment: trailing ? .trailing : .leading, spacing: 3) {
             Text(code)
-                .font(.system(size: 39, weight: .bold, design: .rounded))
+                .font(.system(size: 38, weight: .bold, design: .rounded))
                 .foregroundStyle(.black)
             Text(timeString(date))
                 .font(.system(size: 16, weight: .semibold, design: .monospaced))
                 .foregroundStyle(.black)
-            Text(shortDate(date))
-                .font(.caption)
-                .foregroundStyle(.black.opacity(0.50))
+            Text(airportName(code))
+                .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                .foregroundStyle(.black.opacity(0.54))
+                .lineLimit(2)
+                .multilineTextAlignment(trailing ? .trailing : .leading)
+            Text("T \(terminal)")
+                .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                .foregroundStyle(.black.opacity(0.42))
         }
+        .frame(maxWidth: 116, alignment: trailing ? .trailing : .leading)
     }
 
     private func passFact(_ title: String, _ value: String) -> some View {
@@ -571,7 +556,7 @@ private struct IumrahTripWalletScreen: View {
             image = renderImage(
                 ZStack {
                     Color.white
-                    identityCardSurface(width: 1000, height: 1000 / 1.586)
+                    identityShareCard(width: 1000)
                         .padding(70)
                 }
                 .frame(width: 1140, height: 860)
@@ -606,11 +591,68 @@ private struct IumrahTripWalletScreen: View {
             image = nil
         }
 
-        if let image {
-            shareItems = [image, pageShareTitle]
-            showShareSheet = true
+        if let image, let url = writeShareImage(image, title: pageShareTitle) {
+            presentNativeShare(url)
             IumrahHaptics.success()
         }
+    }
+
+    private func copyWalletIdentity() {
+        UIPasteboard.general.string = normalizedID(identityValue)
+        walletIdentityCopyMessage = tr("Copied", "Скопировано", "Nusxalandi", "Нусхаланди")
+        IumrahHaptics.success()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            walletIdentityCopyMessage = nil
+        }
+    }
+
+    private func airportName(_ code: String) -> String {
+        guard let airport = FlightReferenceCatalog.airport(code) else { return code.uppercased() }
+        return "\(airport.city) · \(airport.name)"
+    }
+
+    private func stopsText(_ stops: Int) -> String {
+        if stops <= 0 {
+            return tr("Direct", "Прямой", "To‘g‘ridan-to‘g‘ri", "Тўғридан-тўғри")
+        }
+        return "\(stops)"
+    }
+
+    @MainActor
+    private func writeShareImage(_ image: UIImage, title: String) -> URL? {
+        guard let data = image.pngData() else { return nil }
+        let safeTitle = title
+            .replacingOccurrences(of: "[^A-Za-z0-9_-]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        let filename = "\(safeTitle.isEmpty ? "iumrah-pass" : safeTitle)-\(UUID().uuidString.prefix(8)).png"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+        do {
+            try data.write(to: url, options: .atomic)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    @MainActor
+    private func presentNativeShare(_ url: URL) {
+        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+              let root = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController else { return }
+
+        var presenter = root
+        while let presented = presenter.presentedViewController {
+            presenter = presented
+        }
+
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY - 44, width: 1, height: 1)
+            popover.permittedArrowDirections = []
+        }
+        presenter.present(controller, animated: true)
     }
 
     @MainActor
@@ -765,14 +807,4 @@ private struct IumrahTripWalletScreen: View {
         case .uzbekCyrillic: return cyrl
         }
     }
-}
-
-private struct IumrahActivityView: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

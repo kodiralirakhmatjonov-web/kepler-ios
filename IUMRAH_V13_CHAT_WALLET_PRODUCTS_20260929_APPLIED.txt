@@ -1,0 +1,8 @@
+Iumrah v13 UI polish applied 2026-09-29:
+- Care chat moved toward native iMessage geometry, blue outgoing bubbles, delivery/read status, glass composer, send/receive feedback.
+- Booking top segmented navigation enlarged using native segmented Picker.
+- Account iumrah ID front simplified to only the iumrah ID title; title enlarged; back keeps identity/contact/copy data.
+- Wallet reuses the same animated/flippable iumrah ID component as Account.
+- Boarding pass upgraded with iumrah Flights wordmark, larger airline logo, airports, arrival/departure time, terminals, baggage, stops and booking barcode.
+- Boarding pass/ID sharing now writes a real PNG attachment and presents native UIActivityViewController directly.
+- Home product carousel bleeds to screen edges during swipe and adds Sunday Umrah Club as third half-image/half-copy product card.

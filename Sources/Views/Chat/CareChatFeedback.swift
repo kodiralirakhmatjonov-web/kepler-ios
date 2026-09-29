@@ -64,8 +64,8 @@ final class CareChatFeedback {
     private func makeBuffer(_ tone: Tone) -> AVAudioPCMBuffer? {
         let duration: Double
         switch tone {
-        case .send: duration = 0.145
-        case .receive: duration = 0.235
+        case .send: duration = 0.115
+        case .receive: duration = 0.185
         case .error: duration = 0.175
         }
 
@@ -90,27 +90,27 @@ final class CareChatFeedback {
             case .send:
                 // A tiny ascending, airy glass transient: recognizable but deliberately
                 // not a copy of Apple's Messages asset.
-                let attack = min(1.0, x / 0.045)
-                let release = pow(max(0, 1 - x), 3.35)
+                let attack = min(1.0, x / 0.020)
+                let release = pow(max(0, 1 - x), 3.8)
                 let envelope = attack * release
-                let f1 = 720 + 370 * x
-                let f2 = 1_210 + 250 * x
+                let f1 = 880 + 520 * x
+                let f2 = 1_420 + 390 * x
                 p1 += 2 * .pi * f1 / sampleRate
                 p2 += 2 * .pi * f2 / sampleRate
-                let shimmer = sin(2 * .pi * 2_850 * t) * exp(-t * 35)
-                let core = sin(p1) * 0.72 + sin(p2) * 0.18 + shimmer * 0.08
-                left = core * envelope * 0.145
-                right = core * envelope * 0.152
+                let shimmer = sin(2 * .pi * 3_250 * t) * exp(-t * 48)
+                let core = sin(p1) * 0.70 + sin(p2) * 0.20 + shimmer * 0.10
+                left = core * envelope * 0.155
+                right = core * envelope * 0.160
 
             case .receive:
                 // Two very soft resonances make the incoming tone read as warmer and
                 // more dimensional than a single synthetic beep.
-                let attack = min(1.0, x / 0.035)
-                let release = pow(max(0, 1 - x), 2.15)
+                let attack = min(1.0, x / 0.025)
+                let release = pow(max(0, 1 - x), 2.45)
                 let envelope = attack * release
-                let f1 = 890 - 105 * x
-                let f2 = 1_360 - 125 * x
-                let f3 = 1_930 - 170 * x
+                let f1 = 980 - 135 * x
+                let f2 = 1_480 - 155 * x
+                let f3 = 2_020 - 190 * x
                 p1 += 2 * .pi * f1 / sampleRate
                 p2 += 2 * .pi * f2 / sampleRate
                 p3 += 2 * .pi * f3 / sampleRate

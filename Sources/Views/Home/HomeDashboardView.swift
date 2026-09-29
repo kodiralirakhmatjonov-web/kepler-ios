@@ -1250,6 +1250,8 @@ struct HomeDashboardView: View {
     }
 
     private func productsCarousel(contentWidth: CGFloat) -> some View {
+        let pageInset = IumrahDesign.pagePadding
+        let viewportWidth = contentWidth + (pageInset * 2)
         let cardWidth = min(max(contentWidth * 0.88, 300), contentWidth)
         let cardHeight: CGFloat = 472
         let cardShape = RoundedRectangle(cornerRadius: 34, style: .continuous)
@@ -1267,13 +1269,96 @@ struct HomeDashboardView: View {
                     .clipShape(cardShape)
                     .contentShape(cardShape)
                     .id("iumrah-advisor")
+
+                homeSundayClubProductCard
+                    .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                    .clipShape(cardShape)
+                    .contentShape(cardShape)
+                    .id("sunday-umrah-club")
             }
             .scrollTargetLayout()
-            .padding(.horizontal, 1)
+            .padding(.leading, pageInset)
+            .padding(.trailing, pageInset)
         }
         .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
         .contentMargins(.horizontal, 0, for: .scrollContent)
-        .frame(height: cardHeight)
+        .frame(width: viewportWidth, height: cardHeight, alignment: .leading)
+        .offset(x: -pageInset)
+    }
+
+    private var homeSundayClubProductCard: some View {
+        Button {
+            IumrahHaptics.soft()
+            chrome.navigate(to: .hotels)
+        } label: {
+            VStack(spacing: 0) {
+                ZStack {
+                    Color.white
+                    Image("SundayUmrahClubHome")
+                        .resizable()
+                        .scaledToFit()
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 24)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 236)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Sunday Umrah Club")
+                        .font(.system(size: 29, weight: .bold, design: .rounded))
+                        .tracking(-0.6)
+                        .foregroundStyle(.black)
+
+                    Text(sundayClubProductBody)
+                        .font(.system(size: 15, weight: .regular, design: .rounded))
+                        .foregroundStyle(.black.opacity(0.60))
+                        .lineLimit(4)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 8)
+
+                    HStack(spacing: 8) {
+                        Text(sundayClubProductCTA)
+                        Spacer(minLength: 8)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.system(size: 15.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 17)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(Color.white)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.white)
+            .overlay {
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.8)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var sundayClubProductBody: String {
+        switch settings.language {
+        case .russian: return "Короткая Умра на выходные: готовые даты, удобный маршрут и минимум времени вне работы."
+        case .english: return "A weekend-sized Umrah with ready dates, a compact route and less time away from work."
+        case .uzbek: return "Dam olish kunlariga mos qisqa Umra: tayyor sanalar, qulay yo‘nalish va ishdan kamroq uzilish."
+        case .uzbekCyrillic: return "Дам олиш кунларига мос қисқа Умра: тайёр саналар, қулай йўналиш ва ишдан камроқ узилиш."
+        }
+    }
+
+    private var sundayClubProductCTA: String {
+        switch settings.language {
+        case .russian: return "Открыть Sunday Club"
+        case .english: return "Open Sunday Club"
+        case .uzbek: return "Sunday Club’ni ochish"
+        case .uzbekCyrillic: return "Sunday Club’ни очиш"
+        }
     }
 
     private var homeAdvisorProductCard: some View {

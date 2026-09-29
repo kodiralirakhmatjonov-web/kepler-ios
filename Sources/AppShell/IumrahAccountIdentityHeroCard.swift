@@ -1,14 +1,23 @@
 import SwiftUI
 
-/// Account identity card that intentionally uses the same physical card geometry
-/// and animated dome language as IumrahBookingDomeCard.
-struct IumrahAccountIdentityHeroCard: View {
+struct IumrahIdentityCardData: Hashable {
+    let iumrahID: String
+    let displayName: String
+    let phone: String?
+    let email: String?
+}
+
+/// One shared animated identity-card component for Account and iumrah Wallet.
+/// The front intentionally stays minimal: only the iumrah ID wordmark and the
+/// living dome. Personal data lives on the back after the native-feeling flip.
+struct IumrahIdentityDomeCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    let profile: IumrahAccountProfile
+    let data: IumrahIdentityCardData
     let language: AppSettingsStore.Language
-    let copyMessage: String?
-    let onCopy: () -> Void
+    var copyMessage: String? = nil
+    var allowsFlip = true
+    var onCopy: () -> Void = {}
 
     @State private var isFlipped = false
 
@@ -35,14 +44,15 @@ struct IumrahAccountIdentityHeroCard: View {
         .aspectRatio(1.60, contentMode: .fit)
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .onTapGesture {
+            guard allowsFlip else { return }
             IumrahHaptics.soft()
             withAnimation(reduceMotion ? .easeInOut(duration: 0.18) : .spring(response: 0.66, dampingFraction: 0.84)) {
                 isFlipped.toggle()
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isFlipped ? "\(profile.displayName), iumrah ID \(normalizedID(profile.iumrahID))" : "iumrah ID")
-        .accessibilityHint(tapToFlip)
+        .accessibilityLabel(isFlipped ? "\(data.displayName), iumrah ID \(normalizedID(data.iumrahID))" : "iumrah ID")
+        .accessibilityHint(allowsFlip ? tapToFlip : "")
     }
 
     private func surfaced<Content: View>(_ content: Content) -> some View {
@@ -70,23 +80,12 @@ struct IumrahAccountIdentityHeroCard: View {
                     }
                     .allowsHitTesting(false)
 
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("iumrah ID")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .tracking(-0.25)
-                            .foregroundStyle(.white)
-
-                        Spacer(minLength: 12)
-
-                        Text(normalizedID(profile.iumrahID))
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
-                            .tracking(0.5)
-                            .foregroundStyle(.white.opacity(0.52))
-                    }
-                    .padding(.leading, 16)
-                    .padding(.top, 14)
-                    .padding(.bottom, 14)
+                    Text("iumrah ID")
+                        .font(.system(size: 22, weight: .semibold, design: .rounded))
+                        .tracking(-0.35)
+                        .foregroundStyle(.white)
+                        .padding(.leading, 18)
+                        .padding(.top, 16)
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
@@ -109,8 +108,8 @@ struct IumrahAccountIdentityHeroCard: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text("iumrah ID")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .tracking(-0.25)
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .tracking(-0.3)
                         .foregroundStyle(.white.opacity(0.96))
 
                     Spacer(minLength: 14)
@@ -125,10 +124,10 @@ struct IumrahAccountIdentityHeroCard: View {
                     Spacer(minLength: 10)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        if let phone = nonBlank(profile.phone) {
+                        if let phone = nonBlank(data.phone) {
                             Label(phone, systemImage: "phone.fill")
                         }
-                        if let email = nonBlank(profile.email) {
+                        if let email = nonBlank(data.email) {
                             Label(email, systemImage: "envelope.fill")
                         }
                     }
@@ -147,7 +146,7 @@ struct IumrahAccountIdentityHeroCard: View {
                             Text("iumrah ID")
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white.opacity(0.46))
-                            Text(normalizedID(profile.iumrahID))
+                            Text(normalizedID(data.iumrahID))
                                 .font(.system(size: 17, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
                                 .foregroundStyle(.white.opacity(0.92))
@@ -175,12 +174,8 @@ struct IumrahAccountIdentityHeroCard: View {
     }
 
     private var displayName: String {
-        let value = profile.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !value.isEmpty { return value }
-        return [profile.firstName, profile.lastName]
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        let value = data.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? "iumrah" : value
     }
 
     private var tapToFlip: String {
@@ -199,7 +194,8 @@ struct IumrahAccountIdentityHeroCard: View {
         return String(repeating: "0", count: 8 - digits.count) + digits
     }
 
-    private func nonBlank(_ value: String) -> String? {
+    private func nonBlank(_ value: String?) -> String? {
+        guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
@@ -305,6 +301,28 @@ struct IumrahAccountIdentityHeroCard: View {
 
         return output.sorted { $0.depth < $1.depth }
     }()
+}
+
+struct IumrahAccountIdentityHeroCard: View {
+    let profile: IumrahAccountProfile
+    let language: AppSettingsStore.Language
+    let copyMessage: String?
+    let onCopy: () -> Void
+
+    var body: some View {
+        IumrahIdentityDomeCard(
+            data: IumrahIdentityCardData(
+                iumrahID: profile.iumrahID,
+                displayName: profile.displayName,
+                phone: profile.phone,
+                email: profile.email
+            ),
+            language: language,
+            copyMessage: copyMessage,
+            allowsFlip: true,
+            onCopy: onCopy
+        )
+    }
 }
 
 private struct IdentityDomePoint {

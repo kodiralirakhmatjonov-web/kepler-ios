@@ -499,6 +499,13 @@ struct BookingChatView: View {
                         .disabled(!canSend)
                         .padding(.trailing, 5)
                         .transition(.scale(scale: 0.82).combined(with: .opacity))
+                    } else {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(appearance.wallpaper.isVisual ? Color.white.opacity(0.78) : Color.secondary)
+                            .frame(width: 34, height: 34)
+                            .padding(.trailing, 5)
+                            .transition(.scale(scale: 0.86).combined(with: .opacity))
                     }
                 }
                 .frame(minHeight: 48, maxHeight: 66, alignment: .center)
@@ -556,14 +563,10 @@ struct BookingChatView: View {
             : Color.primary.opacity(0.020)
     }
 
-    /// A brighter iumrah accent is used only inside the chat in Dark Mode.
-    /// The previous deep brand green merged into the system background and made
-    /// outgoing bubbles / the send affordance look disabled.
     private var outgoingAccentColor: Color {
-        if colorScheme == .dark {
-            return Color(red: 0.10, green: 0.62, blue: 0.47)
-        }
-        return Color.iumrahCareDark
+        colorScheme == .dark
+            ? Color(red: 0.04, green: 0.52, blue: 1.0)
+            : Color(red: 0.00, green: 0.48, blue: 1.0)
     }
 
     private var canSend: Bool {
@@ -663,7 +666,7 @@ struct BookingChatView: View {
         draft = ""
 
         await Task.yield()
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.84)) {
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
             pendingOutgoing = pending
             launchingOutgoing = nil
         }
