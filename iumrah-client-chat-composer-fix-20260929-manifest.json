@@ -1,0 +1,9 @@
+{
+  "name": "iumrah-client-chat-composer-fix-20260929",
+  "target": "kepler-ios-main",
+  "files": [
+    "Sources/Views/Chat/BookingChatView.swift",
+    "IUMRAH_CLIENT_CHAT_COMPOSER_INTRINSIC_HEIGHT_FIX_20260929_APPLIED.txt"
+  ],
+  "purpose": "Keep the client Care chat input compact on iOS 26 by making the vertical TextField honor intrinsic 1-3 line height."
+}

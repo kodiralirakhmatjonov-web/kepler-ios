@@ -1,0 +1,10 @@
+IUMRAH CLIENT CHAT COMPOSER INTRINSIC HEIGHT FIX — 2026-09-29
+
+Scope:
+- Sources/Views/Chat/BookingChatView.swift
+
+Fix:
+- Prevents the empty vertical SwiftUI TextField from expanding to its maximum height on iOS 26.
+- One-line composer remains compact.
+- Composer grows only when the user actually enters 2-3 lines of text.
+- Keeps photo picker, send behavior, chat API, message loading, and notification logic unchanged.

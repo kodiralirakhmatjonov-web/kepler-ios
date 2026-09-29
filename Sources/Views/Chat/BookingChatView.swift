@@ -467,6 +467,10 @@ struct BookingChatView: View {
                         .font(.system(size: 16.5))
                         .textFieldStyle(.plain)
                         .lineLimit(1...3)
+                        // Prevent iOS 26 from greedily stretching an empty vertical
+                        // TextField to the composer's maximum height. It now follows
+                        // its real 1–3 line intrinsic height instead.
+                        .fixedSize(horizontal: false, vertical: true)
                         .submitLabel(.send)
                         .tint(appearance.wallpaper.isVisual ? .white : outgoingAccentColor)
                         .onSubmit {
@@ -508,7 +512,7 @@ struct BookingChatView: View {
                             .transition(.scale(scale: 0.86).combined(with: .opacity))
                     }
                 }
-                .frame(minHeight: 48, maxHeight: 66, alignment: .center)
+                .frame(minHeight: 48, maxHeight: 72, alignment: .center)
                 .contentShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
                 .onTapGesture { composerFocused = true }
                 .careNativeGlassSurface(
