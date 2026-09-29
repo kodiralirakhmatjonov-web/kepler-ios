@@ -79,6 +79,7 @@ struct PilgrimCheckoutView: View {
     @State private var giftCode = ""
     @State private var isApplyingFriendBenefit = false
     @State private var friendsMessage: String?
+    @State private var showBookingPage = false
 
     private let service = IumrahAccountService()
     private let bookingService = BookingService()
@@ -141,6 +142,11 @@ struct PilgrimCheckoutView: View {
     private var screenBody: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
+                BookingPageSwitcher(
+                    selection: .status,
+                    onBooking: { showBookingPage = true },
+                    onStatus: {}
+                )
                 hero
                 checkoutContent(includeProgress: true)
             }
@@ -166,6 +172,9 @@ struct PilgrimCheckoutView: View {
             }
         }
         .iumrahInternalNavigation()
+        .navigationDestination(isPresented: $showBookingPage) {
+            BookingDetailView(bookingID: bookingID)
+        }
     }
 
     private var embeddedStatusBody: some View {

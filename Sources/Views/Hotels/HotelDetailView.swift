@@ -35,6 +35,7 @@ struct HotelDetailView: View {
     @State private var packageShareArtifacts: IumrahPackageShareArtifacts?
     @State private var packageShareError: String?
     @State private var selectedPackageVariantIndex = 0
+    @State private var selectedPackageVariantScrollID: Int? = 0
     @State private var hasAppliedInitialPackageSelection = false
 
     private let service = HotelCatalogService()
@@ -123,6 +124,7 @@ struct HotelDetailView: View {
         }
         .onChange(of: selectedPackageVariantIndex) { oldValue, newValue in
             guard oldValue != newValue, hotelPackagePreviews.indices.contains(newValue) else { return }
+            selectedPackageVariantScrollID = newValue
             IumrahHaptics.selection()
         }
         .fullScreenCover(isPresented: $isGalleryPresented) {
@@ -317,7 +319,7 @@ struct HotelDetailView: View {
     private var storefrontPackageSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             if hotelPackagePreviews.isEmpty {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 13) {
                     HStack(spacing: 10) {
                         ProgressView()
                         Text(L10n.text("hotel_detail_preparing_price", settings.language))
@@ -355,16 +357,26 @@ struct HotelDetailView: View {
                     }
                 }
 
-                TabView(selection: $selectedPackageVariantIndex) {
-                    ForEach(Array(hotelPackagePreviews.enumerated()), id: \.element.packageID) { index, preview in
-                        hotelPackageVariantCard(preview, index: index)
-                            .tag(index)
-                            .padding(.horizontal, 7)
+                GeometryReader { carouselProxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 14) {
+                            ForEach(Array(hotelPackagePreviews.enumerated()), id: \.element.packageID) { index, preview in
+                                hotelPackageVariantCard(preview, index: index)
+                                    .frame(width: max(280, carouselProxy.size.width * 0.82))
+                                    .id(index)
+                            }
+                        }
+                        .scrollTargetLayout()
+                        .padding(.horizontal, 1)
+                    }
+                    .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                    .scrollPosition(id: $selectedPackageVariantScrollID, anchor: .leading)
+                    .onChange(of: selectedPackageVariantScrollID) { _, newValue in
+                        guard let newValue, hotelPackagePreviews.indices.contains(newValue), selectedPackageVariantIndex != newValue else { return }
+                        selectedPackageVariantIndex = newValue
                     }
                 }
-                .padding(.horizontal, -7)
-                .frame(height: 560)
-                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: 500)
 
                 if hotelPackagePreviews.count > 1 {
                     HStack(spacing: 7) {
@@ -386,6 +398,7 @@ struct HotelDetailView: View {
         let previews = hotelPackagePreviews
         guard !previews.isEmpty else {
             selectedPackageVariantIndex = 0
+            selectedPackageVariantScrollID = 0
             return
         }
 
@@ -393,6 +406,7 @@ struct HotelDetailView: View {
             if let initialPackageID,
                let index = previews.firstIndex(where: { $0.packageID == initialPackageID }) {
                 selectedPackageVariantIndex = index
+                selectedPackageVariantScrollID = index
                 hasAppliedInitialPackageSelection = true
                 return
             }
@@ -403,6 +417,7 @@ struct HotelDetailView: View {
 
         if !previews.indices.contains(selectedPackageVariantIndex) {
             selectedPackageVariantIndex = min(max(0, selectedPackageVariantIndex), previews.count - 1)
+            selectedPackageVariantScrollID = selectedPackageVariantIndex
         }
     }
 
@@ -417,8 +432,8 @@ struct HotelDetailView: View {
                         .foregroundStyle(accent.text.opacity(0.88))
                         .textCase(.uppercase)
                     Text(L10n.text("hotel_detail_package_title", settings.language))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .tracking(-0.35)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .tracking(-0.30)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
@@ -433,8 +448,8 @@ struct HotelDetailView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .lastTextBaseline, spacing: 12) {
                     Text(packageVariantDateRange(preview))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .tracking(-0.8)
+                        .font(.system(size: 25, weight: .bold, design: .rounded))
+                        .tracking(-0.65)
                         .foregroundStyle(accent.text)
                         .lineLimit(2)
                         .minimumScaleFactor(0.72)
@@ -446,14 +461,14 @@ struct HotelDetailView: View {
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(accent.text.opacity(0.72))
                         Text("\(preview.durationDays)")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .font(.system(size: 25, weight: .bold, design: .rounded))
                             .foregroundStyle(accent.text)
                         Text(packageDaysShort)
                             .font(.caption.weight(.bold))
                             .foregroundStyle(accent.text.opacity(0.76))
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
                     .background(accent.fill.opacity(0.28), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
 
@@ -462,10 +477,10 @@ struct HotelDetailView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(16)
+            .padding(14)
             .background(
                 LinearGradient(
-                    colors: [accent.fill.opacity(0.22), accent.fill.opacity(0.07)],
+                    colors: [accent.fill.opacity(0.34), accent.fill.opacity(0.13)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),
@@ -488,7 +503,7 @@ struct HotelDetailView: View {
             HStack(alignment: .lastTextBaseline, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(money(preview.pricePerPerson))
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
                         .tracking(-1)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -511,7 +526,7 @@ struct HotelDetailView: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 packageFact(icon: "airplane", text: "\(preview.outbound.origin.uppercased()) → \(preview.outbound.destination.uppercased())   ·   \(preview.inbound.origin.uppercased()) → \(preview.inbound.destination.uppercased())")
                 packageFact(icon: "calendar", text: "\(L10n.date(preview.outbound.departureAt, settings.language)) → \(L10n.date(preview.inbound.departureAt, settings.language)) · \(preview.durationDays) \(packageDaysShort)")
                 packageFact(icon: "moon.stars.fill", text: packageVariantStayText(preview))
@@ -537,13 +552,20 @@ struct HotelDetailView: View {
             }
             .buttonStyle(IumrahPrimaryButtonStyle())
         }
-        .padding(18)
-        .background(Color.iumrahCardBackground)
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [Color.iumrahCardBackground, accent.fill.opacity(0.12)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(accent.fill.opacity(0.20), lineWidth: 1)
+                .strokeBorder(accent.fill.opacity(0.62), lineWidth: 1.35)
         }
+        .shadow(color: accent.fill.opacity(0.13), radius: 16, y: 8)
     }
 
     private struct PackageVariantAccent {
@@ -555,11 +577,11 @@ struct HotelDetailView: View {
         let key = preview.hotelFirstVariant ?? (index == 0 ? "short" : index == 1 ? "balanced" : "extended")
         switch key {
         case "short":
-            return PackageVariantAccent(fill: Color(red: 0.48, green: 0.78, blue: 1.0), text: Color(red: 0.03, green: 0.32, blue: 0.58))
+            return PackageVariantAccent(fill: Color(red: 0.16, green: 0.70, blue: 1.0), text: Color(red: 0.00, green: 0.30, blue: 0.62))
         case "balanced":
-            return PackageVariantAccent(fill: Color(red: 1.0, green: 0.86, blue: 0.44), text: Color(red: 0.44, green: 0.27, blue: 0.02))
+            return PackageVariantAccent(fill: Color(red: 1.0, green: 0.60, blue: 0.10), text: Color(red: 0.50, green: 0.22, blue: 0.00))
         default:
-            return PackageVariantAccent(fill: Color(red: 0.78, green: 0.67, blue: 1.0), text: Color(red: 0.32, green: 0.18, blue: 0.56))
+            return PackageVariantAccent(fill: Color(red: 0.61, green: 0.36, blue: 1.0), text: Color(red: 0.28, green: 0.10, blue: 0.60))
         }
     }
 

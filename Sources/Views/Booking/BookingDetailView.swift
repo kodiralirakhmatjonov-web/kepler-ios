@@ -39,6 +39,7 @@ struct BookingDetailView: View {
     @State private var fullscreenBookingCardFlipped = false
     @State private var fullscreenCardLandscape = false
     @State private var securityConfirmation: IumrahSecurityConfirmation?
+    @State private var showStatusPage = false
 
     private let bookingService = BookingService()
     private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
@@ -58,6 +59,12 @@ struct BookingDetailView: View {
                         .frame(height: 0)
 
                         VStack(spacing: 16) {
+                            BookingPageSwitcher(
+                                selection: .booking,
+                                onBooking: {},
+                                onStatus: { showStatusPage = true }
+                            )
+
                             bookingIdentityStrip(session)
 
                             IumrahBookingDomeCard(
@@ -185,6 +192,9 @@ struct BookingDetailView: View {
                     .transition(.opacity)
                     .zIndex(100)
             }
+        }
+        .navigationDestination(isPresented: $showStatusPage) {
+            PilgrimCheckoutView(bookingID: bookingID, presentation: .screen)
         }
         .confirmationDialog(
             L10n.text("booking_delete_confirm_title", settings.language),
@@ -1598,10 +1608,33 @@ struct BookingDetailView: View {
             IumrahHaptics.success()
             dismiss()
         } catch {
-            deleteError = L10n.error(error, settings.language)
+            deleteError = bookingAccessErrorMessage(error)
             IumrahHaptics.error()
         }
     }
+    private func bookingAccessErrorMessage(_ error: Error) -> String {
+        if case APIError.status(let code) = error, code == 401 || code == 403 {
+            return localized(
+                "Сессия аккаунта устарела. Обновите Account и повторите действие.",
+                "Your account session expired. Refresh Account and try again.",
+                "Akkaunt sessiyasi eskirgan. Account bo‘limini yangilang va qayta urinib ko‘ring.",
+                "Аккаунт сессияси эскирган. Account бўлимини янгиланг ва қайта уриниб кўринг."
+            )
+        }
+        if case APIError.server(let code, let message) = error {
+            let normalized = message.uppercased()
+            if code == 401 || code == 403 || normalized.contains("UNAUTHORIZED") || normalized.contains("TOKEN_EXPIRED") {
+                return localized(
+                    "Сессия аккаунта устарела. Обновите Account и повторите действие.",
+                    "Your account session expired. Refresh Account and try again.",
+                    "Akkaunt sessiyasi eskirgan. Account bo‘limini yangilang va qayta urinib ko‘ring.",
+                    "Аккаунт сессияси эскирган. Account бўлимини янгиланг ва қайта уриниб кўринг."
+                )
+            }
+        }
+        return L10n.error(error, settings.language)
+    }
+
 }
 
 private struct BookingContactEditSheet: View {

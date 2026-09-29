@@ -112,7 +112,7 @@ struct IumrahAccountView: View {
 
                     if let profile = account.account {
                         IumrahAccountIdentityHeroCard(
-                            iumrahID: normalizedID(profile.iumrahID),
+                            profile: profile,
                             language: settings.language,
                             copyMessage: identityCopyMessage,
                             onCopy: { copyIdentityID(profile) }

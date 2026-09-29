@@ -442,7 +442,7 @@ struct BookingChatView: View {
 
     private func composer(proxy: ScrollViewProxy) -> some View {
         CareNativeGlassContainer(spacing: 8) {
-            HStack(alignment: .bottom, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 PhotosPicker(selection: $selectedPhoto, matching: .images) {
                     Group {
                         if isSendingPhoto {
@@ -450,25 +450,23 @@ struct BookingChatView: View {
                                 .controlSize(.mini)
                         } else {
                             Image(systemName: "plus")
-                                .font(.system(size: 18, weight: .regular))
+                                .font(.system(size: 17, weight: .semibold))
                         }
                     }
                     .foregroundStyle(composerControlColor)
-                    .frame(width: 30, height: 30)
+                    .frame(width: 42, height: 42)
                     .contentShape(Circle())
                 }
-                .controlSize(.small)
                 .careNativeGlassButton()
                 .disabled(isSending || isSendingPhoto)
                 .accessibilityLabel(tr("Add photo", "Добавить фото", "Rasm qo‘shish", "Расм қўшиш"))
 
-                HStack(alignment: .bottom, spacing: 5) {
+                HStack(spacing: 6) {
                     TextField(L10n.text("chat_placeholder", settings.language), text: $draft, axis: .vertical)
                         .focused($composerFocused)
                         .font(.system(size: 16.5))
                         .textFieldStyle(.plain)
-                        .lineLimit(1...4)
-                        .frame(minHeight: 24, maxHeight: 82, alignment: .center)
+                        .lineLimit(1...3)
                         .submitLabel(.send)
                         .tint(appearance.wallpaper.isVisual ? .white : outgoingAccentColor)
                         .onSubmit {
@@ -476,7 +474,7 @@ struct BookingChatView: View {
                             Task { await send(proxy: proxy) }
                         }
                         .padding(.leading, 14)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 9)
 
                     if canSend || isSending {
                         Button {
@@ -493,34 +491,30 @@ struct BookingChatView: View {
                                 }
                             }
                             .foregroundStyle(.white)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 34, height: 34)
                             .contentShape(Circle())
                         }
                         .careNativeGlassButton(prominent: true)
                         .tint(outgoingAccentColor)
                         .disabled(!canSend)
                         .padding(.trailing, 5)
-                        .padding(.bottom, 5)
-                        .transition(.scale(scale: 0.76).combined(with: .opacity))
+                        .transition(.scale(scale: 0.82).combined(with: .opacity))
                     }
                 }
-                .frame(minHeight: 44, maxHeight: 98, alignment: .bottom)
-                .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .onTapGesture {
-                    composerFocused = true
-                }
+                .frame(minHeight: 48, maxHeight: 66, alignment: .center)
+                .contentShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
+                .onTapGesture { composerFocused = true }
                 .careNativeGlassSurface(
-                    in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+                    in: RoundedRectangle(cornerRadius: 21, style: .continuous),
                     interactive: true,
                     tint: composerGlassTint
                 )
-                .scaleEffect(composerFocused ? 1.006 : 1)
                 .shadow(
                     color: appearance.wallpaper.isVisual
-                        ? Color.black.opacity(composerFocused ? 0.16 : 0.08)
-                        : Color.black.opacity(composerFocused ? 0.07 : 0.025),
-                    radius: composerFocused ? 10 : 5,
-                    y: composerFocused ? 4 : 2
+                        ? Color.black.opacity(composerFocused ? 0.14 : 0.07)
+                        : Color.black.opacity(composerFocused ? 0.06 : 0.02),
+                    radius: composerFocused ? 8 : 4,
+                    y: composerFocused ? 3 : 1
                 )
                 .animation(.spring(response: 0.28, dampingFraction: 0.86), value: composerFocused)
                 .animation(.spring(response: 0.28, dampingFraction: 0.84), value: canSend)
@@ -651,7 +645,7 @@ struct BookingChatView: View {
                 unseenIncomingCount += newIncoming.count
             }
         } catch {
-            if !silent { errorMessage = L10n.error(error, settings.language) }
+            if !silent { errorMessage = chatErrorMessage(error) }
         }
     }
 
@@ -702,7 +696,7 @@ struct BookingChatView: View {
             }
             draft = message
             failedDraft = message
-            errorMessage = L10n.format("chat_send_failed", settings.language, L10n.error(error, settings.language))
+            errorMessage = L10n.format("chat_send_failed", settings.language, chatErrorMessage(error))
             if appearance.soundsEnabled {
                 CareChatFeedback.shared.play(.error)
             }
@@ -741,13 +735,37 @@ struct BookingChatView: View {
             }
             scrollToLatest(proxy)
         } catch {
-            errorMessage = L10n.format("chat_send_failed", settings.language, L10n.error(error, settings.language))
+            errorMessage = L10n.format("chat_send_failed", settings.language, chatErrorMessage(error))
             if appearance.soundsEnabled {
                 CareChatFeedback.shared.play(.error)
             }
             if appearance.hapticsEnabled {
                 IumrahHaptics.error()
             }
+        }
+    }
+
+    private func chatErrorMessage(_ error: Error) -> String {
+        if isAuthorizationError(error) {
+            return tr(
+                "Your booking session needs to be refreshed. Return to the booking once, then open Care again.",
+                "Сессия бронирования требует обновления. Вернитесь в бронь и откройте Care снова.",
+                "Bron sessiyasini yangilash kerak. Bronga qayting va Care’ni yana oching.",
+                "Брон сессиясини янгилаш керак. Бронга қайтинг ва Care’ни яна очинг."
+            )
+        }
+        return L10n.error(error, settings.language)
+    }
+
+    private func isAuthorizationError(_ error: Error) -> Bool {
+        switch error {
+        case APIError.status(let code):
+            return code == 401 || code == 403
+        case APIError.server(let code, let message):
+            let normalized = message.uppercased()
+            return code == 401 || code == 403 || normalized.contains("UNAUTHORIZED") || normalized.contains("TOKEN_EXPIRED")
+        default:
+            return false
         }
     }
 

@@ -1,11 +1,24 @@
 import SwiftUI
 
+private enum BookingIncludedServiceDetail: String, Identifiable {
+    case transfer
+    case guide
+    case ziyarats
+    case esim
+    case care
+    case meals
+
+    var id: String { rawValue }
+}
+
 struct BookingFlightFirstComponentsView: View {
     @EnvironmentObject private var settings: AppSettingsStore
 
     let session: StoredBookingSession
     let onChangeMakkahHotel: () -> Void
     let onChangeMadinahHotel: () -> Void
+
+    @State private var serviceDetail: BookingIncludedServiceDetail?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -51,11 +64,19 @@ struct BookingFlightFirstComponentsView: View {
             SectionHeader(includedTitle, eyebrow: "iumrah", subtitle: nil)
             includedServicesCard
         }
+        .sheet(item: $serviceDetail) { detail in
+            BookingIncludedServiceDetailSheet(
+                detail: detail,
+                session: session,
+                language: settings.language
+            )
+        }
     }
 
     private var includedServicesCard: some View {
         VStack(spacing: 0) {
             includedRow(
+                detail: .transfer,
                 icon: "car.fill",
                 title: localized("Трансфер по маршруту", "Route transfer", "Yo‘nalish transferi", "Йўналиш трансфери"),
                 subtitle: localized("Аэропорт, отели и ключевые точки поездки", "Airport, hotels and key trip points", "Aeroport, mehmonxonalar va asosiy nuqtalar", "Аэропорт, меҳмонхоналар ва асосий нуқталар")
@@ -64,32 +85,35 @@ struct BookingFlightFirstComponentsView: View {
             Divider().padding(.leading, 58)
 
             includedRow(
+                detail: .guide,
                 icon: "person.badge.shield.checkmark.fill",
-                title: localized("iumrah Guide", "iumrah Guide", "iumrah Guide", "iumrah Guide"),
+                title: "iumrah Guide",
                 subtitle: guideSubtitle
             )
 
-            Divider().padding(.leading, 58)
-
             if session.ziyaratMakkahEnabled || session.ziyaratMadinahEnabled {
+                Divider().padding(.leading, 58)
                 includedRow(
+                    detail: .ziyarats,
                     icon: "map.fill",
                     title: localized("Зияраты", "Ziyarats", "Ziyoratlar", "Зиёратлар"),
                     subtitle: ziyaratSubtitle
                 )
-                Divider().padding(.leading, 58)
             }
 
             if session.esimEnabled {
+                Divider().padding(.leading, 58)
                 includedRow(
+                    detail: .esim,
                     icon: "simcard.fill",
                     title: "iumrah eSIM",
                     subtitle: localized("Связь в Саудовской Аравии внутри поездки", "Connectivity in Saudi Arabia inside your trip", "Saudiya Arabistonida safar ichidagi aloqa", "Саудия Арабистонида сафар ичидаги алоқа")
                 )
-                Divider().padding(.leading, 58)
             }
 
+            Divider().padding(.leading, 58)
             includedRow(
+                detail: .care,
                 icon: "heart.fill",
                 title: "iumrah Care",
                 subtitle: localized("Поддержка по поездке и бронированию", "Trip and booking support", "Safar va bron bo‘yicha yordam", "Сафар ва брон бўйича ёрдам")
@@ -98,6 +122,7 @@ struct BookingFlightFirstComponentsView: View {
             if session.booking.customization?.meals == true {
                 Divider().padding(.leading, 58)
                 includedRow(
+                    detail: .meals,
                     icon: "fork.knife",
                     title: localized("Питание", "Meals", "Ovqatlanish", "Овқатланиш"),
                     subtitle: localized("Включено по выбранной категории пакета", "Included according to your package category", "Tanlangan paket toifasi bo‘yicha kiritilgan", "Танланган пакет тоифаси бўйича киритилган")
@@ -111,32 +136,46 @@ struct BookingFlightFirstComponentsView: View {
         }
     }
 
-    private func includedRow(icon: String, title: String, subtitle: String) -> some View {
-        HStack(spacing: 14) {
-            IumrahIconBadge(
-                systemName: icon,
-                role: role(for: icon),
-                size: 44,
-                symbolSize: 17,
-                cornerRadius: 15
-            )
+    private func includedRow(
+        detail: BookingIncludedServiceDetail,
+        icon: String,
+        title: String,
+        subtitle: String
+    ) -> some View {
+        Button {
+            IumrahHaptics.selection()
+            serviceDetail = detail
+        } label: {
+            HStack(spacing: 14) {
+                IumrahIconBadge(
+                    systemName: icon,
+                    role: role(for: icon),
+                    size: 44,
+                    symbolSize: 17,
+                    cornerRadius: 15
+                )
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.tertiary)
             }
-            Spacer(minLength: 0)
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.green)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .buttonStyle(.plain)
     }
 
     private func role(for icon: String) -> IumrahIconRole {
@@ -174,6 +213,204 @@ struct BookingFlightFirstComponentsView: View {
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
+        }
+    }
+}
+
+private struct BookingIncludedServiceDetailSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let detail: BookingIncludedServiceDetail
+    let session: StoredBookingSession
+    let language: AppSettingsStore.Language
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 18) {
+                    hero
+                    VStack(spacing: 12) {
+                        ForEach(Array(detailRows.enumerated()), id: \.offset) { _, row in
+                            detailRow(icon: row.icon, title: row.title, body: row.body)
+                        }
+                    }
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 12)
+                .padding(.bottom, 34)
+            }
+            .background(Color.iumrahPageBackground)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel(closeText)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var hero: some View {
+        HStack(alignment: .top, spacing: 14) {
+            IumrahIconBadge(
+                systemName: symbol,
+                role: role,
+                size: 54,
+                symbolSize: 22,
+                cornerRadius: 18
+            )
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 27, weight: .bold, design: .rounded))
+                    .tracking(-0.5)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+        }
+    }
+
+    private func detailRow(icon: String, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(role.color)
+                .frame(width: 38, height: 38)
+                .background(role.color.opacity(0.10), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(body)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private var title: String {
+        switch detail {
+        case .transfer: return localized("Трансфер по маршруту", "Route transfer", "Yo‘nalish transferi", "Йўналиш трансфери")
+        case .guide: return "iumrah Guide"
+        case .ziyarats: return localized("Зияраты", "Ziyarats", "Ziyoratlar", "Зиёратлар")
+        case .esim: return "iumrah eSIM"
+        case .care: return "iumrah Care"
+        case .meals: return localized("Питание", "Meals", "Ovqatlanish", "Овқатланиш")
+        }
+    }
+
+    private var subtitle: String {
+        switch detail {
+        case .transfer:
+            return localized("Переезды привязаны к реальному маршруту поездки.", "Transfers follow your actual journey route.", "Transferlar haqiqiy safar yo‘nalishiga bog‘langan.", "Трансферлар ҳақиқий сафар йўналишига боғланган.")
+        case .guide:
+            let name = session.guide?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return name.isEmpty
+                ? localized("Сопровождение и координация Умры.", "Guidance and Umrah coordination.", "Umra bo‘yicha hamrohlik va muvofiqlashtirish.", "Умра бўйича ҳамроҳлик ва мувофиқлаштириш.")
+                : localized("Ваш гид: \(name)", "Your guide: \(name)", "Gidingiz: \(name)", "Гидингиз: \(name)")
+        case .ziyarats:
+            return localized("Программа зияратов по включённым городам.", "Ziyarat program for the included cities.", "Kiritilgan shaharlardagi ziyorat dasturi.", "Киритилган шаҳарлардаги зиёрат дастури.")
+        case .esim:
+            return localized("Связь во время поездки в Саудовской Аравии.", "Connectivity during your Saudi Arabia journey.", "Saudiya Arabistonidagi safar davomida aloqa.", "Саудия Арабистонидаги сафар давомида алоқа.")
+        case .care:
+            return localized("Поддержка по брони, перелётам, отелям и маршруту.", "Support for booking, flights, hotels and itinerary.", "Bron, parvoz, mehmonxona va yo‘nalish bo‘yicha yordam.", "Брон, парвоз, меҳмонхона ва йўналиш бўйича ёрдам.")
+        case .meals:
+            return localized("Питание по выбранной категории пакета.", "Meals according to the selected package category.", "Tanlangan paket toifasi bo‘yicha ovqatlanish.", "Танланган пакет тоифаси бўйича овқатланиш.")
+        }
+    }
+
+    private var detailRows: [(icon: String, title: String, body: String)] {
+        switch detail {
+        case .transfer:
+            return [
+                ("airplane.arrival", localized("Встреча после прилёта", "Arrival pickup", "Kelishdan keyin kutib olish", "Келишдан кейин кутиб олиш"), localized("Трансфер координируется по фактическому рейсу и маршруту бронирования.", "The transfer is coordinated around the actual flight and booking itinerary.", "Transfer haqiqiy reys va bron yo‘nalishi bo‘yicha muvofiqlashtiriladi.", "Трансфер ҳақиқий рейс ва брон йўналиши бўйича мувофиқлаштирилади.")),
+                ("building.2", localized("Отели и ключевые точки", "Hotels and key points", "Mehmonxonalar va asosiy nuqtalar", "Меҳмонхоналар ва асосий нуқталар"), localized("Переезды между аэропортом, отелями и основными точками поездки входят в программу.", "Transfers between the airport, hotels and key journey points are part of the program.", "Aeroport, mehmonxonalar va asosiy safar nuqtalari orasidagi transferlar dasturga kiradi.", "Аэропорт, меҳмонхоналар ва асосий сафар нуқталари орасидаги трансферлар дастурга киради."))
+            ]
+        case .guide:
+            return [
+                ("person.2.fill", localized("Сопровождение", "Guidance", "Hamrohlik", "Ҳамроҳлик"), localized("Гид помогает ориентироваться по этапам поездки и Умры.", "Your guide helps you navigate the journey and Umrah stages.", "Gid safar va Umra bosqichlarida yo‘l-yo‘riq beradi.", "Гид сафар ва Умра босқичларида йўл-йўриқ беради.")),
+                ("message.fill", localized("Связь", "Contact", "Aloqa", "Алоқа"), localized("Контакт и актуальные инструкции доступны внутри бронирования.", "Contact and current instructions are available inside the booking.", "Aloqa va joriy ko‘rsatmalar bron ichida mavjud.", "Алоқа ва жорий кўрсатмалар брон ичида мавжуд."))
+            ]
+        case .ziyarats:
+            var rows: [(String,String,String)] = []
+            if session.ziyaratMakkahEnabled {
+                rows.append(("mappin.and.ellipse", L10n.city("Makkah", language), localized("Зияраты в Мекке включены в Вашу программу.", "Makkah ziyarats are included in your program.", "Makkadagi ziyoratlar dasturingizga kiritilgan.", "Маккадаги зиёратлар дастурингизга киритилган.")))
+            }
+            if session.ziyaratMadinahEnabled {
+                rows.append(("mappin.and.ellipse", L10n.city("Madinah", language), localized("Зияраты в Медине включены в Вашу программу.", "Madinah ziyarats are included in your program.", "Madinadagi ziyoratlar dasturingizga kiritilgan.", "Мадинадаги зиёратлар дастурингизга киритилган.")))
+            }
+            return rows
+        case .esim:
+            return [
+                ("simcard.fill", localized("Связь в поездке", "Trip connectivity", "Safardagi aloqa", "Сафардаги алоқа"), localized("eSIM предназначена для использования во время поездки в Саудовской Аравии.", "The eSIM is intended for use during your Saudi Arabia journey.", "eSIM Saudiya Arabistonidagi safar davomida foydalanish uchun mo‘ljallangan.", "eSIM Саудия Арабистонидаги сафар давомида фойдаланиш учун мўлжалланган.")),
+                ("iphone", localized("Активация", "Activation", "Faollashtirish", "Фаоллаштириш"), localized("Инструкции активации появятся в документах поездки, когда они будут готовы.", "Activation instructions will appear in trip documents when ready.", "Faollashtirish ko‘rsatmalari tayyor bo‘lganda safar hujjatlarida paydo bo‘ladi.", "Фаоллаштириш кўрсатмалари тайёр бўлганда сафар ҳужжатларида пайдо бўлади."))
+            ]
+        case .care:
+            return [
+                ("heart.fill", localized("Помощь по брони", "Booking help", "Bron bo‘yicha yordam", "Брон бўйича ёрдам"), localized("iumrah Care видит контекст поездки и помогает без повторного объяснения всей брони.", "iumrah Care sees your trip context so you do not need to explain the whole booking again.", "iumrah Care safar kontekstini ko‘radi, shuning uchun bronni qayta tushuntirish shart emas.", "iumrah Care сафар контекстини кўради, шунинг учун бронни қайта тушунтириш шарт эмас.")),
+                ("airplane", localized("Рейсы, отели и маршрут", "Flights, hotels and itinerary", "Parvoz, mehmonxona va yo‘nalish", "Парвоз, меҳмонхона ва йўналиш"), localized("Поддержка связана с компонентами именно этой поездки.", "Support is tied to the components of this exact journey.", "Yordam aynan shu safar komponentlariga bog‘langan.", "Ёрдам айнан шу сафар компонентларига боғланган."))
+            ]
+        case .meals:
+            return [
+                ("fork.knife", localized("По программе пакета", "According to package", "Paket dasturi bo‘yicha", "Пакет дастури бўйича"), localized("Конкретные приёмы пищи и формат зависят от выбранной категории и подтверждённых отелей.", "Specific meals and format depend on the selected package tier and confirmed hotels.", "Aniq ovqatlar va format tanlangan paket toifasi hamda tasdiqlangan mehmonxonalarga bog‘liq.", "Аниқ овқатлар ва формат танланган пакет тоифаси ҳамда тасдиқланган меҳмонхоналарга боғлиқ."))
+            ]
+        }
+    }
+
+    private var symbol: String {
+        switch detail {
+        case .transfer: return "car.fill"
+        case .guide: return "person.badge.shield.checkmark.fill"
+        case .ziyarats: return "map.fill"
+        case .esim: return "simcard.fill"
+        case .care: return "heart.fill"
+        case .meals: return "fork.knife"
+        }
+    }
+
+    private var role: IumrahIconRole {
+        switch detail {
+        case .transfer: return .transfer
+        case .guide: return .profile
+        case .ziyarats: return .location
+        case .esim: return .connectivity
+        case .care: return .care
+        case .meals: return .umrah
+        }
+    }
+
+    private var closeText: String {
+        localized("Закрыть", "Close", "Yopish", "Ёпиш")
+    }
+
+    private func localized(_ ru: String, _ en: String, _ uz: String, _ cyrl: String) -> String {
+        switch language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
         }
     }
 }

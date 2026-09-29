@@ -913,7 +913,7 @@ struct BookingsHomeView: View {
     private func statusCardActions(_ session: StoredBookingSession) -> some View {
         VStack(spacing: 10) {
             NavigationLink {
-                BookingStatusView(bookingID: session.id)
+                PilgrimCheckoutView(bookingID: session.id, presentation: .screen)
             } label: {
                 statusCardButtonLabel(title: openStatusTitle, isPrimary: true)
             }
@@ -1691,8 +1691,33 @@ struct BookingsHomeView: View {
             deleteError = nil
             IumrahHaptics.success()
         } catch {
-            deleteError = L10n.error(error, settings.language)
+            deleteError = deleteErrorMessage(error)
             IumrahHaptics.error()
+        }
+    }
+
+    private func deleteErrorMessage(_ error: Error) -> String {
+        switch error {
+        case APIError.status(let code) where code == 401 || code == 403:
+            return localized(
+                "Сессия аккаунта устарела. Обновите Account и повторите удаление.",
+                "Your account session expired. Refresh Account and try deleting again.",
+                "Akkaunt sessiyasi eskirgan. Account bo‘limini yangilang va o‘chirishni qayta urinib ko‘ring.",
+                "Аккаунт сессияси эскирган. Account бўлимини янгиланг ва ўчиришни қайта уриниб кўринг."
+            )
+        case APIError.server(let code, let message):
+            let normalized = message.uppercased()
+            if code == 401 || code == 403 || normalized.contains("UNAUTHORIZED") || normalized.contains("TOKEN_EXPIRED") {
+                return localized(
+                    "Сессия аккаунта устарела. Обновите Account и повторите удаление.",
+                    "Your account session expired. Refresh Account and try deleting again.",
+                    "Akkaunt sessiyasi eskirgan. Account bo‘limini yangilang va o‘chirishni qayta urinib ko‘ring.",
+                    "Аккаунт сессияси эскирган. Account бўлимини янгиланг ва ўчиришни қайта уриниб кўринг."
+                )
+            }
+            return L10n.error(error, settings.language)
+        default:
+            return L10n.error(error, settings.language)
         }
     }
 

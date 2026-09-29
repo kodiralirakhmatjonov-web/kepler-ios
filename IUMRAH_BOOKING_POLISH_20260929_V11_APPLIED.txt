@@ -1,0 +1,10 @@
+Applied 2026-09-29 — Booking/Hotel First/Account/Care polish v11
+
+- Hotel First duration carousel: compact 82% cards, brighter distinct accents, visible next-card peek and page indicators.
+- Booking/components and canonical status page now share a Liquid Glass two-page switcher.
+- Legacy BookingStatusView state-chain UI is disabled and redirects to canonical PilgrimCheckoutView.
+- Account iumrah ID front reuses booking dome animation, with only iumrah ID + ID number; tap flips to account details.
+- Booking "What's included" rows open native sheets with native toolbar close controls and service details.
+- Booking remote operations retry permanent account authorization before stale booking proof for itinerary/chat/delete.
+- Booking delete removes local session after successful/not-found remote deletion and hides raw authorization errors.
+- Care chat composer is compact and authorization failures are mapped to user-facing session messages.

@@ -20,7 +20,7 @@ test('Bookings tab no longer owns active/past scope and routes status to stable 
   const source = read('Sources/Views/Tabs/BookingsHomeView.swift');
   assert.doesNotMatch(source, /private enum BookingScope/);
   assert.doesNotMatch(source, /@State private var bookingScope/);
-  assert.match(source, /BookingStatusView\(bookingID: session\.id\)/);
+  assert.match(source, /PilgrimCheckoutView\(bookingID: session\.id, presentation: \.screen\)/);
 });
 
 test('Booking components page uses native navigation and Flight First component design after itinerary', () => {
@@ -36,12 +36,14 @@ test('Booking components page uses native navigation and Flight First component 
   assert.match(components, /includedServicesCard/);
 });
 
-test('Booking status page never replaces operational state with raw checkout auth error', () => {
-  const source = read('Sources/Views/Booking/BookingStatusView.swift');
-  assert.match(source, /checkout = try\? await accountService\.checkout/);
-  assert.match(source, /await bookings\.refreshAll\(\)/);
-  assert.doesNotMatch(source, /UNAUTHORIZED/);
-  assert.doesNotMatch(source, /error\.localizedDescription/);
+test('Booking status uses the canonical pilgrim details and payment page', () => {
+  const compatibility = read('Sources/Views/Booking/BookingStatusView.swift');
+  const checkout = read('Sources/Views/Booking/PilgrimCheckoutView.swift');
+  assert.match(compatibility, /PilgrimCheckoutView\(bookingID: bookingID, presentation: \.screen\)/);
+  assert.match(checkout, /Ma’lumotlar va to‘lov/);
+  assert.match(checkout, /BookingPageSwitcher/);
+  assert.doesNotMatch(compatibility, /Safar bosqichlari/);
+  assert.doesNotMatch(compatibility, /UNAUTHORIZED/);
 });
 
 test('Ziyarats uses system navigation and native sheet detents instead of custom overlay entry', () => {

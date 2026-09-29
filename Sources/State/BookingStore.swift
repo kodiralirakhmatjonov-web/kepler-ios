@@ -419,18 +419,18 @@ final class BookingStore: ObservableObject {
 
     func loadItinerary(for bookingID: String) async throws -> [BookingItineraryItem] {
         guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
-        let headers = clientHeaders(for: session)
-        guard !headers.isEmpty else { throw APIError.missingBookingToken }
-        let items = try await bookingService.fetchItinerary(id: bookingID, headers: headers)
+        let (items, _) = try await performWithClientAuthorization(for: session) { headers in
+            try await bookingService.fetchItinerary(id: bookingID, headers: headers)
+        }
         itineraries[bookingID] = items
         return items
     }
 
     func loadChat(for bookingID: String) async throws -> [ChatMessage] {
         guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
-        let headers = clientHeaders(for: session)
-        guard !headers.isEmpty else { throw APIError.missingBookingToken }
-        let response = try await chatService.loadChat(bookingID: bookingID, headers: headers)
+        let (response, headers) = try await performWithClientAuthorization(for: session) { headers in
+            try await chatService.loadChat(bookingID: bookingID, headers: headers)
+        }
         let messages = response.messages.sorted(by: { $0.createdAt < $1.createdAt })
         chats[bookingID] = messages
         _ = try? await chatService.markRead(bookingID: bookingID, headers: headers)
@@ -439,9 +439,9 @@ final class BookingStore: ObservableObject {
 
     func send(message: String, for bookingID: String) async throws -> ChatMessage {
         guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
-        let headers = clientHeaders(for: session)
-        guard !headers.isEmpty else { throw APIError.missingBookingToken }
-        let created = try await chatService.send(message: message, bookingID: bookingID, headers: headers)
+        let (created, _) = try await performWithClientAuthorization(for: session) { headers in
+            try await chatService.send(message: message, bookingID: bookingID, headers: headers)
+        }
         var current = chats[bookingID] ?? []
         current.append(created)
         chats[bookingID] = current.sorted(by: { $0.createdAt < $1.createdAt })
@@ -450,9 +450,9 @@ final class BookingStore: ObservableObject {
 
     func sendPhoto(data: Data, for bookingID: String) async throws -> ChatMessage {
         guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
-        let headers = clientHeaders(for: session)
-        guard !headers.isEmpty else { throw APIError.missingBookingToken }
-        let created = try await chatService.sendPhoto(data: data, bookingID: bookingID, headers: headers)
+        let (created, _) = try await performWithClientAuthorization(for: session) { headers in
+            try await chatService.sendPhoto(data: data, bookingID: bookingID, headers: headers)
+        }
         var current = chats[bookingID] ?? []
         current.append(created)
         chats[bookingID] = current.sorted(by: { $0.createdAt < $1.createdAt })
@@ -461,9 +461,10 @@ final class BookingStore: ObservableObject {
 
     func chatAttachmentData(path: String, bookingID: String) async throws -> Data {
         guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
-        let headers = clientHeaders(for: session)
-        guard !headers.isEmpty else { throw APIError.missingBookingToken }
-        return try await chatService.loadAttachment(path: path, headers: headers)
+        let (data, _) = try await performWithClientAuthorization(for: session) { headers in
+            try await chatService.loadAttachment(path: path, headers: headers)
+        }
+        return data
     }
 
     func syncPushSubscriptions(deviceToken: String, locale: String) async {
@@ -663,39 +664,81 @@ final class BookingStore: ObservableObject {
     func deleteBooking(id: String) async throws {
         guard let session = booking(id: id) else {
             purgeLocalBooking(id: id)
+            persist()
             return
         }
 
-        let token = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        let headers = clientHeaders(for: session)
-        if !headers.isEmpty {
-            do {
-                _ = try await bookingService.deleteBooking(id: id, headers: headers)
-            } catch APIError.status(let code) where code == 404 || code == 410 {
-                // Idempotent delete: if the server no longer has the booking, the local copy is stale.
-            } catch APIError.server(let code, let message) where isRemoteMissing(code: code, message: message) {
-                // Same as a successful delete from the client's point of view.
-            } catch APIError.status(let code) where code == 405 {
-                throw BookingStoreError.permanentDeleteUnavailable
-            } catch APIError.server(let code, let message) where code == 405 || message.uppercased().contains("METHOD_NOT_ALLOWED") {
-                throw BookingStoreError.permanentDeleteUnavailable
-            } catch {
-                // Some legacy delete paths completed the database mutation and then returned 500.
-                // Reconcile once: if the booking is now absent remotely, finish the local delete.
-                guard !token.isEmpty, await remoteBookingIsMissing(id: id, accessToken: token) else { throw error }
+        do {
+            _ = try await performWithClientAuthorization(for: session) { headers in
+                try await bookingService.deleteBooking(id: id, headers: headers)
             }
+        } catch APIError.status(let code) where code == 404 || code == 410 {
+            // Idempotent delete: the canonical server copy is already gone.
+        } catch APIError.server(let code, let message) where isRemoteMissing(code: code, message: message) {
+            // Same as a successful delete from the client's point of view.
+        } catch APIError.status(let code) where code == 405 {
+            throw BookingStoreError.permanentDeleteUnavailable
+        } catch APIError.server(let code, let message) where code == 405 || message.uppercased().contains("METHOD_NOT_ALLOWED") {
+            throw BookingStoreError.permanentDeleteUnavailable
+        } catch {
+            // A stale booking proof used to surface UNAUTHORIZED here even for a
+            // valid signed-in iumrah account. performWithClientAuthorization has
+            // already retried the permanent account session. Only reconcile the
+            // old booking proof after both authorization candidates are exhausted.
+            let token = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !token.isEmpty, await remoteBookingIsMissing(id: id, accessToken: token) else { throw error }
         }
 
         purgeLocalBooking(id: id)
         persist()
     }
 
+    private func clientHeaderCandidates(for session: StoredBookingSession) -> [[String: String]] {
+        var candidates: [[String: String]] = []
+
+        if let accountToken {
+            let permanentToken = accountToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !permanentToken.isEmpty {
+                candidates.append(["Authorization": "Bearer \(permanentToken)"])
+            }
+        }
+
+        let bookingToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !bookingToken.isEmpty {
+            candidates.append(["x-booking-token": bookingToken])
+        }
+
+        return candidates
+    }
 
     private func clientHeaders(for session: StoredBookingSession) -> [String: String] {
         let bookingToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
         if !bookingToken.isEmpty { return ["x-booking-token": bookingToken] }
-        if let accountToken, !accountToken.isEmpty { return ["Authorization": "Bearer \(accountToken)"] }
+        if let accountToken {
+            let permanentToken = accountToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !permanentToken.isEmpty { return ["Authorization": "Bearer \(permanentToken)"] }
+        }
         return [:]
+    }
+
+    private func performWithClientAuthorization<T>(
+        for session: StoredBookingSession,
+        operation: ([String: String]) async throws -> T
+    ) async throws -> (T, [String: String]) {
+        let candidates = clientHeaderCandidates(for: session)
+        guard !candidates.isEmpty else { throw APIError.missingBookingToken }
+
+        var lastAuthorizationError: Error?
+        for headers in candidates {
+            do {
+                return (try await operation(headers), headers)
+            } catch {
+                guard isAuthorizationFailure(error) else { throw error }
+                lastAuthorizationError = error
+            }
+        }
+
+        throw lastAuthorizationError ?? APIError.missingBookingToken
     }
 
     private func isAuthorizationFailure(_ error: Error) -> Bool {
