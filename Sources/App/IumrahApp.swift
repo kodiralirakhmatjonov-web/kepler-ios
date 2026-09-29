@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct IumrahApp: App {
     @UIApplicationDelegateAdaptor(IumrahAppDelegate.self) private var appDelegate
+    @StateObject private var appStoreUpdateService = AppStoreUpdateService()
 
     init() {
         // Keychain may survive an uninstall. Establish the installation boundary
@@ -18,6 +19,15 @@ struct IumrahApp: App {
             }
             .task {
                 await IumrahPlusStore.shared.start()
+                await appStoreUpdateService.checkIfNeeded()
+            }
+            .sheet(item: Binding(
+                get: { appStoreUpdateService.availableUpdate },
+                set: { if $0 == nil { appStoreUpdateService.dismiss() } }
+            )) { update in
+                AppStoreUpdateSheet(update: update) {
+                    appStoreUpdateService.dismiss()
+                }
             }
         }
     }

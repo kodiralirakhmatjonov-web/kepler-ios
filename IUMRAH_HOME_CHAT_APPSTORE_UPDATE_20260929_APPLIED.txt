@@ -1,0 +1,6 @@
+Cumulative Kepler iOS patch:
+- adaptive Home header keeps Online/bell/menu inside screen bounds
+- compact iMessage-style booking chat composer
+- App Store update discovery at launch using App Store ID 6759577859
+- localized soft-update sheet with iumrah icon and App Store button
+- update lookup failure/offline state never blocks app startup

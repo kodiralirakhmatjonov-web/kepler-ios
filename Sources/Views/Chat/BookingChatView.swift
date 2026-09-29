@@ -441,45 +441,45 @@ struct BookingChatView: View {
     // MARK: - Composer
 
     private func composer(proxy: ScrollViewProxy) -> some View {
-        CareNativeGlassContainer(spacing: 8) {
-            HStack(alignment: .center, spacing: 8) {
-                PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                    Group {
-                        if isSendingPhoto {
-                            ProgressView()
-                                .controlSize(.mini)
-                        } else {
-                            Image(systemName: "plus")
-                                .font(.system(size: 17, weight: .semibold))
-                        }
+        // iMessage-style composer: two independent controls instead of one large
+        // GlassEffectContainer. This prevents iOS 26 from merging/stretching the
+        // input surface and keeps the bar compact when the draft is empty.
+        HStack(alignment: .bottom, spacing: 9) {
+            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                Group {
+                    if isSendingPhoto {
+                        ProgressView()
+                            .controlSize(.mini)
+                    } else {
+                        Image(systemName: "plus")
+                            .font(.system(size: 19, weight: .regular))
                     }
-                    .foregroundStyle(composerControlColor)
-                    .frame(width: 42, height: 42)
-                    .contentShape(Circle())
                 }
-                .careNativeGlassButton()
-                .disabled(isSending || isSendingPhoto)
-                .accessibilityLabel(tr("Add photo", "Добавить фото", "Rasm qo‘shish", "Расм қўшиш"))
+                .foregroundStyle(composerControlColor)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+            }
+            .careNativeGlassButton()
+            .disabled(isSending || isSendingPhoto)
+            .accessibilityLabel(tr("Add photo", "Добавить фото", "Rasm qo‘shish", "Расм қўшиш"))
 
-                HStack(spacing: 6) {
-                    TextField(L10n.text("chat_placeholder", settings.language), text: $draft, axis: .vertical)
-                        .focused($composerFocused)
-                        .font(.system(size: 16.5))
-                        .textFieldStyle(.plain)
-                        .lineLimit(1...3)
-                        // Prevent iOS 26 from greedily stretching an empty vertical
-                        // TextField to the composer's maximum height. It now follows
-                        // its real 1–3 line intrinsic height instead.
-                        .fixedSize(horizontal: false, vertical: true)
-                        .submitLabel(.send)
-                        .tint(appearance.wallpaper.isVisual ? .white : outgoingAccentColor)
-                        .onSubmit {
-                            guard canSend else { return }
-                            Task { await send(proxy: proxy) }
-                        }
-                        .padding(.leading, 14)
-                        .padding(.vertical, 9)
+            HStack(alignment: .bottom, spacing: 4) {
+                TextField(L10n.text("chat_placeholder", settings.language), text: $draft, axis: .vertical)
+                    .focused($composerFocused)
+                    .font(.system(size: 16.5))
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .submitLabel(.send)
+                    .tint(appearance.wallpaper.isVisual ? .white : outgoingAccentColor)
+                    .onSubmit {
+                        guard canSend else { return }
+                        Task { await send(proxy: proxy) }
+                    }
+                    .padding(.leading, 14)
+                    .padding(.vertical, 11)
 
+                Group {
                     if canSend || isSending {
                         Button {
                             Task { await send(proxy: proxy) }
@@ -491,46 +491,61 @@ struct BookingChatView: View {
                                         .tint(.white)
                                 } else {
                                     Image(systemName: "arrow.up")
-                                        .font(.system(size: 14.5, weight: .bold))
+                                        .font(.system(size: 14, weight: .bold))
                                 }
                             }
                             .foregroundStyle(.white)
-                            .frame(width: 34, height: 34)
+                            .frame(width: 32, height: 32)
                             .contentShape(Circle())
                         }
                         .careNativeGlassButton(prominent: true)
                         .tint(outgoingAccentColor)
                         .disabled(!canSend)
-                        .padding(.trailing, 5)
-                        .transition(.scale(scale: 0.82).combined(with: .opacity))
+                        .transition(.scale(scale: 0.86).combined(with: .opacity))
                     } else {
                         Image(systemName: "waveform")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(appearance.wallpaper.isVisual ? Color.white.opacity(0.78) : Color.secondary)
-                            .frame(width: 34, height: 34)
-                            .padding(.trailing, 5)
-                            .transition(.scale(scale: 0.86).combined(with: .opacity))
+                            .foregroundStyle(
+                                appearance.wallpaper.isVisual
+                                    ? Color.white.opacity(0.76)
+                                    : Color.secondary
+                            )
+                            .frame(width: 32, height: 32)
+                            .transition(.scale(scale: 0.90).combined(with: .opacity))
                     }
                 }
-                .frame(minHeight: 48, maxHeight: 72, alignment: .center)
-                .contentShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
-                .onTapGesture { composerFocused = true }
-                .careNativeGlassSurface(
-                    in: RoundedRectangle(cornerRadius: 21, style: .continuous),
-                    interactive: true,
-                    tint: composerGlassTint
-                )
-                .shadow(
-                    color: appearance.wallpaper.isVisual
-                        ? Color.black.opacity(composerFocused ? 0.14 : 0.07)
-                        : Color.black.opacity(composerFocused ? 0.06 : 0.02),
-                    radius: composerFocused ? 8 : 4,
-                    y: composerFocused ? 3 : 1
-                )
-                .animation(.spring(response: 0.28, dampingFraction: 0.86), value: composerFocused)
-                .animation(.spring(response: 0.28, dampingFraction: 0.84), value: canSend)
+                .padding(.trailing, 6)
+                .padding(.bottom, 6)
             }
+            .frame(minHeight: 44, maxHeight: 78, alignment: .bottom)
+            .frame(maxWidth: .infinity)
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .onTapGesture { composerFocused = true }
+            .careNativeGlassSurface(
+                in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+                interactive: false,
+                tint: composerGlassTint
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(
+                        appearance.wallpaper.isVisual
+                            ? Color.white.opacity(0.18)
+                            : Color.primary.opacity(0.08),
+                        lineWidth: 0.65
+                    )
+                    .allowsHitTesting(false)
+            }
+            .shadow(
+                color: appearance.wallpaper.isVisual
+                    ? Color.black.opacity(0.08)
+                    : Color.black.opacity(0.025),
+                radius: 4,
+                y: 1
+            )
+            .animation(.spring(response: 0.24, dampingFraction: 0.88), value: canSend)
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 12)
         .overlay(alignment: .bottomTrailing) {
             if let launchingOutgoing {

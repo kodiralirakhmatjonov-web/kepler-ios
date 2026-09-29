@@ -14,14 +14,29 @@ struct IumrahRootPageTitle: View {
     var showsConnectivityStatus = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: showsConnectivityStatus ? 10 : 14) {
+        Group {
+            // Home is the only header that combines the wordmark, the animated
+            // Online pill and two circular controls. Keep that row adaptive so
+            // the trailing controls can never be pushed past the screen edge on
+            // narrower iPhones or larger Dynamic Type sizes.
+            if usesBrandLogo && showsConnectivityStatus {
+                ViewThatFits(in: .horizontal) {
+                    connectedBrandHeader(brandWidth: 132, controlSize: 44, spacing: 8)
+                    connectedBrandHeader(brandWidth: 110, controlSize: 40, spacing: 7)
+                    connectedBrandHeader(brandWidth: 96, controlSize: 38, spacing: 6)
+                }
+            } else {
+                standardHeader
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var standardHeader: some View {
+        HStack(alignment: .top, spacing: 14) {
             Group {
                 if usesBrandLogo {
-                    Image(wordmarkAsset)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: brandFrameWidth, height: 46 * brandScale, alignment: .leading)
-                        .accessibilityLabel("Iumrah")
+                    brandImage(width: 180 * brandScale)
                 } else {
                     Text(title)
                         .font(.system(size: 38, weight: .bold, design: .rounded))
@@ -32,28 +47,53 @@ struct IumrahRootPageTitle: View {
                 }
             }
 
-            Spacer(minLength: showsConnectivityStatus ? 4 : 8)
-
-            if showsConnectivityStatus {
-                IumrahAnimatedConnectivityIndicator(lightStyle: lightStyle)
-                    .padding(.top, 6)
-            }
-
-            VStack(alignment: .trailing, spacing: showsMakkahTime ? 8 : 0) {
-                HStack(spacing: 10) {
-                    notificationButton
-                    menuButton
-                }
-
-                if showsMakkahTime {
-                    MakkahClockView(lightStyle: lightStyle)
-                }
-            }
+            Spacer(minLength: 8)
+            trailingControls(controlSize: 46, spacing: 10)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var notificationButton: some View {
+    private func connectedBrandHeader(
+        brandWidth: CGFloat,
+        controlSize: CGFloat,
+        spacing: CGFloat
+    ) -> some View {
+        HStack(alignment: .top, spacing: spacing) {
+            brandImage(width: brandWidth)
+                .layoutPriority(0)
+
+            Spacer(minLength: 0)
+
+            IumrahAnimatedConnectivityIndicator(lightStyle: lightStyle)
+                .padding(.top, 6)
+                .layoutPriority(2)
+
+            trailingControls(controlSize: controlSize, spacing: spacing)
+                .layoutPriority(3)
+        }
+    }
+
+    private func brandImage(width: CGFloat) -> some View {
+        Image(wordmarkAsset)
+            .resizable()
+            .scaledToFit()
+            .frame(width: width, height: 46 * brandScale, alignment: .leading)
+            .accessibilityLabel("Iumrah")
+    }
+
+    private func trailingControls(controlSize: CGFloat, spacing: CGFloat) -> some View {
+        VStack(alignment: .trailing, spacing: showsMakkahTime ? 8 : 0) {
+            HStack(spacing: spacing) {
+                notificationButton(size: controlSize)
+                menuButton(size: controlSize)
+            }
+
+            if showsMakkahTime {
+                MakkahClockView(lightStyle: lightStyle)
+            }
+        }
+    }
+
+    private func notificationButton(size: CGFloat) -> some View {
         Button {
             chrome.openNotifications()
         } label: {
@@ -61,7 +101,7 @@ struct IumrahRootPageTitle: View {
                 Image(systemName: clientNotifications.unreadCount > 0 ? "bell.badge.fill" : "bell")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(lightStyle ? Color.white : Color.primary)
-                    .frame(width: 46, height: 46)
+                    .frame(width: size, height: size)
                     .contentShape(Circle())
                     .iumrahGlass(
                         in: Circle(),
@@ -80,14 +120,14 @@ struct IumrahRootPageTitle: View {
         .accessibilityLabel(notificationAccessibilityLabel)
     }
 
-    private var menuButton: some View {
+    private func menuButton(size: CGFloat) -> some View {
         Button {
             chrome.openSidebar()
         } label: {
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(lightStyle ? Color.white : Color.primary)
-                .frame(width: 46, height: 46)
+                .frame(width: size, height: size)
                 .contentShape(Circle())
                 .iumrahGlass(
                     in: Circle(),
@@ -128,10 +168,6 @@ struct IumrahRootPageTitle: View {
         case .uzbek: return "Menyu"
         case .uzbekCyrillic: return "Меню"
         }
-    }
-
-    private var brandFrameWidth: CGFloat {
-        showsConnectivityStatus ? 140 : 180 * brandScale
     }
 
     private var wordmarkAsset: String {
