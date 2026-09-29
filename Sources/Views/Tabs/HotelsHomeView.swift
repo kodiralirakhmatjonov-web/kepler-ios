@@ -401,6 +401,81 @@ struct HotelsHomeView: View {
                 note: L10n.text("hotel_storefront_weekend_note", settings.language),
                 imageBackground: .white
             )
+
+            sundayClubComingSoonCard
+        }
+    }
+
+    private var sundayClubComingSoonCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.92))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(Color.orange)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(sundayClubSoonBadge)
+                        .font(.caption.weight(.bold))
+                        .textCase(.uppercase)
+                        .tracking(0.65)
+                        .foregroundStyle(Color.black.opacity(0.58))
+                    Text("Sunday Umrah Club")
+                        .font(.system(size: 23, weight: .bold, design: .rounded))
+                        .foregroundStyle(.black)
+                }
+                Spacer(minLength: 0)
+            }
+
+            Text(sundayClubSoonTitle)
+                .font(.system(size: 29, weight: .bold, design: .rounded))
+                .tracking(-0.6)
+                .foregroundStyle(.black)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(sundayClubSoonBody)
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundStyle(Color.black.opacity(0.65))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(red: 1.0, green: 0.61, blue: 0.18), in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.06), lineWidth: 0.8)
+        }
+        .shadow(color: Color.orange.opacity(0.14), radius: 18, y: 9)
+    }
+
+    private var sundayClubSoonBadge: String {
+        switch settings.language {
+        case .russian: return "Скоро"
+        case .english: return "Coming soon"
+        case .uzbek: return "Tez orada"
+        case .uzbekCyrillic: return "Тез орада"
+        }
+    }
+
+    private var sundayClubSoonTitle: String {
+        switch settings.language {
+        case .russian: return "Умра для выходных"
+        case .english: return "Umrah for the weekend"
+        case .uzbek: return "Dam olish kunlari uchun Umra"
+        case .uzbekCyrillic: return "Дам олиш кунлари учун Умра"
+        }
+    }
+
+    private var sundayClubSoonBody: String {
+        switch settings.language {
+        case .russian: return "Скоро здесь появятся готовые пакеты Sunday Umrah Club — короткие поездки на выходные с уже собранными датами и маршрутом."
+        case .english: return "Ready Sunday Umrah Club packages are coming here soon — short weekend trips with dates and route already prepared."
+        case .uzbek: return "Tez orada bu yerda Sunday Umrah Club tayyor paketlari paydo bo‘ladi — dam olish kunlariga mos, sanalari va yo‘nalishi oldindan tuzilgan qisqa safarlar."
+        case .uzbekCyrillic: return "Тез орада бу ерда Sunday Umrah Club тайёр пакетлари пайдо бўлади — дам олиш кунларига мос, саналари ва йўналиши олдиндан тузилган қисқа сафарлар."
         }
     }
 

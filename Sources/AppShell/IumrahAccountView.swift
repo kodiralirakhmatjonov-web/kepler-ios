@@ -1557,7 +1557,11 @@ struct IumrahAccountView: View {
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 56)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true, chrome: true)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 19, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
+        }
     }
 
     private func accountPasswordField(text: Binding<String>, placeholder: String) -> some View {
@@ -1570,7 +1574,11 @@ struct IumrahAccountView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
-        .iumrahGlass(in: RoundedRectangle(cornerRadius: 19, style: .continuous), interactive: true, chrome: true)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 19, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
+        }
     }
 
     private var guestLoginReady: Bool {

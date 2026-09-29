@@ -103,11 +103,10 @@ struct HomeDashboardView: View {
                     personalUmrahFAQ
                     homeAboutFooter
                 }
-                // Keep the same single content-column discipline used by Account.
-                // The explicit viewport width prevents any carousel/card from enlarging
-                // the vertical ScrollView's horizontal content size and cancelling the
-                // standard page insets for every sibling below it.
-                .frame(width: contentWidth, alignment: .topLeading)
+                // Static Home content always stays on the normal page grid.
+                // Individual horizontal carousels opt into full-bleed scrolling below;
+                // they must never change the width/alignment of the surrounding page.
+                .frame(maxWidth: .infinity, alignment: .topLeading)
                 .padding(.horizontal, IumrahDesign.pagePadding)
                 .padding(.top, 10)
                 .padding(.bottom, 128)
@@ -536,7 +535,8 @@ struct HomeDashboardView: View {
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-                .scrollClipDisabled()
+                .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
+                .padding(.horizontal, -IumrahDesign.pagePadding)
             }
         }
     }
@@ -610,11 +610,10 @@ struct HomeDashboardView: View {
                             .frame(width: cardWidth, height: cardHeight, alignment: .top)
                     }
                     .scrollTargetLayout()
-                    .padding(.horizontal, 1)
                 }
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-                .contentMargins(.horizontal, 0, for: .scrollContent)
-                .scrollClipDisabled()
+                .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
+                .padding(.horizontal, -IumrahDesign.pagePadding)
             }
             .frame(height: 554)
         }
@@ -830,13 +829,13 @@ struct HomeDashboardView: View {
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack {
-                    Color.white
+                    Color.black
 
                     Image("StoreConfiguratorPhones")
                         .resizable()
-                        .scaledToFit()
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 10)
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 220)
@@ -1289,7 +1288,7 @@ struct HomeDashboardView: View {
     private var homeSundayClubProductCard: some View {
         Button {
             IumrahHaptics.soft()
-            chrome.navigate(to: .hotels)
+            chrome.openHotels(board: .sundayClub)
         } label: {
             VStack(spacing: 0) {
                 ZStack {

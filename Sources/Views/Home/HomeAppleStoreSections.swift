@@ -49,7 +49,8 @@ struct IumrahHomeAudienceSection: View {
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-            .scrollClipDisabled()
+            .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
+            .padding(.horizontal, -IumrahDesign.pagePadding)
         }
     }
 
@@ -180,7 +181,8 @@ struct IumrahHomeServicesSection: View {
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-            .scrollClipDisabled()
+            .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
+            .padding(.horizontal, -IumrahDesign.pagePadding)
         }
     }
 

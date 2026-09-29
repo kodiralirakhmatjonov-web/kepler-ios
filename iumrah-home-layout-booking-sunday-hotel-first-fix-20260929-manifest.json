@@ -1,0 +1,15 @@
+{
+  "name": "iumrah-home-layout-booking-sunday-hotel-first-fix",
+  "date": "2026-09-29",
+  "target": "Kepler iOS / iumrah client",
+  "changes": [
+    "Home static layout restored",
+    "Home carousels full-bleed only",
+    "Configurator hero artwork replaced",
+    "Sunday Club direct navigation",
+    "Sunday Club orange coming-soon state",
+    "Booking segmented controls normalized",
+    "Account inputs changed from interactive glass to static fields",
+    "Hotel First variants compacted and simplified"
+  ]
+}

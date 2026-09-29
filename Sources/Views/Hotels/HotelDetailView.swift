@@ -376,7 +376,7 @@ struct HotelDetailView: View {
                         selectedPackageVariantIndex = newValue
                     }
                 }
-                .frame(height: 500)
+                .frame(height: 332)
 
                 if hotelPackagePreviews.count > 1 {
                     HStack(spacing: 7) {
@@ -423,116 +423,72 @@ struct HotelDetailView: View {
 
     private func hotelPackageVariantCard(_ preview: StorefrontFlightPackagePreview, index: Int) -> some View {
         let accent = packageVariantAccent(preview, index: index)
+        let travelers = packageTravelerCount(preview)
 
-        return VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(packageVariantEyebrow(preview, index: index))
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(accent.text.opacity(0.88))
-                        .textCase(.uppercase)
-                    Text(L10n.text("hotel_detail_package_title", settings.language))
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .tracking(-0.30)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                Text("\(preview.hotelFirstVariantMinDays ?? preview.durationDays)–\(preview.hotelFirstVariantMaxDays ?? preview.durationDays) \(packageDaysShort)")
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 10) {
+                Text(packageVariantEyebrow(preview, index: index))
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(accent.text)
-                    .padding(.horizontal, 11)
-                    .frame(height: 32)
-                    .background(accent.fill.opacity(0.22), in: Capsule())
-            }
+                    .textCase(.uppercase)
+                    .tracking(0.45)
+                    .foregroundStyle(accent.text.opacity(0.86))
+                    .lineLimit(1)
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .lastTextBaseline, spacing: 12) {
-                    Text(packageVariantDateRange(preview))
-                        .font(.system(size: 25, weight: .bold, design: .rounded))
-                        .tracking(-0.65)
-                        .foregroundStyle(accent.text)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.72)
+                Spacer(minLength: 8)
 
-                    Spacer(minLength: 8)
-
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(durationFocusLabel)
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(accent.text.opacity(0.72))
-                        Text("\(preview.durationDays)")
-                            .font(.system(size: 25, weight: .bold, design: .rounded))
-                            .foregroundStyle(accent.text)
-                        Text(packageDaysShort)
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(accent.text.opacity(0.76))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(accent.fill.opacity(0.28), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                HStack(spacing: 5) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("\(preview.durationDays) \(packageDaysShort)")
+                        .font(.caption.weight(.bold))
                 }
-
-                Text(packageVariantSubtitle(preview))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(accent.text)
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(Color.white.opacity(0.60), in: Capsule())
             }
-            .padding(14)
-            .background(
-                LinearGradient(
-                    colors: [accent.fill.opacity(0.34), accent.fill.opacity(0.13)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-            )
 
-            HStack(spacing: 8) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.caption.weight(.semibold))
-                Text("iumrah Configurator · \(preview.tier.title(settings.language))")
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-                Spacer(minLength: 6)
-                Text("\(L10n.text("hotel_detail_package_id", settings.language)) · \(preview.packageID)")
-                    .font(.caption2.monospacedDigit().weight(.semibold))
-                    .lineLimit(1)
-            }
-            .foregroundStyle(.secondary)
+            Text(packageVariantDateRange(preview))
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .tracking(-0.45)
+                .foregroundStyle(accent.text)
+                .lineLimit(2)
+                .minimumScaleFactor(0.78)
 
             HStack(alignment: .lastTextBaseline, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(money(preview.pricePerPerson))
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .tracking(-1)
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .tracking(-0.9)
+                        .foregroundStyle(.black)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .minimumScaleFactor(0.78)
                     Text(L10n.text("hotel_storefront_per_pilgrim", settings.language))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.black.opacity(0.55))
                 }
+
                 Spacer(minLength: 8)
-                Text(L10n.format(
-                    "hotel_detail_package_total_for_fmt",
-                    settings.language,
-                    money(preview.totalPackagePrice),
-                    packageTravelerCount(preview)
-                ))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
-                .fixedSize(horizontal: false, vertical: true)
+
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text("\(travelers)")
+                        .font(.system(size: 23, weight: .bold, design: .rounded))
+                        .foregroundStyle(.black)
+                    Text(packageTravelersLabel)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.black.opacity(0.55))
+                }
             }
 
-            Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
-                packageFact(icon: "airplane", text: "\(preview.outbound.origin.uppercased()) → \(preview.outbound.destination.uppercased())   ·   \(preview.inbound.origin.uppercased()) → \(preview.inbound.destination.uppercased())")
-                packageFact(icon: "calendar", text: "\(L10n.date(preview.outbound.departureAt, settings.language)) → \(L10n.date(preview.inbound.departureAt, settings.language)) · \(preview.durationDays) \(packageDaysShort)")
-                packageFact(icon: "moon.stars.fill", text: packageVariantStayText(preview))
-                packageFact(icon: "building.2.fill", text: packageVariantHotelsText(preview))
-                packageFact(icon: "fork.knife", text: L10n.text("hotel_detail_services", settings.language))
-            }
+            Text(L10n.format(
+                "hotel_detail_package_total_for_fmt",
+                settings.language,
+                money(preview.totalPackagePrice),
+                travelers
+            ))
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Color.black.opacity(0.58))
+            .lineLimit(2)
 
             Spacer(minLength: 0)
 
@@ -540,32 +496,38 @@ struct HotelDetailView: View {
                 IumrahHaptics.selection()
                 selectedConfiguratorPreview = preview
             } label: {
-                HStack(spacing: 10) {
+                HStack(spacing: 9) {
                     Image(systemName: "slider.horizontal.3")
                     Text(L10n.text("hotel_detail_open_configurator", settings.language))
-                        .font(.headline)
-                    Spacer()
+                        .font(.subheadline.weight(.bold))
+                    Spacer(minLength: 8)
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.bold))
                 }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 15)
                 .frame(maxWidth: .infinity)
+                .frame(height: 46)
+                .background(Color.black, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
-            .buttonStyle(IumrahPrimaryButtonStyle())
+            .buttonStyle(.plain)
         }
-        .padding(16)
-        .background(
-            LinearGradient(
-                colors: [Color.iumrahCardBackground, accent.fill.opacity(0.12)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .padding(17)
+        .background(accent.fill.opacity(0.22))
+        .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(accent.fill.opacity(0.62), lineWidth: 1.35)
+            RoundedRectangle(cornerRadius: 27, style: .continuous)
+                .strokeBorder(accent.fill.opacity(0.42), lineWidth: 0.9)
         }
-        .shadow(color: accent.fill.opacity(0.13), radius: 16, y: 8)
+    }
+
+    private var packageTravelersLabel: String {
+        switch settings.language {
+        case .russian: return "паломников"
+        case .english: return "travelers"
+        case .uzbek: return "ziyoratchi"
+        case .uzbekCyrillic: return "зиёратчи"
+        }
     }
 
     private struct PackageVariantAccent {

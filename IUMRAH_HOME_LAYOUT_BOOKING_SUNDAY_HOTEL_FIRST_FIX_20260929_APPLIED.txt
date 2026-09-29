@@ -1,0 +1,11 @@
+IUMRAH Kepler iOS — Home/layout + Booking/Sunday/Hotel First fix — 2026-09-29
+
+Applied changes:
+- Restored the Home static content column to the standard page inset.
+- Horizontal Home carousels alone use full-bleed scroll viewports; first cards remain aligned to the static page grid.
+- Replaced the Home Configurator artwork with the supplied black iumrah Configurator image.
+- Home Sunday Umrah Club card opens Hotels -> Sunday Umrah Club directly.
+- Added localized orange Sunday Umrah Club coming-soon card.
+- Booking root and internal Booking/Status selectors now use the same thin native segmented style as Hotels tabs.
+- Account registration/login input fields are static surfaces, not interactive Liquid Glass.
+- Hotel First package variants are compact, solid-color cards showing dates, duration, price, travelers and total only; Package ID and secondary details are removed.

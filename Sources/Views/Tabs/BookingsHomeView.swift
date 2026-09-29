@@ -238,8 +238,6 @@ struct BookingsHomeView: View {
             Text(localized("Статус бронирования", "Booking status", "Bron holati", "Брон ҳолати")).tag(BookingPanel.status)
         }
         .pickerStyle(.segmented)
-        .controlSize(.large)
-        .frame(height: 48)
         .onChange(of: bookingPanel) { _, _ in IumrahHaptics.selection() }
     }
 

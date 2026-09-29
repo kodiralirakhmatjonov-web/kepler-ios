@@ -19,7 +19,6 @@ struct HomeVideoCarousel: View {
     var body: some View {
         GeometryReader { proxy in
             let cardWidth = max(proxy.size.width * 0.91, 278)
-            let sideInset = max((proxy.size.width - cardWidth) / 2, 0)
 
             ZStack(alignment: .bottom) {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -37,10 +36,10 @@ struct HomeVideoCarousel: View {
                     }
                     .scrollTargetLayout()
                 }
-                .contentMargins(.horizontal, sideInset, for: .scrollContent)
+                .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
                 .scrollPosition(id: $activeStoryID, anchor: .center)
-                .scrollClipDisabled()
+                .padding(.horizontal, -IumrahDesign.pagePadding)
 
                 pageIndicator
                     .padding(.bottom, 14)
