@@ -87,25 +87,36 @@ final class ClientNotificationCenter: ObservableObject {
 
     func sync(deviceToken: String?, accountToken: String?, hasTrip: Bool, locale: String) async {
         let headers = authorizationHeaders(accountToken)
-        do {
-            let response: ClientNotificationDeviceResponse = try await api.post(
-                "/api/catalog/hotels/client/notifications/devices",
-                body: ClientNotificationDeviceRegistration(
-                    installationID: installationID,
-                    deviceToken: normalizedToken(deviceToken),
-                    environment: "production",
-                    appBundleID: "com.iumrah.app",
-                    locale: locale,
-                    hasTrip: hasTrip
-                ),
-                headers: headers
-            )
-            pushProviderReady = response.ready
-            await refresh(accountToken: accountToken)
-            lastError = nil
-        } catch {
-            lastError = error.localizedDescription
+        let request = ClientNotificationDeviceRegistration(
+            installationID: installationID,
+            deviceToken: normalizedToken(deviceToken),
+            environment: "production",
+            appBundleID: AppIdentity.runtimeBundleID,
+            locale: locale,
+            hasTrip: hasTrip
+        )
+
+        var lastRegistrationError: Error?
+        for attempt in 0..<3 {
+            do {
+                let response: ClientNotificationDeviceResponse = try await api.post(
+                    "/api/catalog/hotels/client/notifications/devices",
+                    body: request,
+                    headers: headers
+                )
+                pushProviderReady = response.ready
+                await refresh(accountToken: accountToken)
+                lastError = nil
+                return
+            } catch {
+                lastRegistrationError = error
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: UInt64(650_000_000 * (attempt + 1)))
+                }
+            }
         }
+
+        lastError = lastRegistrationError?.localizedDescription
     }
 
     func refresh(accountToken: String?) async {

@@ -206,7 +206,7 @@ struct IumrahHomeServicesSection: View {
         switch language {
         case .russian:
             return [
-                Item(id: "transfer", assets: ["TransferCarnival", "TransferMalibu", "TransferYukon"], title: "Iumrah Transfer", body: "Встреча в аэропорту и приватные поездки между ключевыми точками маршрута. Комфортный автомобиль под Ваш формат поездки.", badge: "В пакете", icon: "car.fill", action: onTransfer),
+                Item(id: "transfer", assets: ["TransferMalibu", "TransferCarnival", "TransferYukon"], title: "Iumrah Transfer", body: "Встреча в аэропорту и приватные поездки между ключевыми точками маршрута. Комфортный автомобиль под Ваш формат поездки.", badge: "В пакете", icon: "car.fill", action: onTransfer),
                 Item(id: "ziyarat", assets: ["ZiyaratQuba1", "ZiyaratQuba2", "ZiyaratQuba3", "ZiyaratQuba4", "ZiyaratQuba5"], title: "Iumrah Ziyarat", body: "Места Мекки и Медины в одном маршруте. История, навигация и понятный порядок посещения без лишней суеты.", badge: "Маршруты", icon: "map.fill", action: onZiyarats),
                 Item(id: "esim", assets: ["IumrahESIMHomeCard"], title: "Iumrah eSIM", body: "Интернет в Саудовской Аравии готов к подключению сразу после приземления — без поиска SIM-карты в аэропорту.", badge: "Связь", icon: "antenna.radiowaves.left.and.right", action: onESIM),
                 Item(id: "flights", assets: ["IumrahFlightsHomeCard"], title: "Iumrah Flights", body: "Статус Вашего рейса в реальном времени: изменения времени, задержки и важные обновления поездки в одном месте.", badge: "Live status", icon: "airplane", action: onFlights),
@@ -214,7 +214,7 @@ struct IumrahHomeServicesSection: View {
             ]
         case .english:
             return [
-                Item(id: "transfer", assets: ["TransferCarnival", "TransferMalibu", "TransferYukon"], title: "Iumrah Transfer", body: "Airport pickup and private rides between key stops, with the right vehicle for your journey.", badge: "Included", icon: "car.fill", action: onTransfer),
+                Item(id: "transfer", assets: ["TransferMalibu", "TransferCarnival", "TransferYukon"], title: "Iumrah Transfer", body: "Airport pickup and private rides between key stops, with the right vehicle for your journey.", badge: "Included", icon: "car.fill", action: onTransfer),
                 Item(id: "ziyarat", assets: ["ZiyaratQuba1", "ZiyaratQuba2", "ZiyaratQuba3", "ZiyaratQuba4", "ZiyaratQuba5"], title: "Iumrah Ziyarat", body: "Makkah and Madinah places in one route, with context, navigation and a clear visit sequence.", badge: "Routes", icon: "map.fill", action: onZiyarats),
                 Item(id: "esim", assets: ["IumrahESIMHomeCard"], title: "Iumrah eSIM", body: "Saudi internet ready from arrival, without having to search for a local SIM card at the airport.", badge: "Connectivity", icon: "antenna.radiowaves.left.and.right", action: onESIM),
                 Item(id: "flights", assets: ["IumrahFlightsHomeCard"], title: "Iumrah Flights", body: "Real-time flight status with schedule changes, delays and important journey updates in one place.", badge: "Live status", icon: "airplane", action: onFlights),
@@ -222,7 +222,7 @@ struct IumrahHomeServicesSection: View {
             ]
         case .uzbek:
             return [
-                Item(id: "transfer", assets: ["TransferCarnival", "TransferMalibu", "TransferYukon"], title: "Iumrah Transfer", body: "Aeroportdan kutib olish va yo‘nalishning muhim nuqtalari orasida safaringizga mos xususiy transport.", badge: "Paketda", icon: "car.fill", action: onTransfer),
+                Item(id: "transfer", assets: ["TransferMalibu", "TransferCarnival", "TransferYukon"], title: "Iumrah Transfer", body: "Aeroportdan kutib olish va yo‘nalishning muhim nuqtalari orasida safaringizga mos xususiy transport.", badge: "Paketda", icon: "car.fill", action: onTransfer),
                 Item(id: "ziyarat", assets: ["ZiyaratQuba1", "ZiyaratQuba2", "ZiyaratQuba3", "ZiyaratQuba4", "ZiyaratQuba5"], title: "Iumrah Ziyarat", body: "Makka va Madina ziyorat joylari bitta yo‘nalishda: ma’lumot, navigatsiya va tushunarli tashrif tartibi.", badge: "Yo‘nalishlar", icon: "map.fill", action: onZiyarats),
                 Item(id: "esim", assets: ["IumrahESIMHomeCard"], title: "Iumrah eSIM", body: "Saudiya Arabistonida internet qo‘nganingizdan boshlab tayyor — aeroportda SIM-karta izlash shart emas.", badge: "Internet", icon: "antenna.radiowaves.left.and.right", action: onESIM),
                 Item(id: "flights", assets: ["IumrahFlightsHomeCard"], title: "Iumrah Flights", body: "Parvoz holati real vaqtda: vaqt o‘zgarishi, kechikish va safar uchun muhim yangilanishlar bir joyda.", badge: "Live status", icon: "airplane", action: onFlights),
@@ -230,7 +230,7 @@ struct IumrahHomeServicesSection: View {
             ]
         case .uzbekCyrillic:
             return [
-                Item(id: "transfer", assets: ["TransferCarnival", "TransferMalibu", "TransferYukon"], title: "Iumrah Transfer", body: "Аэропортдан кутиб олиш ва йўналишнинг муҳим нуқталари орасида сафарингизга мос хусусий транспорт.", badge: "Пакетда", icon: "car.fill", action: onTransfer),
+                Item(id: "transfer", assets: ["TransferMalibu", "TransferCarnival", "TransferYukon"], title: "Iumrah Transfer", body: "Аэропортдан кутиб олиш ва йўналишнинг муҳим нуқталари орасида сафарингизга мос хусусий транспорт.", badge: "Пакетда", icon: "car.fill", action: onTransfer),
                 Item(id: "ziyarat", assets: ["ZiyaratQuba1", "ZiyaratQuba2", "ZiyaratQuba3", "ZiyaratQuba4", "ZiyaratQuba5"], title: "Iumrah Ziyarat", body: "Макка ва Мадина зиёрат жойлари битта йўналишда: маълумот, навигация ва тушунарли ташриф тартиби.", badge: "Йўналишлар", icon: "map.fill", action: onZiyarats),
                 Item(id: "esim", assets: ["IumrahESIMHomeCard"], title: "Iumrah eSIM", body: "Саудия Арабистонида интернет қўнганингиздан бошлаб тайёр — аэропортда SIM-карта излаш шарт эмас.", badge: "Интернет", icon: "antenna.radiowaves.left.and.right", action: onESIM),
                 Item(id: "flights", assets: ["IumrahFlightsHomeCard"], title: "Iumrah Flights", body: "Парвоз ҳолати реал вақтда: вақт ўзгариши, кечикиш ва сафар учун муҳим янгиланишлар бир жойда.", badge: "Live status", icon: "airplane", action: onFlights),
@@ -341,11 +341,11 @@ struct IumrahHomeServicesSection: View {
 struct IumrahTransferServiceView: View {
     @EnvironmentObject private var settings: AppSettingsStore
 
-    @State private var selectedVehicle: TransferVehicleKind = .carnival
+    @State private var selectedVehicle: TransferVehicleKind = .malibu
     @State private var showPackageOnlyNotice = false
     @State private var trainPreviewSelected = false
 
-    private let vehicles: [TransferVehicleKind] = [.carnival, .yukon, .malibu]
+    private let vehicles: [TransferVehicleKind] = [.malibu, .carnival, .yukon]
     private let haramainImages = ["HaramainHero", "HaramainGalleryStation", "HaramainGalleryInterior", "HaramainGalleryTrain"]
 
     var body: some View {
@@ -431,28 +431,18 @@ struct IumrahTransferServiceView: View {
     private func standaloneVehicleStage(_ vehicle: TransferVehicleKind) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 36, style: .continuous)
-                .fill(vehicle == .yukon ? Color.black : Color.white)
-
-            if vehicle == .yukon {
-                RadialGradient(
-                    colors: [.white.opacity(0.72), .white.opacity(0.20), .clear],
-                    center: .center,
-                    startRadius: 12,
-                    endRadius: 220
-                )
-                .blur(radius: 12)
-            }
+                .fill(Color.white)
 
             VStack(spacing: 0) {
                 HStack {
                     Text(vehicleClassTitle(vehicle).uppercased())
                         .font(.caption.weight(.bold))
                         .tracking(1.1)
-                        .foregroundStyle(vehicle == .yukon ? Color.white.opacity(0.64) : Color.secondary)
+                        .foregroundStyle(Color.secondary)
                     Spacer()
                     Text("0\(vehicles.firstIndex(of: vehicle).map { $0 + 1 } ?? 1)")
                         .font(.system(size: 42, weight: .black, design: .rounded))
-                        .foregroundStyle(vehicle == .yukon ? Color.white.opacity(0.10) : Color.black.opacity(0.06))
+                        .foregroundStyle(Color.black.opacity(0.06))
                 }
                 .padding(.horizontal, 22)
                 .padding(.top, 18)
@@ -463,18 +453,18 @@ struct IumrahTransferServiceView: View {
                     .resizable()
                     .scaledToFit()
                     .padding(.horizontal, vehicle == .malibu ? 24 : 10)
-                    .shadow(color: .black.opacity(vehicle == .yukon ? 0.25 : 0.10), radius: 18, y: 10)
+                    .shadow(color: .black.opacity(0.10), radius: 18, y: 10)
 
                 Spacer(minLength: 4)
 
                 HStack {
                     Text(vehicle.modelName)
                         .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundStyle(vehicle == .yukon ? Color.white : Color.black)
+                        .foregroundStyle(Color.black)
                     Spacer()
                     Label("\(vehicle.passengerCapacity)", systemImage: "person.2.fill")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(vehicle == .yukon ? Color.white.opacity(0.72) : Color.secondary)
+                        .foregroundStyle(Color.secondary)
                 }
                 .padding(.horizontal, 22)
                 .padding(.bottom, 20)
@@ -482,7 +472,7 @@ struct IumrahTransferServiceView: View {
         }
         .overlay {
             RoundedRectangle(cornerRadius: 36, style: .continuous)
-                .strokeBorder(vehicle == .yukon ? Color.white.opacity(0.12) : Color.primary.opacity(0.055), lineWidth: 0.8)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.8)
         }
         .shadow(color: .black.opacity(0.06), radius: 26, y: 14)
     }

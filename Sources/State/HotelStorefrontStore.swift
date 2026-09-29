@@ -45,7 +45,14 @@ final class HotelStorefrontStore: ObservableObject {
     }
 
     func automaticQuote(for hotel: HotelSummary) -> HotelStorefrontQuote? {
-        quote(for: hotel, tier: automaticTier(for: hotel))
+        if let exact = quote(for: hotel, tier: automaticTier(for: hotel)) { return exact }
+
+        // The public Hotels web and iOS app consume the same server-owned Hotel First
+        // snapshots. Do not hide a valid live package price just because the package
+        // tier label differs from the hotel's star-derived UI tier. This happened after
+        // the server-side package generator was updated independently of the iOS app.
+        // Prefer the first live quote for this exact hotel as a resilient fallback.
+        return standardQuotes[hotel.id] ?? comfortQuotes[hotel.id] ?? luxuryQuotes[hotel.id]
     }
 
     func prepareIfNeeded() async {
@@ -148,8 +155,8 @@ final class HotelStorefrontStore: ObservableObject {
                     return false
                 })
                 values.append(snapshot)
-                let sorted = sortedHotelFirstSnapshots(values)
-                if isValidHotelFirstGroup(sorted, hotelID: hotelID) {
+                let sorted = sortedHotelFirstSnapshots(values.filter { isUsableHotelFirstSnapshot($0, hotelID: hotelID) })
+                if !sorted.isEmpty {
                     objectWillChange.send()
                     hotelServerPackages[hotelID] = sorted
                     rebuildHotelQuoteIndexes()
@@ -527,19 +534,45 @@ final class HotelStorefrontStore: ObservableObject {
         var grouped: [String: [StorefrontServerPackageSnapshot]] = [:]
         for item in packages where item.entryMode == "hotel-first" {
             let hotelID = item.hotelFirstAnchorHotelId ?? item.makkahHotelId ?? item.madinahHotelId
-            guard let hotelID else { continue }
+            guard let hotelID, isUsableHotelFirstSnapshot(item, hotelID: hotelID) else { continue }
             grouped[hotelID, default: []].append(item)
         }
 
+        // The server is the source of truth. Older builds required an exact three-item
+        // short/balanced/extended atomic group AND an exact client engine version before
+        // admitting any price. That made the native app lag behind the web storefront
+        // whenever the backend generator version changed or one variant arrived later.
+        // Keep every ready, positively priced snapshot and deduplicate variants locally.
         var accepted: [String: [StorefrontServerPackageSnapshot]] = [:]
         for (hotelID, values) in grouped {
-            let sorted = sortedHotelFirstSnapshots(values)
-            if isValidHotelFirstGroup(sorted, hotelID: hotelID) {
-                accepted[hotelID] = sorted
+            var byVariant: [String: StorefrontServerPackageSnapshot] = [:]
+            for item in sortedHotelFirstSnapshots(values) {
+                let key: String
+                if let index = item.hotelFirstVariantIndex {
+                    key = "index-\(index)"
+                } else if let variant = item.hotelFirstVariant, !variant.isEmpty {
+                    key = "variant-\(variant)"
+                } else {
+                    key = "package-\(item.id)"
+                }
+                byVariant[key] = item
             }
+            let sorted = sortedHotelFirstSnapshots(Array(byVariant.values))
+            if !sorted.isEmpty { accepted[hotelID] = sorted }
         }
         hotelServerPackages = accepted
         rebuildHotelQuoteIndexes()
+    }
+
+    private func isUsableHotelFirstSnapshot(_ item: StorefrontServerPackageSnapshot, hotelID: String) -> Bool {
+        guard item.entryMode == "hotel-first",
+              item.status.lowercased() == "ready",
+              isPublicPackageID(item.id),
+              let total = item.totalPackagePrice, total > 0,
+              let perPerson = item.pricePerPerson, perPerson > 0 else { return false }
+
+        let anchor = item.hotelFirstAnchorHotelId ?? item.makkahHotelId ?? item.madinahHotelId
+        return anchor == hotelID
     }
 
     private func applyFlightServerPackages(_ packages: [StorefrontServerPackageSnapshot]) {
@@ -607,7 +640,7 @@ final class HotelStorefrontStore: ObservableObject {
         for index in sorted.indices {
             let item = sorted[index]
             guard item.entryMode == "hotel-first",
-                  item.status == "ready",
+                  item.status.lowercased() == "ready",
                   item.hotelFirstAnchorHotelId == hotelID,
                   item.hotelFirstEngineVersion == HotelStorefrontService.hotelFirstEngineVersion,
                   item.hotelFirstVariantIndex == index,

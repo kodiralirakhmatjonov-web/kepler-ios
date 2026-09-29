@@ -830,13 +830,13 @@ struct HomeDashboardView: View {
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 ZStack {
-                    Color.black
+                    Color.white
 
-                    Image("IumrahConfiguratorHero")
+                    Image("StoreConfiguratorPhones")
                         .resizable()
-                        .scaledToFill()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
+                        .scaledToFit()
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 10)
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 220)
@@ -847,26 +847,26 @@ struct HomeDashboardView: View {
                         Label("Iumrah Configurator", systemImage: "slider.horizontal.3")
                             .font(.caption.weight(.bold))
                             .tracking(0.45)
-                            .foregroundStyle(Color.white.opacity(0.78))
+                            .foregroundStyle(Color.black.opacity(0.58))
                         Spacer(minLength: 8)
                         Text(configuratorTimeBadge)
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(Color.white.opacity(0.82))
+                            .foregroundStyle(Color.black.opacity(0.62))
                             .padding(.horizontal, 10)
                             .frame(height: 29)
-                            .background(Color.white.opacity(0.10), in: Capsule())
+                            .background(Color.black.opacity(0.055), in: Capsule())
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text(configuratorHeroTitle)
                             .font(.system(size: 31, weight: .bold, design: .rounded))
                             .tracking(-0.75)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.black)
                             .fixedSize(horizontal: false, vertical: true)
 
                         Text(configuratorHeroBody)
                             .font(.system(size: 15, weight: .regular, design: .rounded))
-                            .foregroundStyle(Color.white.opacity(0.68))
+                            .foregroundStyle(Color.black.opacity(0.62))
                             .lineLimit(4)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -879,23 +879,23 @@ struct HomeDashboardView: View {
                         Image(systemName: "arrow.right")
                     }
                     .font(.headline)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 18)
                     .frame(height: 54)
-                    .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .background(Color.black)
+                .background(Color.white)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Color.black)
+            .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.8)
+                    .strokeBorder(Color.black.opacity(0.055), lineWidth: 0.8)
             }
-            .shadow(color: Color.black.opacity(0.14), radius: 24, y: 12)
+            .shadow(color: Color.black.opacity(0.09), radius: 24, y: 12)
             .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         }
         .buttonStyle(.plain)

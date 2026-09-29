@@ -1,0 +1,11 @@
+IUMRAH V14 — HOTELS / PUSH / TRANSFER / HOME
+Date: 2026-09-29
+
+Client changes:
+- Hotel First list accepts current ready priced server snapshots without the obsolete exact-three-variant/engine-version admission gate.
+- Hotel card quote falls back to another live tier quote for the same exact hotel instead of showing an endless calculating state when server tier metadata differs from star-derived UI tier.
+- Client system and booking push registration use the runtime signed bundle identifier and retry transient registration failures.
+- Home configurator card is white, uses StoreConfiguratorPhones, and matches the adjacent Care card height.
+- Transfer imagery/order is Chevrolet Malibu -> Kia Carnival -> GMC Yukon, using transparent PNG assets; standalone Transfer opens on Malibu.
+
+Push delivery also requires the companion iumrah Business / Hotels Cloud v14 push patch because the current Hotels Worker rejects the production com.iumrah.app bundle and only accepts the legacy com.iumrah.beta bundle.
