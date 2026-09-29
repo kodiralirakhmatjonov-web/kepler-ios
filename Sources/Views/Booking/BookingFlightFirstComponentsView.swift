@@ -326,7 +326,7 @@ private struct BookingIncludedServiceDetailSheet: View {
         case .transfer:
             return localized("Переезды привязаны к реальному маршруту поездки.", "Transfers follow your actual journey route.", "Transferlar haqiqiy safar yo‘nalishiga bog‘langan.", "Трансферлар ҳақиқий сафар йўналишига боғланган.")
         case .guide:
-            let name = session.guide?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let name = session.guide?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             return name.isEmpty
                 ? localized("Сопровождение и координация Умры.", "Guidance and Umrah coordination.", "Umra bo‘yicha hamrohlik va muvofiqlashtirish.", "Умра бўйича ҳамроҳлик ва мувофиқлаштириш.")
                 : localized("Ваш гид: \(name)", "Your guide: \(name)", "Gidingiz: \(name)", "Гидингиз: \(name)")

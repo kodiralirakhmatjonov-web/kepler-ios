@@ -1,0 +1,9 @@
+Build hotfix 2026-09-29 v12
+
+Fixes the Xcode compile error in BookingFlightFirstComponentsView.swift where optional chaining was incorrectly applied to BookingGuideSnapshot.displayName, which is a non-optional String.
+
+Before:
+session.guide?.displayName?.trimmingCharacters(...)
+
+After:
+session.guide?.displayName.trimmingCharacters(...)
