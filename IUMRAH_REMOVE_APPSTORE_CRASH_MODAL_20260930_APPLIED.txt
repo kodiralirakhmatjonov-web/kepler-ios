@@ -1,0 +1,5 @@
+Iumrah iOS recovery patch — 2026-09-30
+- Removes AppStoreUpdatePrompt from RootView.
+- Restores safe IumrahApp launch path with no StoreKit/IAP startup task.
+- Neutralizes all App Store update feature Swift sources.
+- Preserves existing launch experience and application UI.

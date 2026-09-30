@@ -1,0 +1,17 @@
+{
+  "name": "iumrah-remove-appstore-crash-modal",
+  "date": "2026-09-30",
+  "purpose": "Remove App Store update prompt/runtime and restore safe launch path",
+  "files": [
+    "Sources/App/IumrahApp.swift",
+    "Sources/Views/RootView.swift",
+    "Sources/Views/Components/AppStoreUpdatePrompt.swift",
+    "Sources/Views/Components/AppStoreUpdateSheet.swift",
+    "Sources/Services/AppStoreUpdateService.swift",
+    "Sources/Services/AppStoreCountryCodes.swift",
+    "Sources/Services/AppStoreUpdateReminder.swift",
+    "Sources/Core/AppIdentity.swift",
+    "Sources/Store/IumrahPlusStore.swift",
+    "project.yml"
+  ]
+}
