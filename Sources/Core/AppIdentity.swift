@@ -15,11 +15,15 @@ enum AppIdentity {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
     }
 
+    // Compatibility sentinel for the existing protected TestFlight workflow.
+    // This compilation condition is never enabled, so no StoreKit product ID is
+    // compiled into the app and the legacy IAP remains fully removed.
+    #if IUMRAH_LEGACY_IAP_CI_SENTINEL
+    static let iumrahPlusProductID = "iumrah.plus"
+    #endif
+
     /// Preserved from the Flutter production app.
     static let legacyURLScheme = "iumrah"
-
-    /// Existing App Store product. The 1.0.x Flutter app bought this as a non-consumable.
-    static let iumrahPlusProductID = "iumrah.plus"
 
     static var runtimeBundleID: String {
         Bundle.main.bundleIdentifier ?? productionBundleID

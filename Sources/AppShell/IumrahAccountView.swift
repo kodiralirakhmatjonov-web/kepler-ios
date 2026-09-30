@@ -125,6 +125,7 @@ struct IumrahAccountView: View {
                             activeTripCard(active)
                         }
                         tripsSection
+                        telegramIntegrationSection
                         travelCompanionsSection
                         paymentSecuritySection
                         profileSection(profile)
@@ -136,6 +137,7 @@ struct IumrahAccountView: View {
                         }
                         loginCard
                             .id("account-login")
+                        telegramIntegrationSection
                         paymentSecuritySection
                         guestSettingsSection
                     }
@@ -914,6 +916,15 @@ struct IumrahAccountView: View {
                 }
             }
         }
+    }
+
+    private var telegramIntegrationSection: some View {
+        NavigationLink {
+            IumrahTelegramIntegrationView(preferredBookingID: activeTrip?.id)
+        } label: {
+            IumrahTelegramEntryCard(language: settings.language, large: false)
+        }
+        .buttonStyle(.plain)
     }
 
     private var paymentSecuritySection: some View {

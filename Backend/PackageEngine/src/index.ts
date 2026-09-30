@@ -14,6 +14,7 @@ import { generatePackageQuote, generateStorefrontPackageQuote } from "./package-
 import { commitPackageQuoteReport } from "./booking-gateway";
 import { quoteSealingMode } from "./quote-audit";
 import { createCarePackageRequest, listCarePackageRequests, updateCarePackageRequest } from "./care-requests";
+import { createTelegramBookingLink } from "./telegram-bridge";
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -40,6 +41,7 @@ async function publicHealth(env: Env) {
       smsProvider: "devsms",
       smsProviderConfigured: Boolean(env.DEVSMS_API_TOKEN),
       quoteSealingMode: quoteSealingMode(env),
+      telegramBotConfigured: Boolean(env.TELEGRAM_BOT_ORIGIN),
     });
   }
 
@@ -81,6 +83,7 @@ async function publicHealth(env: Env) {
       smsProvider: "devsms",
       smsProviderConfigured: Boolean(env.DEVSMS_API_TOKEN),
       quoteSealingMode: quoteSealingMode(env),
+      telegramBotConfigured: Boolean(env.TELEGRAM_BOT_ORIGIN),
     });
   } catch (error) {
     return json({
@@ -96,6 +99,7 @@ async function publicHealth(env: Env) {
       smsProvider: "devsms",
       smsProviderConfigured: Boolean(env.DEVSMS_API_TOKEN),
       quoteSealingMode: quoteSealingMode(env),
+      telegramBotConfigured: Boolean(env.TELEGRAM_BOT_ORIGIN),
       error: error instanceof Error ? error.message : "D1 health check failed",
     }, 503);
   }
@@ -159,6 +163,13 @@ export default {
         return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
       }
       return json({ ok: false, error: "NOT_FOUND" }, 404);
+    }
+
+
+    const bookingTelegramLinkMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/telegram-link$/);
+    if (bookingTelegramLinkMatch) {
+      if (request.method === "POST") return createTelegramBookingLink(request, bookingTelegramLinkMatch[1], env);
+      return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
     }
 
     const bookingFriendsRedeemMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/friends\/redeem$/);

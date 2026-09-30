@@ -24,12 +24,10 @@ function callBody(source, marker) {
   throw new Error(`unterminated ${marker}`);
 }
 
-test('Booking page switcher keeps tint before allowsStaticGlass in the selected segment', () => {
-  const marker = 'tint: selected ? Color.white.opacity(0.26) : nil';
-  const tint = bookingSwitcher.indexOf(marker);
-  const staticGlass = bookingSwitcher.indexOf('allowsStaticGlass: true', tint);
-  assert.ok(tint >= 0, 'selected segment tint argument must be present');
-  assert.ok(staticGlass > tint, 'tint must precede allowsStaticGlass for Swift compile');
+test('Booking page switcher uses the same native compact segmented control as Hotels', () => {
+  assert.match(bookingSwitcher, /Picker\(/);
+  assert.match(bookingSwitcher, /\.pickerStyle\(\.segmented\)/);
+  assert.doesNotMatch(bookingSwitcher, /allowsStaticGlass|IumrahGlassGroup|\.iumrahGlass\(/);
 });
 
 test('Bookings empty state keeps the Explore packages button declaration', () => {

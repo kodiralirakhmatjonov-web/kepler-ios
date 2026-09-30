@@ -11,3 +11,6 @@ new_sqlite_classes = ["PackageSearchSession"]
 [[migrations]]
 tag = "v2-remove-package-search-session"
 deleted_classes = ["PackageSearchSession"]
+
+[vars]
+TELEGRAM_BOT_ORIGIN = "https://anonymous-chat-bot.example.workers.dev"

@@ -148,6 +148,13 @@ struct PilgrimCheckoutView: View {
                     onStatus: {}
                 )
                 hero
+                if let session {
+                    IumrahTelegramConnectCard(
+                        session: session,
+                        accountToken: account.bearerToken,
+                        style: .compact
+                    )
+                }
                 checkoutContent(includeProgress: true)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
@@ -179,6 +186,13 @@ struct PilgrimCheckoutView: View {
 
     private var embeddedStatusBody: some View {
         VStack(spacing: 18) {
+            if let session {
+                IumrahTelegramConnectCard(
+                    session: session,
+                    accountToken: account.bearerToken,
+                    style: .compact
+                )
+            }
             checkoutContent(includeProgress: false)
         }
         .frame(maxWidth: .infinity)

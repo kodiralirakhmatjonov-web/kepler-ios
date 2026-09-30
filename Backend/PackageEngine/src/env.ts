@@ -8,6 +8,7 @@ export type Env = {
   APPLE_WEB_CLIENT_ID?: string;
   GOOGLE_SERVER_CLIENT_ID?: string;
   IUMRAH_PUBLIC_ID_ORIGIN?: string;
+  TELEGRAM_BOT_ORIGIN?: string;
   RESEND_API_KEY?: string;
   ACCOUNT_EMAIL_FROM?: string;
   ACCOUNT_EMAIL_REPLY_TO?: string;

@@ -60,6 +60,13 @@ struct IumrahBookingCelebrationView: View {
                             .padding(.top, 24)
                             .padding(.horizontal, 24)
 
+                        IumrahTelegramConnectCard(
+                            session: session,
+                            style: .dark
+                        )
+                        .padding(.top, 16)
+                        .padding(.horizontal, 24)
+
                         VStack(spacing: 12) {
                             Button {
                                 IumrahHaptics.soft()

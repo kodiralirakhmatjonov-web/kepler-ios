@@ -89,6 +89,13 @@ struct HomeDashboardView: View {
                         onCare: { chrome.navigate(to: .care) }
                     )
 
+                    NavigationLink {
+                        IumrahTelegramIntegrationView(preferredBookingID: bookings.sessions.first?.id)
+                    } label: {
+                        IumrahTelegramEntryCard(language: settings.language, large: true)
+                    }
+                    .buttonStyle(.plain)
+
                     readyPackagesSection
                     buildMyUmrahSection
 

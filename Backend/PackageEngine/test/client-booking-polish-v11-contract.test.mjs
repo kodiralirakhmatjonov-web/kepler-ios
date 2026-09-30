@@ -14,18 +14,19 @@ test('Hotel First variants are a peekable colored horizontal carousel with indic
   assert.match(source, /selectedPackageVariantScrollID/);
   assert.match(source, /ForEach\(hotelPackagePreviews\.indices/);
   assert.match(source, /Color\(red: 1\.0, green: 0\.60, blue: 0\.10\)/);
-  assert.match(source, /strokeBorder\(accent\.fill\.opacity\(0\.62\)/);
+  assert.match(source, /strokeBorder\(accent\.fill\.opacity\(0\.42\)/);
 });
 
-test('Booking and canonical status pages share the Liquid Glass page switcher', () => {
+test('Booking and canonical status pages share the native compact segmented page switcher', () => {
   const detail = read('Sources/Views/Booking/BookingDetailView.swift');
   const checkout = read('Sources/Views/Booking/PilgrimCheckoutView.swift');
   const switcher = read('Sources/Views/Booking/BookingPageSwitcher.swift');
   assert.match(detail, /BookingPageSwitcher\([\s\S]*selection: \.booking/);
   assert.match(detail, /PilgrimCheckoutView\(bookingID: bookingID, presentation: \.screen\)/);
   assert.match(checkout, /BookingPageSwitcher\([\s\S]*selection: \.status/);
-  assert.match(switcher, /IumrahGlassGroup/);
-  assert.match(switcher, /\.iumrahGlass\(/);
+  assert.match(switcher, /Picker\(/);
+  assert.match(switcher, /\.pickerStyle\(\.segmented\)/);
+  assert.doesNotMatch(switcher, /IumrahGlassGroup|\.iumrahGlass\(/);
 });
 
 test('obsolete booking lifecycle chain is disabled in favor of checkout status', () => {
@@ -68,7 +69,7 @@ test('chat and deletion prefer permanent account authorization before stale book
 
 test('Care chat composer stays compact and maps authorization failures', () => {
   const source = read('Sources/Views/Chat/BookingChatView.swift');
-  assert.match(source, /frame\(minHeight: 48, maxHeight: 66/);
+  assert.match(source, /frame\(minHeight: 44, maxHeight: 78/);
   assert.match(source, /lineLimit\(1\.\.\.3\)/);
   assert.match(source, /chatErrorMessage\(error\)/);
   assert.match(source, /isAuthorizationError/);

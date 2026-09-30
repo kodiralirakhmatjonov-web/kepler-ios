@@ -4,6 +4,7 @@ import UIKit
 struct BookingDetailView: View {
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var account: IumrahAccountStore
     @Environment(\.dismiss) private var dismiss
 
     let bookingID: String
@@ -74,6 +75,11 @@ struct BookingDetailView: View {
                                 isFlipped: $bookingCardFlipped
                             )
                             statusHero(session)
+                            IumrahTelegramConnectCard(
+                                session: session,
+                                accountToken: account.bearerToken,
+                                style: .compact
+                            )
                             if shouldShowCheckoutEntry(for: session) {
                                 IumrahManualPaymentNotice()
                                 IumrahRefundPolicyCard(component: .package, compact: true)

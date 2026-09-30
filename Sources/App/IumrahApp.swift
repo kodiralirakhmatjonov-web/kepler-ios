@@ -16,9 +16,6 @@ struct IumrahApp: App {
             IumrahLaunchExperience {
                 RootView()
             }
-            .task {
-                await IumrahPlusStore.shared.start()
-            }
         }
     }
 }

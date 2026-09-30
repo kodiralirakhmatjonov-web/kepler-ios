@@ -1,0 +1,6 @@
+Telegram booking integration apply fix.
+
+The previous patch included .github/workflows/deploy-package-engine.yml, which the
+GitHub App-based patch applier is not allowed to update. This corrected patch
+contains no .github/workflows entries. The existing repository workflow remains
+unchanged and can be run after the patch is committed to deploy PackageEngine.

@@ -116,6 +116,11 @@ struct BookingCheckoutView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .iumrahCard()
+
+                IumrahTelegramConnectCard(
+                    session: createdSession,
+                    style: .standard
+                )
             }
 
             if let errorMessage {

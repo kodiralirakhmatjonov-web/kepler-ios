@@ -1,0 +1,10 @@
+iumrah Telegram booking integration — 2026-09-30
+
+- Home, Account and Booking entry cards
+- Booking completion Telegram connect CTA
+- Dedicated Telegram integration page using operator-provided artwork
+- One-time 10-minute t.me deep link
+- PackageEngine validates booking/account ownership before issuing link
+- Bot supports booking proof and signed-in account credential for restored trips
+- Existing Telegram bot continues automatic booking-status reconciliation
+- Current launch recovery, Home/chat fixes and no-IAP state preserved in this cumulative patch

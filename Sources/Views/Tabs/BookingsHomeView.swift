@@ -117,7 +117,14 @@ struct BookingsHomeView: View {
                     .padding(.bottom, 12)
 
                 bookingIdentity(session)
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 18)
+
+                IumrahTelegramConnectCard(
+                    session: session,
+                    accountToken: account.bearerToken,
+                    style: .compact
+                )
+                .padding(.bottom, 28)
 
                 if bookingPanel == .booking {
                     bookingProgress(session)
@@ -1480,6 +1487,13 @@ struct BookingsHomeView: View {
                 )
 
                 bookingEmptyStatusCard
+
+                NavigationLink {
+                    IumrahTelegramIntegrationView()
+                } label: {
+                    IumrahTelegramEntryCard(language: settings.language, large: false)
+                }
+                .buttonStyle(.plain)
 
                 explorePackagesButton
 

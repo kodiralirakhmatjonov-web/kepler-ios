@@ -14,6 +14,19 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+
+async function findWorkersSubdomain() {
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountID}/workers/subdomain`,
+    { headers },
+  );
+  if (!response.ok) throw new Error(`Unable to resolve Workers subdomain (${response.status})`);
+  const payload = await response.json();
+  const subdomain = String(payload?.result?.subdomain ?? '').trim();
+  if (!subdomain) throw new Error('Cloudflare Workers subdomain is empty.');
+  return subdomain;
+}
+
 async function findBookingDatabase() {
   const listResponse = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${accountID}/d1/database?per_page=100`,
@@ -76,6 +89,8 @@ async function findBookingDatabase() {
 }
 
 const bookingDatabase = await findBookingDatabase();
+const workersSubdomain = await findWorkersSubdomain();
+const telegramBotOrigin = `https://anonymous-chat-bot.${workersSubdomain}.workers.dev`;
 console.log(`Using existing bookings D1: ${bookingDatabase.name} (${bookingDatabase.id})`);
 
 const input = fs.readFileSync('wrangler.template.jsonc', 'utf8');
@@ -84,8 +99,9 @@ const output = input
   .replaceAll('__BOOKING_D1_DATABASE_ID__', bookingDatabase.id)
   .replaceAll('__BOOKING_D1_DATABASE_NAME__', bookingDatabase.name.replaceAll('"', '\\"'))
   .replaceAll('__ZONE_ID__', zoneID)
-  .replaceAll('__APPLE_WEB_CLIENT_ID__', JSON.stringify(String(process.env.APPLE_WEB_CLIENT_ID ?? '')).slice(1, -1));
+  .replaceAll('__APPLE_WEB_CLIENT_ID__', JSON.stringify(String(process.env.APPLE_WEB_CLIENT_ID ?? '')).slice(1, -1))
+  .replaceAll('__TELEGRAM_BOT_ORIGIN__', telegramBotOrigin);
 
 JSON.parse(output);
 fs.writeFileSync('wrangler.generated.jsonc', output);
-console.log('Generated wrangler.generated.jsonc with HOTELS_DB + BOOKINGS_DB bindings');
+console.log(`Generated wrangler.generated.jsonc with HOTELS_DB + BOOKINGS_DB bindings and Telegram bot ${telegramBotOrigin}`);

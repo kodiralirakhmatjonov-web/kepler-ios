@@ -35,6 +35,8 @@ targets:
           - HotelPricing/HotelPriceBotScripts.swift
           - HotelPricing/HotelPriceProvider.swift
           - HotelPricing/HotelPriceTextParser.swift
+          # Legacy StoreKit/IAP source is intentionally excluded from the app target.
+          - Store/IumrahPlusStore.swift
       - path: Sources/Core/Components/IumrahDataSphereShaders.metal
         buildPhase: sources
       - path: Resources/Assets.xcassets
