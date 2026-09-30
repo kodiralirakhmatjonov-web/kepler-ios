@@ -26,13 +26,16 @@ test('iOS exposes Telegram booking connection on Home, Account, Booking and comp
 test('PackageEngine validates ownership before issuing a one-time Telegram link', () => {
   const index = read('Backend/PackageEngine/src/index.ts');
   const bridge = read('Backend/PackageEngine/src/telegram-bridge.ts');
-  const deploy = read('.github/workflows/deploy-package-engine.yml');
+  const renderConfig = read('Backend/PackageEngine/scripts/render-config.mjs');
+  const env = read('Backend/PackageEngine/src/env.ts');
 
   assert.match(index, /bookingTelegramLinkMatch/);
   assert.match(bridge, /access_token_hash/);
   assert.match(bridge, /iumrah_account_sessions/);
   assert.match(bridge, /pilgrim_trips/);
   assert.match(bridge, /\/internal\/link-token/);
-  assert.match(deploy, /workflow_run:/);
-  assert.match(deploy, /telegramBotConfigured == true/);
+  assert.match(renderConfig, /TELEGRAM_BOT_ORIGIN/);
+  assert.match(renderConfig, /anonymous-chat-bot/);
+  assert.match(env, /TELEGRAM_BOT_ORIGIN\?: string/);
+  assert.match(index, /telegramBotConfigured: Boolean\(env\.TELEGRAM_BOT_ORIGIN\)/);
 });

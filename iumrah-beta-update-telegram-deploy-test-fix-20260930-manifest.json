@@ -1,0 +1,10 @@
+{
+  "name": "iumrah Telegram deploy test fix",
+  "date": "2026-09-30",
+  "scope": ["Backend/PackageEngine/test/telegram-booking-integration-contract.test.mjs"],
+  "github_workflows_modified": false,
+  "verification": {
+    "package_engine_tests": "103/103",
+    "runtime_tests": "20/20"
+  }
+}
