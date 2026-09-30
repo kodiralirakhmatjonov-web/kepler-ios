@@ -10,7 +10,7 @@ struct SystemNotificationsCarouselView: View {
     var body: some View {
         VStack(spacing: 11) {
             GeometryReader { proxy in
-                let cardWidth = max(proxy.size.width * 0.93, 286)
+                let cardWidth = min(max(proxy.size.width * 0.93, 286), proxy.size.width)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 12) {
@@ -31,10 +31,9 @@ struct SystemNotificationsCarouselView: View {
                     }
                     .scrollTargetLayout()
                 }
-                .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
                 .scrollPosition(id: $selectedID, anchor: .center)
-                .padding(.horizontal, -IumrahDesign.pagePadding)
             }
             .frame(height: 188)
 

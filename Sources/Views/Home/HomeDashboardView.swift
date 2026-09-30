@@ -62,63 +62,57 @@ struct HomeDashboardView: View {
     }
 
     private var marketingHome: some View {
-        GeometryReader { viewport in
-            let contentWidth = max(0, viewport.size.width - (IumrahDesign.pagePadding * 2))
-
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 22) {
-                    IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
-                    if !clientNotifications.homeNotifications.isEmpty {
-                        SystemNotificationsCarouselView(
-                            notifications: Array(clientNotifications.homeNotifications.prefix(5)),
-                            onOpen: { openSystemNotification($0) },
-                            onDismiss: { dismissSystemNotification($0) }
-                        )
-                    }
-                    HomeEmotionalJourneyPrompt()
-                    HomeVideoCarousel()
-
-                    IumrahHomeAudienceSection(language: settings.language)
-
-                    IumrahHomeServicesSection(
-                        language: settings.language,
-                        onTransfer: { showTransferService = true },
-                        onESIM: { chrome.presentESIM() },
-                        onFlights: { showFlightsService = true },
-                        onZiyarats: { showZiyarats = true },
-                        onCare: { chrome.navigate(to: .care) }
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 22) {
+                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
+                if !clientNotifications.homeNotifications.isEmpty {
+                    SystemNotificationsCarouselView(
+                        notifications: Array(clientNotifications.homeNotifications.prefix(5)),
+                        onOpen: { openSystemNotification($0) },
+                        onDismiss: { dismissSystemNotification($0) }
                     )
-
-                    NavigationLink {
-                        IumrahTelegramIntegrationView(preferredBookingID: bookings.sessions.first?.id)
-                    } label: {
-                        IumrahTelegramEntryCard(language: settings.language, large: true)
-                    }
-                    .buttonStyle(.plain)
-
-                    readyPackagesSection
-                    buildMyUmrahSection
-
-                    VStack(alignment: .leading, spacing: 15) {
-                        IumrahHomeSectionHeader(title: homeProductsTitle)
-                        productsCarousel(contentWidth: contentWidth)
-                    }
-
-                    confidenceStrip
-                    philosophyCard
-                    connectedTripCard
-                    personalUmrahFAQ
-                    homeAboutFooter
                 }
-                // Static Home content always stays on the normal page grid.
-                // Individual horizontal carousels opt into full-bleed scrolling below;
-                // they must never change the width/alignment of the surrounding page.
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(.horizontal, IumrahDesign.pagePadding)
-                .padding(.top, 10)
-                .padding(.bottom, 128)
+                HomeEmotionalJourneyPrompt()
+                HomeVideoCarousel()
+
+                IumrahHomeAudienceSection(language: settings.language)
+
+                IumrahHomeServicesSection(
+                    language: settings.language,
+                    onTransfer: { showTransferService = true },
+                    onESIM: { chrome.presentESIM() },
+                    onFlights: { showFlightsService = true },
+                    onZiyarats: { showZiyarats = true },
+                    onCare: { chrome.navigate(to: .care) }
+                )
+
+                NavigationLink {
+                    IumrahTelegramIntegrationView(preferredBookingID: bookings.sessions.first?.id)
+                } label: {
+                    IumrahTelegramEntryCard(language: settings.language, large: true)
+                }
+                .buttonStyle(.plain)
+
+                readyPackagesSection
+                buildMyUmrahSection
+
+                VStack(alignment: .leading, spacing: 15) {
+                    IumrahHomeSectionHeader(title: homeProductsTitle)
+                    productsCarousel()
+                }
+
+                confidenceStrip
+                philosophyCard
+                connectedTripCard
+                personalUmrahFAQ
+                homeAboutFooter
             }
-            .frame(width: viewport.size.width, alignment: .topLeading)
+            // Home uses one ordinary content column. Nothing on this screen is
+            // allowed to enlarge the parent width or offset the trailing edge.
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.top, 10)
+            .padding(.bottom, 128)
         }
         .background(Color.iumrahPageBackground)
     }
@@ -284,7 +278,6 @@ struct HomeDashboardView: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.38), lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.18), radius: 28, y: 14)
     }
 
     private func journeySummaryRow(icon: String, title: String, value: String) -> some View {
@@ -345,7 +338,6 @@ struct HomeDashboardView: View {
                 RoundedRectangle(cornerRadius: 26, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
             }
-            .shadow(color: Color.iumrahCareDark.opacity(0.22), radius: 24, y: 12)
         }
         .buttonStyle(.plain)
         .accessibilityHint(session.displayPilgrimID.map { "ID \($0)" } ?? "")
@@ -407,7 +399,6 @@ struct HomeDashboardView: View {
                 RoundedRectangle(cornerRadius: 30, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.7)
             }
-            .shadow(color: .black.opacity(0.16), radius: 24, y: 11)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("iumrah Ziyarats")
@@ -520,7 +511,7 @@ struct HomeDashboardView: View {
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .iumrahCard()
+                .iumrahHomeFlatCard()
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: 13) {
@@ -542,8 +533,7 @@ struct HomeDashboardView: View {
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-                .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
-                .padding(.horizontal, -IumrahDesign.pagePadding)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
             }
         }
     }
@@ -596,7 +586,6 @@ struct HomeDashboardView: View {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .strokeBorder(Color.black.opacity(0.055), lineWidth: 0.8)
             }
-            .shadow(color: .black.opacity(0.05), radius: 16, y: 7)
         }
         .buttonStyle(.plain)
     }
@@ -619,8 +608,7 @@ struct HomeDashboardView: View {
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-                .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
-                .padding(.horizontal, -IumrahDesign.pagePadding)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
             }
             .frame(height: 554)
         }
@@ -697,7 +685,6 @@ struct HomeDashboardView: View {
                 RoundedRectangle(cornerRadius: 34, style: .continuous)
                     .strokeBorder(Color.black.opacity(0.055), lineWidth: 0.8)
             }
-            .shadow(color: Color.black.opacity(0.09), radius: 24, y: 12)
             .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -901,7 +888,6 @@ struct HomeDashboardView: View {
                 RoundedRectangle(cornerRadius: 34, style: .continuous)
                     .strokeBorder(Color.black.opacity(0.055), lineWidth: 0.8)
             }
-            .shadow(color: Color.black.opacity(0.09), radius: 24, y: 12)
             .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -980,7 +966,7 @@ struct HomeDashboardView: View {
                     .foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .iumrahCard()
+            .iumrahHomeFlatCard()
         }
         .buttonStyle(.plain)
     }
@@ -1030,7 +1016,7 @@ struct HomeDashboardView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .iumrahMarketingCard()
+        .iumrahHomeFlatCard(padding: 22, radius: IumrahDesign.heroRadius)
     }
 
     private var connectedTripCard: some View {
@@ -1055,7 +1041,7 @@ struct HomeDashboardView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .iumrahMarketingCard()
+        .iumrahHomeFlatCard(padding: 22, radius: IumrahDesign.heroRadius)
     }
 
     private var esimHomeCard: some View {
@@ -1201,7 +1187,6 @@ struct HomeDashboardView: View {
                 RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
             }
-            .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
         }
         .buttonStyle(.plain)
     }
@@ -1255,41 +1240,39 @@ struct HomeDashboardView: View {
         .buttonStyle(.plain)
     }
 
-    private func productsCarousel(contentWidth: CGFloat) -> some View {
-        let pageInset = IumrahDesign.pagePadding
-        let viewportWidth = contentWidth + (pageInset * 2)
-        let cardWidth = min(max(contentWidth * 0.88, 300), contentWidth)
-        let cardHeight: CGFloat = 472
-        let cardShape = RoundedRectangle(cornerRadius: 34, style: .continuous)
+    private func productsCarousel() -> some View {
+        GeometryReader { proxy in
+            let availableWidth = max(proxy.size.width, 1)
+            let cardWidth = min(max(availableWidth * 0.88, 286), availableWidth)
+            let cardHeight: CGFloat = 472
+            let cardShape = RoundedRectangle(cornerRadius: 34, style: .continuous)
 
-        return ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(alignment: .top, spacing: 16) {
-                IumrahBackendSystemHomeCard()
-                    .frame(width: cardWidth, height: cardHeight, alignment: .top)
-                    .clipShape(cardShape)
-                    .contentShape(cardShape)
-                    .id("iumrah-system")
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 16) {
+                    IumrahBackendSystemHomeCard()
+                        .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                        .clipShape(cardShape)
+                        .contentShape(cardShape)
+                        .id("iumrah-system")
 
-                homeAdvisorProductCard
-                    .frame(width: cardWidth, height: cardHeight, alignment: .top)
-                    .clipShape(cardShape)
-                    .contentShape(cardShape)
-                    .id("iumrah-advisor")
+                    homeAdvisorProductCard
+                        .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                        .clipShape(cardShape)
+                        .contentShape(cardShape)
+                        .id("iumrah-advisor")
 
-                homeSundayClubProductCard
-                    .frame(width: cardWidth, height: cardHeight, alignment: .top)
-                    .clipShape(cardShape)
-                    .contentShape(cardShape)
-                    .id("sunday-umrah-club")
+                    homeSundayClubProductCard
+                        .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                        .clipShape(cardShape)
+                        .contentShape(cardShape)
+                        .id("sunday-umrah-club")
+                }
+                .scrollTargetLayout()
             }
-            .scrollTargetLayout()
-            .padding(.leading, pageInset)
-            .padding(.trailing, pageInset)
+            .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+            .contentMargins(.horizontal, 0, for: .scrollContent)
         }
-        .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-        .contentMargins(.horizontal, 0, for: .scrollContent)
-        .frame(width: viewportWidth, height: cardHeight, alignment: .leading)
-        .offset(x: -pageInset)
+        .frame(height: 472)
     }
 
     private var homeSundayClubProductCard: some View {
@@ -1546,7 +1529,6 @@ struct HomeDashboardView: View {
             RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
         }
-        .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
     }
 
     private var homeFlightsFeatureBody: String {
@@ -1779,4 +1761,27 @@ private struct HomeFAQItem: Identifiable {
     let id: String
     let question: String
     let answer: String
+}
+
+private struct IumrahHomeFlatCardModifier: ViewModifier {
+    let padding: CGFloat
+    let radius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(padding)
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.7)
+            }
+    }
+}
+
+private extension View {
+    func iumrahHomeFlatCard(padding: CGFloat = 18, radius: CGFloat = IumrahDesign.cardRadius) -> some View {
+        modifier(IumrahHomeFlatCardModifier(padding: padding, radius: radius))
+    }
 }

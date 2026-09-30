@@ -248,7 +248,6 @@ struct IumrahBackendSystemHomeCard: View {
                 RoundedRectangle(cornerRadius: 34, style: .continuous)
                     .strokeBorder(.white.opacity(0.08), lineWidth: 0.8)
             }
-            .shadow(color: .black.opacity(0.18), radius: 26, y: 12)
             .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         }
         .buttonStyle(.plain)

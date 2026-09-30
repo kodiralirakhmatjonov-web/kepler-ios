@@ -1,0 +1,10 @@
+IUMRAH HOME / TELEGRAM / TRANSFER FIX — 2026-09-30
+
+- Home returned to one ordinary bounded content column.
+- Removed full-bleed negative padding and oversized carousel viewport that could widen the page and push trailing UI off-screen.
+- Removed Home carousel/card shadows from the affected Home components.
+- Transfer vehicle artwork enlarged; transfer card/image/map-pin shadows removed.
+- Telegram connect now sends both local booking token and signed-in account token when available, so restored TestFlight bookings can fall back to account authorization.
+- No launch/App Store update/IAP files are touched by this patch.
+
+Telegram bot must also receive the paired anonymous-chat-bot-account-link-fix-20260930.zip so account-restored bookings can be claimed and monitored in Telegram.

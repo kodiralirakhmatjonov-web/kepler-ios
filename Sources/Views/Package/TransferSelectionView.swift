@@ -218,7 +218,6 @@ struct TransferSelectionView: View {
         }
         .padding(18)
         .iumrahGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous), allowsStaticGlass: true)
-        .shadow(color: .black.opacity(0.10), radius: 30, y: 14)
     }
 
     private func searchChip(icon: String, text: String) -> some View {
@@ -382,7 +381,6 @@ struct TransferSelectionView: View {
             RoundedRectangle(cornerRadius: 36, style: .continuous)
                 .strokeBorder(isVIP ? Color.white.opacity(0.12) : Color.primary.opacity(0.055), lineWidth: 0.8)
         }
-        .shadow(color: isVIP ? .white.opacity(0.06) : .black.opacity(0.06), radius: 32, y: 16)
     }
 
     private var vehicleInformation: some View {
@@ -1020,7 +1018,6 @@ private struct TransferSearchCenterPulse: View {
                 .fill(.white)
                 .frame(width: 18, height: 18)
                 .overlay(Circle().stroke(Color.blue, lineWidth: 5))
-                .shadow(color: .black.opacity(0.16), radius: 7, y: 2)
         }
         .onAppear { animate = true }
     }
@@ -1061,7 +1058,6 @@ private struct TransferSearchCarPin: View {
                 .overlay {
                     Circle().stroke(Color.white.opacity(active ? 0.92 : 0.45), lineWidth: 2)
                 }
-                .shadow(color: .black.opacity(active ? 0.30 : 0.12), radius: 10, y: 4)
 
             Image(systemName: "car.fill")
                 .font(.system(size: emphasis ? 18 : 16, weight: .bold))
@@ -1109,19 +1105,11 @@ private struct TransferVehicleHero: View {
 
     var body: some View {
         ZStack {
-            if active {
-                Ellipse()
-                    .fill(Color.black.opacity(vehicle == .yukon ? 0.18 : 0.12))
-                    .frame(width: vehicle == .malibu ? 260 : 300, height: 38)
-                    .blur(radius: 17)
-                    .offset(y: 76)
-            }
-
             Image(vehicle.assetName)
                 .resizable()
                 .scaledToFit()
-                .padding(.horizontal, vehicle == .malibu ? 16 : 4)
-                .shadow(color: .black.opacity(active ? (vehicle == .yukon ? 0.28 : 0.13) : 0), radius: 18, y: 10)
+                .padding(.horizontal, vehicle == .malibu ? 8 : 0)
+                .scaleEffect(vehicle == .malibu ? 1.20 : 1.18)
                 .accessibilityLabel(vehicle.modelName)
         }
         .padding(.horizontal, 4)

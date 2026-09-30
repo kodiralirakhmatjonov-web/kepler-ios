@@ -103,12 +103,17 @@ struct IumrahTelegramConnectCard: View {
 
         let trimmedBookingToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedAccountToken = accountToken?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let headers: [String: String]
+        var headers: [String: String] = [:]
         if !trimmedBookingToken.isEmpty {
-            headers = ["x-booking-token": trimmedBookingToken]
-        } else if !trimmedAccountToken.isEmpty {
-            headers = ["Authorization": "Bearer \(trimmedAccountToken)"]
-        } else {
+            headers["x-booking-token"] = trimmedBookingToken
+        }
+        if !trimmedAccountToken.isEmpty {
+            // Send the authenticated account session as a fallback as well. A
+            // TestFlight reinstall can restore the booking without restoring
+            // its old local booking token, while the account still owns it.
+            headers["Authorization"] = "Bearer \(trimmedAccountToken)"
+        }
+        guard !headers.isEmpty else {
             errorMessage = authorizationMissingText
             IumrahHaptics.error()
             return

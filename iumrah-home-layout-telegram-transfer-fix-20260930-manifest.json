@@ -1,0 +1,8 @@
+{
+  "name": "iumrah-home-layout-telegram-transfer-fix",
+  "date": "2026-09-30",
+  "scope": ["home-layout", "home-flat-cards", "transfer", "telegram-auth-fallback"],
+  "requires_bot_patch": "anonymous-chat-bot-account-link-fix-20260930.zip",
+  "touches_launch": false,
+  "touches_iap": false
+}

@@ -103,7 +103,6 @@ struct SystemNotificationCard: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: cardHeight)
-        .shadow(color: signalShadow, radius: 20, x: 0, y: 10)
         .contentShape(RoundedRectangle(cornerRadius: cardCorner, style: .continuous))
         .onTapGesture(perform: onOpen)
         .accessibilityElement(children: .combine)

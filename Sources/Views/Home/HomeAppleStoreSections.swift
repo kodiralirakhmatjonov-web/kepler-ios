@@ -49,8 +49,7 @@ struct IumrahHomeAudienceSection: View {
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-            .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
-            .padding(.horizontal, -IumrahDesign.pagePadding)
+            .contentMargins(.horizontal, 0, for: .scrollContent)
         }
     }
 
@@ -86,7 +85,6 @@ struct IumrahHomeAudienceSection: View {
             RoundedRectangle(cornerRadius: 31, style: .continuous)
                 .strokeBorder(item.foreground.opacity(0.06), lineWidth: 0.8)
         }
-        .shadow(color: Color.black.opacity(0.05), radius: 18, y: 9)
     }
 
     private var sectionTitle: String {
@@ -181,8 +179,7 @@ struct IumrahHomeServicesSection: View {
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-            .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
-            .padding(.horizontal, -IumrahDesign.pagePadding)
+            .contentMargins(.horizontal, 0, for: .scrollContent)
         }
     }
 
@@ -289,7 +286,6 @@ struct IumrahHomeServicesSection: View {
                     RoundedRectangle(cornerRadius: 31, style: .continuous)
                         .strokeBorder(Color.black.opacity(0.055), lineWidth: 0.8)
                 }
-                .shadow(color: .black.opacity(0.07), radius: 21, y: 10)
                 .contentShape(RoundedRectangle(cornerRadius: 31, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -454,8 +450,8 @@ struct IumrahTransferServiceView: View {
                 Image(vehicle.assetName)
                     .resizable()
                     .scaledToFit()
-                    .padding(.horizontal, vehicle == .malibu ? 24 : 10)
-                    .shadow(color: .black.opacity(0.10), radius: 18, y: 10)
+                    .padding(.horizontal, vehicle == .malibu ? 8 : 0)
+                    .scaleEffect(vehicle == .malibu ? 1.20 : 1.18)
 
                 Spacer(minLength: 4)
 
@@ -476,7 +472,6 @@ struct IumrahTransferServiceView: View {
             RoundedRectangle(cornerRadius: 36, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.8)
         }
-        .shadow(color: .black.opacity(0.06), radius: 26, y: 14)
     }
 
     private var selectedVehicleInfo: some View {
@@ -738,7 +733,6 @@ struct HomeStorefrontFlightOptionCard: View {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
         }
-        .shadow(color: .black.opacity(0.035), radius: 14, y: 6)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture {
             if packagePreview != nil { onOpen() }

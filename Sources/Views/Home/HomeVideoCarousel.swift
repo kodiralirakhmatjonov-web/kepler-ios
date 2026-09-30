@@ -18,7 +18,7 @@ struct HomeVideoCarousel: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let cardWidth = max(proxy.size.width * 0.91, 278)
+            let cardWidth = min(max(proxy.size.width * 0.91, 278), proxy.size.width)
 
             ZStack(alignment: .bottom) {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -36,10 +36,9 @@ struct HomeVideoCarousel: View {
                     }
                     .scrollTargetLayout()
                 }
-                .contentMargins(.horizontal, IumrahDesign.pagePadding, for: .scrollContent)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
                 .scrollPosition(id: $activeStoryID, anchor: .center)
-                .padding(.horizontal, -IumrahDesign.pagePadding)
 
                 pageIndicator
                     .padding(.bottom, 14)
@@ -117,7 +116,6 @@ struct HomeVideoCarousel: View {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
         }
-        .shadow(color: Color.black.opacity(0.14), radius: 18, y: 9)
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .accessibilityLabel("Video \(storyIndex(story) + 1) of \(stories.count)")
         .accessibilityHint(openVideoTitle)
