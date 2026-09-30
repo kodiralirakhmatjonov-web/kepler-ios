@@ -33,7 +33,6 @@ struct IumrahLaunchExperience<Content: View>: View {
     var body: some View {
         ZStack {
             content
-                .environment(\.iumrahLaunchCompleted, !splashVisible)
                 .scaleEffect(contentScale)
                 .opacity(contentOpacity)
                 .allowsHitTesting(!splashVisible)

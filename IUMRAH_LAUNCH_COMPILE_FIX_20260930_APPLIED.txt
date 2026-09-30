@@ -1,0 +1,4 @@
+Iumrah launch compile recovery — 2026-09-30
+- Restores Sources/App/IumrahLaunchExperience.swift to the known-good pre-App-Store-update implementation.
+- Removes the stale .environment(\.iumrahLaunchCompleted, ...) dependency left behind after AppStoreUpdatePrompt removal.
+- No Telegram, booking, Home, chat, IAP, or backend code is changed by this patch.
