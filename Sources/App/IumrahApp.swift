@@ -3,7 +3,8 @@ import SwiftUI
 @main
 struct IumrahApp: App {
     @UIApplicationDelegateAdaptor(IumrahAppDelegate.self) private var appDelegate
-    @StateObject private var appStoreUpdateService = AppStoreUpdateService()
+    @State private var availableUpdate: AppStoreUpdateInfo?
+    @State private var didScheduleUpdateCheck = false
 
     init() {
         // Keychain may survive an uninstall. Establish the installation boundary
@@ -19,14 +20,20 @@ struct IumrahApp: App {
             }
             .task {
                 await IumrahPlusStore.shared.start()
-                await appStoreUpdateService.checkIfNeeded()
             }
-            .sheet(item: Binding(
-                get: { appStoreUpdateService.availableUpdate },
-                set: { if $0 == nil { appStoreUpdateService.dismiss() } }
-            )) { update in
+            .task {
+                guard !didScheduleUpdateCheck else { return }
+                didScheduleUpdateCheck = true
+
+                // Update discovery is deliberately outside the critical launch path.
+                // Give the root UI time to become fully interactive first.
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                availableUpdate = await AppStoreUpdateChecker.fetchAvailableUpdate()
+            }
+            .sheet(item: $availableUpdate) { update in
                 AppStoreUpdateSheet(update: update) {
-                    appStoreUpdateService.dismiss()
+                    availableUpdate = nil
                 }
             }
         }

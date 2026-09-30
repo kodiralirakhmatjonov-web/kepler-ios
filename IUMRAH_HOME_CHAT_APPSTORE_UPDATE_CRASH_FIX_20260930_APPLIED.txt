@@ -1,0 +1,2 @@
+Cumulative Kepler patch: Home header + iMessage-style chat composer + fail-safe App Store update check.
+The update checker no longer creates an ObservableObject in the @main launch path.

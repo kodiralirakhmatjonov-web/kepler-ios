@@ -1,61 +1,73 @@
 import Foundation
 
-@MainActor
-final class AppStoreUpdateService: ObservableObject {
-    struct Update: Identifiable, Equatable {
-        let id = UUID()
-        let currentVersion: String
-        let storeVersion: String
-        let storeURL: URL
+struct AppStoreUpdateInfo: Identifiable, Equatable {
+    let id: String
+    let currentVersion: String
+    let storeVersion: String
+    let storeURL: URL
+
+    init(currentVersion: String, storeVersion: String, storeURL: URL) {
+        self.id = storeVersion
+        self.currentVersion = currentVersion
+        self.storeVersion = storeVersion
+        self.storeURL = storeURL
     }
+}
 
-    @Published private(set) var availableUpdate: Update?
-    private var hasChecked = false
-
-    func checkIfNeeded() async {
-        guard !hasChecked else { return }
-        hasChecked = true
-
-        guard let lookupURL = URL(string: "https://itunes.apple.com/lookup?id=\(AppIdentity.appStoreID)&country=us") else { return }
+enum AppStoreUpdateChecker {
+    static func fetchAvailableUpdate() async -> AppStoreUpdateInfo? {
+        let currentVersion = AppIdentity.marketingVersion
+        guard currentVersion != "0.0.0",
+              let lookupURL = URL(string: "https://itunes.apple.com/lookup?id=\(AppIdentity.appStoreID)")
+        else { return nil }
 
         do {
             var request = URLRequest(url: lookupURL)
-            request.timeoutInterval = 8
-            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.timeoutInterval = 6
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { return }
+            guard let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode)
+            else { return nil }
 
             let payload = try JSONDecoder().decode(LookupResponse.self, from: data)
             guard let item = payload.results.first,
-                  isNewer(item.version, than: AppIdentity.marketingVersion),
-                  let storeURL = URL(string: item.trackViewUrl ?? "https://apps.apple.com/app/id\(AppIdentity.appStoreID)")
-            else { return }
+                  isNewer(item.version, than: currentVersion)
+            else { return nil }
 
-            availableUpdate = Update(
-                currentVersion: AppIdentity.marketingVersion,
+            let fallback = "https://apps.apple.com/app/id\(AppIdentity.appStoreID)"
+            guard let storeURL = URL(string: item.trackViewUrl ?? fallback) else { return nil }
+
+            return AppStoreUpdateInfo(
+                currentVersion: currentVersion,
                 storeVersion: item.version,
                 storeURL: storeURL
             )
         } catch {
-            // Update discovery is deliberately best-effort. Offline/error states
-            // must never delay or block normal app startup.
+            // Best effort only: network/App Store failures must never affect app launch.
+            return nil
         }
     }
 
-    func dismiss() {
-        availableUpdate = nil
-    }
-
-    private func isNewer(_ candidate: String, than current: String) -> Bool {
-        let lhs = candidate.split(separator: ".").map { Int($0) ?? 0 }
-        let rhs = current.split(separator: ".").map { Int($0) ?? 0 }
+    private static func isNewer(_ candidate: String, than current: String) -> Bool {
+        let lhs = numericVersion(candidate)
+        let rhs = numericVersion(current)
         let count = max(lhs.count, rhs.count)
+
         for index in 0..<count {
-            let l = index < lhs.count ? lhs[index] : 0
-            let r = index < rhs.count ? rhs[index] : 0
-            if l != r { return l > r }
+            let left = index < lhs.count ? lhs[index] : 0
+            let right = index < rhs.count ? rhs[index] : 0
+            if left != right { return left > right }
         }
         return false
+    }
+
+    private static func numericVersion(_ value: String) -> [Int] {
+        value.split(separator: ".").map { component in
+            let digits = component.prefix { $0.isNumber }
+            return Int(digits) ?? 0
+        }
     }
 
     private struct LookupResponse: Decodable {

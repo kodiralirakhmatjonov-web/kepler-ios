@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AppStoreUpdateSheet: View {
-    let update: AppStoreUpdateService.Update
+    let update: AppStoreUpdateInfo
     let onDismiss: () -> Void
 
     @Environment(\.openURL) private var openURL
