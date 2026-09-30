@@ -3,6 +3,7 @@ import Foundation
 
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.iumrahLaunchCompleted) private var launchCompleted
     @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v4") private var hasCompletedOnboarding = false
     @StateObject private var settings = AppSettingsStore()
     @StateObject private var chrome = AppChromeStore()
@@ -16,6 +17,13 @@ struct RootView: View {
 
     var body: some View {
         rootContent
+            .modifier(AppStoreUpdatePrompt(
+                isReady: launchCompleted && hasCompletedOnboarding
+                    && !chrome.isImmersiveMode && !chrome.isSidebarOpen
+                    && !chrome.isInternalNavigationActive,
+                language: settings.language,
+                colorScheme: settings.appearance.colorScheme
+            ))
             .preferredColorScheme(settings.appearance.colorScheme)
             .environmentObject(settings)
             .environmentObject(chrome)
