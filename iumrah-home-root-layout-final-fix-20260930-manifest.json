@@ -1,0 +1,15 @@
+{
+  "name": "iumrah-home-root-layout-final-fix-20260930",
+  "scope": "Kepler iOS Home layout only",
+  "files": [
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Components/IumrahRootPageTitle.swift"
+  ],
+  "guarantees": [
+    "fixed root content width based on viewport",
+    "standard page padding on both sides",
+    "horizontal carousels cannot widen vertical page",
+    "adaptive Home header for compact iPhones",
+    "no launch/backend/Telegram/IAP changes"
+  ]
+}

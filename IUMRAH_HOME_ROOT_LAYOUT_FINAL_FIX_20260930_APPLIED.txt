@@ -1,0 +1,8 @@
+Iumrah Home root layout final fix — 2026-09-30
+
+- Home now uses the same fixed viewport/content-column architecture as CareHomeView and TripBuilderView.
+- The root VStack width is pinned to viewport width minus 2x IumrahDesign.pagePadding.
+- Horizontal carousels can scroll internally but can no longer widen the Home page.
+- No negative horizontal padding or root offset is introduced.
+- Connected Home header keeps adaptive logo/control sizing for iPhone 13 mini and larger phones.
+- No booking, Telegram, launch, App Store update, IAP, or backend code is touched by this patch.

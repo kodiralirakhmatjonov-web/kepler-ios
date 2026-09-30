@@ -62,59 +62,73 @@ struct HomeDashboardView: View {
     }
 
     private var marketingHome: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 22) {
-                IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
-                if !clientNotifications.homeNotifications.isEmpty {
-                    SystemNotificationsCarouselView(
-                        notifications: Array(clientNotifications.homeNotifications.prefix(5)),
-                        onOpen: { openSystemNotification($0) },
-                        onDismiss: { dismissSystemNotification($0) }
+        GeometryReader { viewport in
+            // Use exactly the same root-page geometry as Care / TripBuilder.
+            // A vertical ScrollView does not guarantee a fixed cross-axis size
+            // when one of its descendants contains a wide horizontal carousel.
+            // Pinning the content column to the viewport prevents any carousel,
+            // badge or header control from widening the whole Home screen.
+            let contentWidth = max(0, viewport.size.width - (IumrahDesign.pagePadding * 2))
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 22) {
+                    IumrahRootPageTitle(
+                        title: L10n.text("tab_home", settings.language),
+                        usesBrandLogo: true,
+                        brandScale: 1.25,
+                        showsConnectivityStatus: true
                     )
+
+                    if !clientNotifications.homeNotifications.isEmpty {
+                        SystemNotificationsCarouselView(
+                            notifications: Array(clientNotifications.homeNotifications.prefix(5)),
+                            onOpen: { openSystemNotification($0) },
+                            onDismiss: { dismissSystemNotification($0) }
+                        )
+                    }
+
+                    HomeEmotionalJourneyPrompt()
+                    HomeVideoCarousel()
+                    IumrahHomeAudienceSection(language: settings.language)
+
+                    IumrahHomeServicesSection(
+                        language: settings.language,
+                        onTransfer: { showTransferService = true },
+                        onESIM: { chrome.presentESIM() },
+                        onFlights: { showFlightsService = true },
+                        onZiyarats: { showZiyarats = true },
+                        onCare: { chrome.navigate(to: .care) }
+                    )
+
+                    NavigationLink {
+                        IumrahTelegramIntegrationView(preferredBookingID: bookings.sessions.first?.id)
+                    } label: {
+                        IumrahTelegramEntryCard(language: settings.language, large: true)
+                    }
+                    .buttonStyle(.plain)
+
+                    readyPackagesSection
+                    buildMyUmrahSection
+
+                    VStack(alignment: .leading, spacing: 15) {
+                        IumrahHomeSectionHeader(title: homeProductsTitle)
+                        productsCarousel()
+                    }
+
+                    confidenceStrip
+                    philosophyCard
+                    connectedTripCard
+                    personalUmrahFAQ
+                    homeAboutFooter
                 }
-                HomeEmotionalJourneyPrompt()
-                HomeVideoCarousel()
-
-                IumrahHomeAudienceSection(language: settings.language)
-
-                IumrahHomeServicesSection(
-                    language: settings.language,
-                    onTransfer: { showTransferService = true },
-                    onESIM: { chrome.presentESIM() },
-                    onFlights: { showFlightsService = true },
-                    onZiyarats: { showZiyarats = true },
-                    onCare: { chrome.navigate(to: .care) }
-                )
-
-                NavigationLink {
-                    IumrahTelegramIntegrationView(preferredBookingID: bookings.sessions.first?.id)
-                } label: {
-                    IumrahTelegramEntryCard(language: settings.language, large: true)
-                }
-                .buttonStyle(.plain)
-
-                readyPackagesSection
-                buildMyUmrahSection
-
-                VStack(alignment: .leading, spacing: 15) {
-                    IumrahHomeSectionHeader(title: homeProductsTitle)
-                    productsCarousel()
-                }
-
-                confidenceStrip
-                philosophyCard
-                connectedTripCard
-                personalUmrahFAQ
-                homeAboutFooter
+                .frame(width: contentWidth, alignment: .topLeading)
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 10)
+                .padding(.bottom, 128)
             }
-            // Home uses one ordinary content column. Nothing on this screen is
-            // allowed to enlarge the parent width or offset the trailing edge.
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 128)
+            .frame(width: viewport.size.width, alignment: .topLeading)
         }
-        .background(Color.iumrahPageBackground)
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
     }
 
 

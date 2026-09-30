@@ -21,9 +21,9 @@ struct IumrahRootPageTitle: View {
             // narrower iPhones or larger Dynamic Type sizes.
             if usesBrandLogo && showsConnectivityStatus {
                 ViewThatFits(in: .horizontal) {
-                    connectedBrandHeader(brandWidth: 132, controlSize: 44, spacing: 8)
-                    connectedBrandHeader(brandWidth: 110, controlSize: 40, spacing: 7)
-                    connectedBrandHeader(brandWidth: 96, controlSize: 38, spacing: 6)
+                    connectedBrandHeader(brandWidth: 124, controlSize: 42, spacing: 8)
+                    connectedBrandHeader(brandWidth: 106, controlSize: 39, spacing: 7)
+                    connectedBrandHeader(brandWidth: 92, controlSize: 36, spacing: 6)
                 }
             } else {
                 standardHeader
