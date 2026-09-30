@@ -1,0 +1,1 @@
+RECOVERY: App Store update runtime removed. IumrahApp.swift restored to original launch path. Home header + chat composer v2 retained.
