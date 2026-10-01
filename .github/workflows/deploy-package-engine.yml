@@ -31,9 +31,11 @@ jobs:
         env:
           IGNAV_API_KEY: ${{ secrets.IGNAV_API_KEY }}
           DEVSMS_API_TOKEN: ${{ secrets.DEVSMS_API_TOKEN }}
+          WALLET_CERT_PEM: ${{ secrets.WALLET_CERT_PEM }}
+          WALLET_KEY_PEM: ${{ secrets.WALLET_KEY_PEM }}
         run: |
           set -euo pipefail
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID IGNAV_API_KEY DEVSMS_API_TOKEN; do
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID IGNAV_API_KEY DEVSMS_API_TOKEN WALLET_CERT_PEM WALLET_KEY_PEM; do
             if [ -z "${!name:-}" ]; then
               echo "Missing GitHub secret: $name"
               exit 1
@@ -110,6 +112,49 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$DEVSMS_API_TOKEN" | npx wrangler secret put DEVSMS_API_TOKEN --config wrangler.generated.jsonc
+
+      - name: Validate and install Apple Wallet Worker secrets
+        env:
+          WALLET_CERT_PEM: ${{ secrets.WALLET_CERT_PEM }}
+          WALLET_KEY_PEM: ${{ secrets.WALLET_KEY_PEM }}
+        run: |
+          set -euo pipefail
+
+          CERT_FILE="$(mktemp)"
+          KEY_FILE="$(mktemp)"
+          WWDR_DER="$(mktemp)"
+          WWDR_PEM="$(mktemp)"
+          trap 'rm -f "$CERT_FILE" "$KEY_FILE" "$WWDR_DER" "$WWDR_PEM"' EXIT
+
+          printf '%s\n' "$WALLET_CERT_PEM" > "$CERT_FILE"
+          printf '%s\n' "$WALLET_KEY_PEM" > "$KEY_FILE"
+
+          openssl x509 -in "$CERT_FILE" -noout -subject -issuer -dates -nameopt RFC2253
+          openssl pkey -in "$KEY_FILE" -check -noout
+
+          SUBJECT="$(openssl x509 -in "$CERT_FILE" -noout -subject -nameopt RFC2253)"
+          ISSUER="$(openssl x509 -in "$CERT_FILE" -noout -issuer -nameopt RFC2253)"
+          printf '%s' "$SUBJECT" | grep -F 'UID=pass.com.iumrah.id' >/dev/null
+          printf '%s' "$SUBJECT" | grep -F 'OU=2DQ678JTNG' >/dev/null
+          printf '%s' "$ISSUER" | grep -F 'OU=G4' >/dev/null
+
+          CERT_PUB_SHA="$(openssl x509 -in "$CERT_FILE" -pubkey -noout | openssl pkey -pubin -outform DER 2>/dev/null | openssl dgst -sha256 | awk '{print $2}')"
+          KEY_PUB_SHA="$(openssl pkey -in "$KEY_FILE" -pubout -outform DER 2>/dev/null | openssl dgst -sha256 | awk '{print $2}')"
+          if [ "$CERT_PUB_SHA" != "$KEY_PUB_SHA" ]; then
+            echo 'Apple Wallet certificate does not match WALLET_KEY_PEM.'
+            exit 1
+          fi
+
+          curl -fsSL 'https://www.apple.com/certificateauthority/AppleWWDRCAG4.cer' -o "$WWDR_DER"
+          openssl x509 -inform DER -in "$WWDR_DER" -out "$WWDR_PEM"
+          openssl x509 -in "$WWDR_PEM" -noout -subject -dates -nameopt RFC2253
+          openssl x509 -in "$WWDR_PEM" -noout -subject -nameopt RFC2253 | grep -F 'OU=G4' >/dev/null
+
+          printf '%s' "$WALLET_CERT_PEM" | npx wrangler secret put WALLET_CERT_PEM --config wrangler.generated.jsonc
+          printf '%s' "$WALLET_KEY_PEM" | npx wrangler secret put WALLET_KEY_PEM --config wrangler.generated.jsonc
+          cat "$WWDR_PEM" | npx wrangler secret put WALLET_WWDR_CERT_PEM --config wrangler.generated.jsonc
+
+          echo 'Apple Wallet signing certificate, matching private key, and WWDR G4 were installed.'
 
       - name: Verify Package Engine and Ignav
         working-directory: ${{ github.workspace }}
