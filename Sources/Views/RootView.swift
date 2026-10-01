@@ -34,6 +34,7 @@ struct RootView: View {
                 // First generation stays on the server; the client only advances bounded
                 // server batches when the daily cache is still being assembled.
                 Task(priority: .userInitiated) { await hotelStorefront.prepareIfNeeded() }
+                syncWidgetSnapshot()
                 guard hasCompletedOnboarding else { return }
                 await bootstrapAfterOnboardingIfNeeded()
                 await push.ensureAuthorizationForClientNotifications()
@@ -49,6 +50,7 @@ struct RootView: View {
                 }
             }
             .onChange(of: bookings.sessions.map(\.id)) { _, _ in
+                syncWidgetSnapshot()
                 Task {
                     await linkLocalBookingsToAccount()
                     guard hasCompletedOnboarding else { return }
@@ -57,9 +59,13 @@ struct RootView: View {
                     await syncClientNotifications()
                 }
             }
+            .onChange(of: bookings.sessions.map { "\($0.id)|\($0.effectiveStatus)|\($0.booking.updatedAt)" }) { _, _ in
+                syncWidgetSnapshot()
+            }
             .onChange(of: account.iumrahID) { _, newValue in
                 bookings.setAccountToken(account.bearerToken)
                 syncLocalProfileFromAccount()
+                syncWidgetSnapshot()
                 Task { await syncClientNotifications() }
                 guard newValue != nil, let token = account.bearerToken else { return }
                 Task {
@@ -110,6 +116,7 @@ struct RootView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, hasCompletedOnboarding else { return }
+                syncWidgetSnapshot()
                 Task {
                     await push.refreshAndRegisterIfAllowed()
                     // Retry booking-scoped chat push registration whenever the app
@@ -123,6 +130,22 @@ struct RootView: View {
 
     @MainActor
     private func handleDeepLink(_ url: URL) {
+        if url.scheme?.lowercased() == "iumrah", url.host?.lowercased() == "widget" {
+            let parts = url.pathComponents.filter { $0 != "/" }
+            switch parts.first?.lowercased() {
+            case "booking":
+                if parts.count >= 2 { chrome.openBooking(id: parts[1]) }
+                else { chrome.navigate(to: .booking) }
+            case "planned":
+                chrome.openUmrahPlan()
+            case "account":
+                chrome.navigate(to: .account)
+            default:
+                chrome.navigate(to: .home)
+            }
+            return
+        }
+
         let hotelID: String?
 
         if url.scheme?.lowercased() == "https",
@@ -219,6 +242,16 @@ struct RootView: View {
         }
 
         await bookings.refreshAll()
+        syncWidgetSnapshot()
+    }
+
+    @MainActor
+    private func syncWidgetSnapshot() {
+        IumrahWidgetSyncService.sync(
+            bookings: bookings.sessions,
+            account: account.account,
+            plannedTrip: UmrahPlanStore.shared.trip
+        )
     }
 
     @MainActor

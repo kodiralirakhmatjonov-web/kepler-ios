@@ -1,0 +1,16 @@
+{
+  "name": "iumrah Widgets v1",
+  "date": "2026-10-01",
+  "bundleId": "com.iumrah.app.widgets",
+  "deploymentTarget": "iOS 17.0",
+  "widgets": [
+    "Active Trip",
+    "Booking Status",
+    "Planned Umrah",
+    "iumrah ID",
+    "Lock Screen Countdown"
+  ],
+  "sharedStorage": "Keychain Sharing: 2DQ678JTNG.com.iumrah.shared",
+  "requiresWidgetProvisioningProfile": true,
+  "modifiesGitHubWorkflows": false
+}

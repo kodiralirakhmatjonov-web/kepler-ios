@@ -75,6 +75,12 @@ struct HomeDashboardView: View {
             .navigationDestination(isPresented: $showAboutProject) {
                 IumrahStoryView()
             }
+            .navigationDestination(isPresented: Binding(
+                get: { chrome.shouldOpenUmrahPlan },
+                set: { chrome.shouldOpenUmrahPlan = $0 }
+            )) {
+                UmrahPlanHubView()
+            }
             .sheet(item: $packageShareArtifacts) { artifacts in
                 IumrahPackageActivitySheet(artifacts: artifacts)
             }

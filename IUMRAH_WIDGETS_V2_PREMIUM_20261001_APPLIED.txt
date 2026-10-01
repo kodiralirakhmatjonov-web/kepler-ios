@@ -1,0 +1,10 @@
+IUMRAH WIDGETS V2 PREMIUM — 2026-10-01
+
+Premium production redesign for all existing WidgetKit families:
+- Active Trip: photographic Makkah backdrop, premium countdown, route/status/facts.
+- Booking Status: clean Apple-style status card with progress and next action.
+- Planned Umrah: Kaaba photographic backdrop, countdown, reminder/date chips.
+- iumrah ID: black premium ID card with QR and identity details.
+- Lock Screen: compact monochrome countdown variants.
+
+This patch is cumulative with Widgets v1 and does not modify launch, StoreKit, Telegram backend, Booking backend, or app runtime architecture beyond the already existing widget sync hooks.

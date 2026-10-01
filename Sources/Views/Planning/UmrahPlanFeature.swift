@@ -63,6 +63,7 @@ final class UmrahPlanStore: ObservableObject {
     func save(_ trip: UmrahPlannedTrip) {
         self.trip = trip
         persist()
+        IumrahWidgetSyncService.updatePlannedTrip(trip)
         Task {
             await UmrahPlanNotificationScheduler.reschedule(trip)
         }
@@ -71,6 +72,7 @@ final class UmrahPlanStore: ObservableObject {
     func deleteTrip() {
         trip = nil
         UserDefaults.standard.removeObject(forKey: defaultsKey)
+        IumrahWidgetSyncService.updatePlannedTrip(nil)
         Task {
             await UmrahPlanNotificationScheduler.cancelAll()
         }

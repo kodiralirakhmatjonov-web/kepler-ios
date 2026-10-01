@@ -1,0 +1,9 @@
+iumrah Widgets v1 — 2026-10-01
+
+- WidgetKit extension: com.iumrah.app.widgets
+- 5 widgets: Active Trip, Booking Status, Planned Umrah, iumrah ID, Lock Screen Countdown
+- Secure shared Keychain snapshot; no App Group required
+- Widget deep links to booking / planned Umrah / account
+- Widget timeline reload on booking/account/planned-trip changes
+- iOS 17+ / WidgetKit / native system widget backgrounds
+- Requires one-time widget App ID + App Store provisioning profile and widget-aware TestFlight workflow

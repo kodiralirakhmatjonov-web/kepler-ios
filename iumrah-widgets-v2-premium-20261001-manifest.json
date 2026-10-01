@@ -1,0 +1,14 @@
+{
+  "name": "iumrah widgets v2 premium",
+  "date": "2026-10-01",
+  "cumulative_with": "iumrah-beta-update-widgets-v1-20261001",
+  "widget_bundle": "com.iumrah.app.widgets",
+  "changes": [
+    "premium per-family WidgetKit layouts",
+    "Makkah and Kaaba photographic widget backgrounds",
+    "premium black iumrah ID widget with QR",
+    "Apple-style booking status progress card",
+    "refined Lock Screen countdown widgets",
+    "widget-local branded asset catalog"
+  ]
+}

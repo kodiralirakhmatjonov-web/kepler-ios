@@ -35,6 +35,7 @@ final class AppChromeStore: ObservableObject {
     @Published var isSidebarOpen = false
     @Published var isESIMPresented = false
     @Published var isNotificationsPresented = false
+    @Published var shouldOpenUmrahPlan = false
     @Published private(set) var internalNavigationDepth = 0
 
     func navigate(to tab: AppTab) {
@@ -83,6 +84,13 @@ final class AppChromeStore: ObservableObject {
         shouldStartTripBuilder = true
         currentTab = .booking
         requestedTab = .booking
+        IumrahHaptics.selection()
+    }
+
+    func openUmrahPlan() {
+        shouldOpenUmrahPlan = true
+        currentTab = .home
+        requestedTab = .home
         IumrahHaptics.selection()
     }
 
