@@ -43,6 +43,14 @@ struct IumrahTravelCompanionsView: View {
     }
     private var introCard: some View {
         VStack(alignment: .leading, spacing: 14) {
+            Image("TravelCompanionsCover")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 118)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
             HStack(alignment: .top, spacing: 13) {
                 IumrahIconBadge(systemName: "person.2.fill", role: .profile, size: 52, symbolSize: 21, cornerRadius: 17)
                 VStack(alignment: .leading, spacing: 4) {
@@ -66,6 +74,7 @@ struct IumrahTravelCompanionsView: View {
         }
         .iumrahCard()
     }
+
     private var loadingCard: some View {
         HStack(spacing: 14) {
             ProgressView()

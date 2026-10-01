@@ -1,4 +1,7 @@
 import SwiftUI
+import CoreImage
+import CoreImage.CIFilterBuiltins
+import UIKit
 
 struct IumrahIdentityCardData: Hashable {
     let iumrahID: String
@@ -17,6 +20,8 @@ struct IumrahIdentityDomeCard: View {
     let language: AppSettingsStore.Language
     var copyMessage: String? = nil
     var allowsFlip = true
+    var publicIdentityURL: String? = nil
+    var showsPublicIdentityQR = false
     var onCopy: () -> Void = {}
 
     @State private var isFlipped = false
@@ -123,19 +128,35 @@ struct IumrahIdentityDomeCard: View {
 
                     Spacer(minLength: 10)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        if let phone = nonBlank(data.phone) {
-                            Label(phone, systemImage: "phone.fill")
+                    if showsPublicIdentityQR {
+                        HStack(alignment: .center, spacing: 14) {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(publicIdentityCaption)
+                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.58))
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text("iumrah.app")
+                                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(.white.opacity(0.38))
+                            }
+                            Spacer(minLength: 8)
+                            publicIdentityQRCode
                         }
-                        if let email = nonBlank(data.email) {
-                            Label(email, systemImage: "envelope.fill")
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            if let phone = nonBlank(data.phone) {
+                                Label(phone, systemImage: "phone.fill")
+                            }
+                            if let email = nonBlank(data.email) {
+                                Label(email, systemImage: "envelope.fill")
+                            }
                         }
+                        .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.58))
+                        .lineLimit(1)
                     }
-                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.58))
-                    .lineLimit(1)
 
-                    Spacer(minLength: 12)
+                    Spacer(minLength: 10)
 
                     Rectangle()
                         .fill(Color.white.opacity(0.13))
@@ -171,6 +192,56 @@ struct IumrahIdentityDomeCard: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
+    }
+
+
+    private var publicIdentityCaption: String {
+        switch language {
+        case .russian: return "QR-код открывает Вашу iumrah ID на сайте"
+        case .english: return "Scan to open your iumrah ID on the web"
+        case .uzbek: return "QR-kod iumrah ID’ingizni saytda ochadi"
+        case .uzbekCyrillic: return "QR-код iumrah ID’ингизни сайтда очади"
+        }
+    }
+
+    @ViewBuilder
+    private var publicIdentityQRCode: some View {
+        if let value = publicIdentityURL ?? fallbackPublicIdentityURL,
+           let image = makeQRCode(value) {
+            Image(uiImage: image)
+                .interpolation(.none)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 72, height: 72)
+                .padding(6)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        } else {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.10))
+                .frame(width: 84, height: 84)
+                .overlay {
+                    Image(systemName: "qrcode")
+                        .font(.system(size: 29, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.76))
+                }
+        }
+    }
+
+    private var fallbackPublicIdentityURL: String? {
+        let id = normalizedID(data.iumrahID)
+        guard !id.isEmpty else { return nil }
+        return "https://iumrah.app/id/\(id)"
+    }
+
+    private func makeQRCode(_ value: String) -> UIImage? {
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(value.utf8)
+        filter.correctionLevel = "M"
+        guard let output = filter.outputImage else { return nil }
+        let scaled = output.transformed(by: CGAffineTransform(scaleX: 9, y: 9))
+        let context = CIContext(options: nil)
+        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 
     private var displayName: String {
@@ -306,6 +377,7 @@ struct IumrahIdentityDomeCard: View {
 struct IumrahAccountIdentityHeroCard: View {
     let profile: IumrahAccountProfile
     let language: AppSettingsStore.Language
+    let publicIdentityURL: String
     let copyMessage: String?
     let onCopy: () -> Void
 
@@ -314,12 +386,14 @@ struct IumrahAccountIdentityHeroCard: View {
             data: IumrahIdentityCardData(
                 iumrahID: profile.iumrahID,
                 displayName: profile.displayName,
-                phone: profile.phone,
-                email: profile.email
+                phone: nil,
+                email: nil
             ),
             language: language,
             copyMessage: copyMessage,
             allowsFlip: true,
+            publicIdentityURL: publicIdentityURL,
+            showsPublicIdentityQR: true,
             onCopy: onCopy
         )
     }

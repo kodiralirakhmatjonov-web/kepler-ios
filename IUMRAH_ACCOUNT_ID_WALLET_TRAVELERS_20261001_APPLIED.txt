@@ -1,0 +1,4 @@
+Account polish patch 2026-10-01
+- iumrah ID hero back removes phone/email and restores public web QR.
+- Apple Wallet card removes visible iumrah ID and uses one full-width black Wallet button.
+- Who is traveling with you uses supplied local cover art in Account and inside Travelers page.

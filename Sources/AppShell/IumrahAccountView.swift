@@ -114,6 +114,7 @@ struct IumrahAccountView: View {
                         IumrahAccountIdentityHeroCard(
                             profile: profile,
                             language: settings.language,
+                            publicIdentityURL: identityPublicURL ?? fallbackIdentityURL(profile.iumrahID),
                             copyMessage: identityCopyMessage,
                             onCopy: { copyIdentityID(profile) }
                         )
@@ -563,7 +564,7 @@ struct IumrahAccountView: View {
     }
 
     private func walletSection(_ profile: IumrahAccountProfile) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -591,35 +592,42 @@ struct IumrahAccountView: View {
                 Spacer(minLength: 0)
             }
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("iumrah ID")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(normalizedID(profile.iumrahID))
-                        .font(.system(size: 18, weight: .bold, design: .monospaced))
-                        .tracking(1.4)
-                }
-
-                Spacer(minLength: 10)
-
-                if isLoadingWalletPass {
+            if isLoadingWalletPass {
+                HStack(spacing: 10) {
                     ProgressView()
-                        .controlSize(.regular)
-                        .frame(width: 162, height: 48)
-                } else if PKPassLibrary.isPassLibraryAvailable() {
-                    IumrahAddToWalletButton {
-                        Task { await addIdentityToWallet() }
-                    }
-                    .frame(width: 162, height: 48)
-                } else {
-                    Text(tr("Wallet unavailable", "Wallet недоступен", "Wallet mavjud emas", "Wallet мавжуд эмас"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .tint(.white)
+                    Text(tr("Preparing Wallet", "Подготавливаем Wallet", "Wallet tayyorlanmoqda", "Wallet тайёрланмоқда"))
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
                 }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(Color.black, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            } else if PKPassLibrary.isPassLibraryAvailable() {
+                Button {
+                    Task { await addIdentityToWallet() }
+                } label: {
+                    HStack(spacing: 9) {
+                        Image(systemName: "apple.logo")
+                            .font(.system(size: 19, weight: .semibold))
+                        Text("Wallet")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle(radius: 15))
+                .controlSize(.large)
+                .tint(.black)
+            } else {
+                HStack(spacing: 9) {
+                    Image(systemName: "apple.logo")
+                    Text(tr("Wallet unavailable", "Wallet недоступен", "Wallet mavjud emas", "Wallet мавжуд эмас"))
+                }
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
-            .padding(14)
-            .background(Color.iumrahRaisedBackground.opacity(0.60), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .iumrahCard()
     }
@@ -776,7 +784,15 @@ struct IumrahAccountView: View {
         NavigationLink {
             IumrahTravelCompanionsView()
         } label: {
-            VStack(alignment: .leading, spacing: 15) {
+            VStack(alignment: .leading, spacing: 14) {
+                Image("TravelCompanionsCover")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 94)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
                 HStack(alignment: .top, spacing: 13) {
                     IumrahIconBadge(systemName: "person.2.fill", role: .profile, size: 50, symbolSize: 20, cornerRadius: 17)
                     VStack(alignment: .leading, spacing: 4) {
