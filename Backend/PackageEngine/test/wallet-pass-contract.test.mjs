@@ -21,9 +21,13 @@ test("Wallet pass is signed and carries the permanent iumrah ID as a QR pass", (
   assert.match(walletPass, /application\/vnd\.apple\.pkpass/);
 });
 
-test("Account ID card uses the current iumrah.app domain and native Apple Wallet UI", () => {
+test("Account ID card uses the current iumrah.app domain and native Apple Wallet flow", () => {
   assert.match(accountView, /Text\("iumrah\.app"\)/);
   assert.match(accountView, /qrCodeView\(identityPublicURL \?\? fallbackIdentityURL\(profile\.iumrahID\), size: 116\)/);
   assert.doesNotMatch(accountView, /aiumra\.app/);
-  assert.match(accountView, /IumrahAddToWalletButton/);
+  assert.match(accountView, /PKPassLibrary\.isPassLibraryAvailable\(\)/);
+  assert.match(accountView, /Task \{ await addIdentityToWallet\(\) \}/);
+  assert.match(accountView, /Image\(systemName: "apple\.logo"\)/);
+  assert.match(accountView, /Text\("Wallet"\)/);
+  assert.match(accountView, /IumrahAddPassesView\(pass: walletPass, isPresented: \$showWalletPassSheet\)/);
 });

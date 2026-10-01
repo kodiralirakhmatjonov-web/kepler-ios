@@ -1,0 +1,4 @@
+IUMRAH_WALLET_DEPLOY_CONTRACT_FIX_20261001_APPLIED
+
+Updates the Wallet contract test to match the current native black Wallet button and PassKit flow.
+No runtime, UI, PackageEngine route, or Wallet pass generation code is changed.

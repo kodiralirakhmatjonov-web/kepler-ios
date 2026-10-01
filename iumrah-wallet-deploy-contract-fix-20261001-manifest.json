@@ -1,0 +1,8 @@
+{
+  "name": "iumrah Wallet deploy contract fix",
+  "date": "2026-10-01",
+  "scope": [
+    "Backend/PackageEngine/test/wallet-pass-contract.test.mjs"
+  ],
+  "reason": "Remove stale expectation for deleted IumrahAddToWalletButton and validate current PassKit/Wallet implementation instead."
+}
