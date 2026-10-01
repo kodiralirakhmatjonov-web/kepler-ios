@@ -41,13 +41,18 @@ struct CareChatMessageRow: View {
                 if !isMine { Spacer(minLength: 64) }
             }
 
-            if isMine && showDelivery && groupEnd {
-                Text(deliveryLabel)
-                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(wallpaperActive ? Color.white.opacity(0.78) : Color.secondary)
-                    .padding(.trailing, 7)
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            HStack(spacing: 4) {
+                if isMine && showDelivery && groupEnd {
+                    Text(deliveryStatus)
+                        .fontWeight(.semibold)
+                }
+                Text(timestampText)
             }
+            .font(.system(size: 10.5, weight: .medium, design: .rounded))
+            .foregroundStyle(wallpaperActive ? Color.white.opacity(0.82) : Color.secondary)
+            .padding(.horizontal, 7)
+            .frame(maxWidth: .infinity, alignment: isMine ? .trailing : .leading)
+            .transition(.opacity)
         }
         .padding(.top, groupStart ? 4 : 0)
         .animation(.spring(response: 0.28, dampingFraction: 0.9), value: message.readByStaff)
@@ -65,16 +70,9 @@ struct CareChatMessageRow: View {
                 if isMine {
                     shape.fill(outgoingBubbleColor.opacity(wallpaperActive ? 0.96 : 1))
                 } else if wallpaperActive {
-                    shape
-                        .fill(Color.clear)
-                        .iumrahGlass(in: shape)
-                        .overlay {
-                            shape.fill(
-                                colorScheme == .dark
-                                    ? Color.black.opacity(0.30)
-                                    : Color.white.opacity(0.20)
-                            )
-                        }
+                    // iMessage-like solid incoming bubble. Avoid the translucent
+                    // glass blob that made text and tails look muddy on photo wallpapers.
+                    shape.fill(Color.white.opacity(0.92))
                 } else {
                     shape.fill(Color(uiColor: .systemGray5))
                 }
@@ -82,7 +80,7 @@ struct CareChatMessageRow: View {
             .overlay {
                 shape.stroke(incomingStrokeColor, lineWidth: isMine ? 0 : 0.55)
             }
-            .shadow(color: bubbleShadow, radius: wallpaperActive ? 7 : 1.25, y: wallpaperActive ? 3 : 1)
+            .shadow(color: bubbleShadow, radius: 1.2, y: 0.6)
             .contentShape(shape)
             .accessibilityElement(children: .combine)
     }
@@ -100,7 +98,7 @@ struct CareChatMessageRow: View {
             if !trimmed.isEmpty {
                 Text(message.body)
                     .font(.system(size: 17, weight: .regular))
-                    .foregroundStyle(isMine ? Color.white : Color.primary)
+                    .foregroundStyle(isMine ? Color.white : (wallpaperActive ? Color.black : Color.primary))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
@@ -147,14 +145,11 @@ struct CareChatMessageRow: View {
         return wallpaperActive ? .white.opacity(0.68) : .secondary
     }
 
-    private var deliveryLabel: String {
-        let status: String
+    private var deliveryStatus: String {
         if message.readByStaff == true {
-            status = tr("Read", "Прочитано", "O‘qildi", "Ўқилди")
-        } else {
-            status = tr("Delivered", "Доставлено", "Yetkazildi", "Етказилди")
+            return tr("Read", "Прочитано", "O‘qildi", "Ўқилди")
         }
-        return "\(status)  \(timestampText)"
+        return tr("Delivered", "Доставлено", "Yetkazildi", "Етказилди")
     }
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {

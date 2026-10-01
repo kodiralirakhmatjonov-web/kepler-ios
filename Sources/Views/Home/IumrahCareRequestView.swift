@@ -4,6 +4,7 @@ struct IumrahCareRequestView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var account: IumrahAccountStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var originAirport: Airport?
     @State private var originCode = "TAS"
@@ -37,8 +38,10 @@ struct IumrahCareRequestView: View {
     @State private var isSubmitting = false
     @State private var response: IumrahCarePackageRequestResponse?
     @State private var errorMessage: String?
+    @State private var carePhone = ""
 
     private let service = IumrahCareRequestService()
+    private let chatService = ChatService()
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -62,7 +65,10 @@ struct IumrahCareRequestView: View {
         .background(Color.iumrahPageBackground)
         .navigationTitle(pageTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear(perform: prefillContact)
+        .onAppear {
+            prefillContact()
+            Task { await loadCarePhone() }
+        }
         .onChange(of: exactStartDate) { _, newValue in
             if exactEndDate <= newValue {
                 exactEndDate = Calendar.current.date(byAdding: .day, value: 7, to: newValue) ?? newValue
@@ -100,6 +106,27 @@ struct IumrahCareRequestView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                callCare()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "phone.fill")
+                    Text(callCareTitle)
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(resolvedCarePhone.isEmpty)
+            .opacity(resolvedCarePhone.isEmpty ? 0.55 : 1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahMarketingCard()
@@ -518,6 +545,26 @@ struct IumrahCareRequestView: View {
         }
     }
 
+    @MainActor
+    private func loadCarePhone() async {
+        if let profile = try? await chatService.loadCareProfile() {
+            let preferred = profile.phoneUZ.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !preferred.isEmpty { carePhone = preferred }
+        }
+    }
+
+    private var resolvedCarePhone: String {
+        let candidate = carePhone.isEmpty ? settings.whatsapp : carePhone
+        return candidate.filter { $0.isNumber || $0 == "+" }
+    }
+
+    private func callCare() {
+        let value = resolvedCarePhone
+        guard !value.isEmpty, let url = URL(string: "tel:\(value)") else { return }
+        IumrahHaptics.selection()
+        openURL(url)
+    }
+
     private static let monthFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -537,7 +584,8 @@ struct IumrahCareRequestView: View {
     }()
 
     private var pageTitle: String { tr("Собрать Умру за меня", "Build my Umrah", "Umramni men uchun tuzing", "Умрамни мен учун тузинг") }
-    private var introTitle: String { tr("Расскажите, какой должна быть Ваша Умра", "Tell us what your Umrah should feel like", "Umrangiz qanday bo‘lishini ayting", "Умрангиз қандай бўлишини айтинг") }
+    private var introTitle: String { tr("Расскажите, какой должна быть Ваша Умра — или позвоните", "Tell us what your Umrah should be like — or call us", "Umrangiz qanday bo‘lishini ayting — yoki qo‘ng‘iroq qiling", "Умрангиз қандай бўлишини айтинг — ёки қўнғироқ қилинг") }
+    private var callCareTitle: String { tr("Позвонить", "Call Iumrah Care", "Qo‘ng‘iroq qilish", "Қўнғироқ қилиш") }
     private var introBody: String { tr("Вы задаёте даты, бюджет и приоритеты. Iumrah Care получает запрос как новую заявку и подбирает персональный вариант.", "Set your dates, budget and priorities. Iumrah Care receives a new request and prepares a personal option for you.", "Sana, budjet va ustuvorliklarni belgilang. Iumrah Care yangi so‘rovni qabul qilib, shaxsiy variant tayyorlaydi.", "Сана, бюджет ва устуворликларни белгиланг. Iumrah Care янги сўровни қабул қилиб, шахсий вариант тайёрлайди.") }
     private var timingTitle: String { tr("Когда Вы планируете Умру", "When do you plan to travel?", "Umrani qachon rejalashtirgansiz", "Умрани қачон режалаштиргансиз") }
     private var flexibleTitle: String { tr("Гибко", "Flexible", "Moslashuvchan", "Мослашувчан") }

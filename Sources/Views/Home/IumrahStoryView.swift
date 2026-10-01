@@ -9,11 +9,15 @@ struct IumrahStoryView: View {
                 heroCard
 
                 storyParagraph(L10n.text("story_p1", settings.language))
+                storyImage("AboutIumrahPilgrims", height: 310)
                 storyParagraph(L10n.text("story_p2", settings.language))
 
                 whyProjectCard
+                storyImage("AboutIumrahKaabaTouch", height: 390)
                 principlesSection
+                storyImage("AboutIumrahMapDark", height: 220)
                 missionCard
+                storyImage("AboutIumrahKaabaCorner", height: 360)
                 promiseCard
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
@@ -26,45 +30,49 @@ struct IumrahStoryView: View {
     }
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(L10n.text("story_kicker", settings.language))
-                .font(.caption.weight(.bold))
-                .tracking(1.15)
-                .foregroundStyle(.white.opacity(0.62))
+        ZStack(alignment: .bottomLeading) {
+            Image("AboutIumrahMapLight")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 430)
+                .clipped()
 
-            Text(L10n.text("story_title", settings.language))
-                .font(.system(size: 37, weight: .bold, design: .rounded))
-                .tracking(-0.95)
-                .foregroundStyle(.white)
-
-            Text(L10n.text("story_intro", settings.language))
-                .font(.system(size: 17, weight: .regular, design: .rounded))
-                .foregroundStyle(.white.opacity(0.74))
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 10) {
-                miniMetric(icon: "mappin.and.ellipse", title: storyMetricPlace)
-                miniMetric(icon: "person.2.fill", title: storyMetricPilgrims)
-                miniMetric(icon: "shield.checkered", title: storyMetricPurpose)
-            }
-            .padding(.top, 4)
-        }
-        .padding(22)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
             LinearGradient(
-                colors: [
-                    Color.black,
-                    Color(red: 0.07, green: 0.08, blue: 0.12)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
-        )
+                colors: [.clear, .white.opacity(0.45), .white.opacity(0.96)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text(L10n.text("story_kicker", settings.language))
+                    .font(.caption.weight(.bold))
+                    .tracking(1.15)
+                    .foregroundStyle(.black.opacity(0.52))
+
+                Text(L10n.text("story_title", settings.language))
+                    .font(.system(size: 37, weight: .bold, design: .rounded))
+                    .tracking(-0.95)
+                    .foregroundStyle(.black)
+
+                Text(L10n.text("story_intro", settings.language))
+                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .foregroundStyle(.black.opacity(0.62))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    miniMetric(icon: "mappin.and.ellipse", title: storyMetricPlace)
+                    miniMetric(icon: "person.2.fill", title: storyMetricPilgrims)
+                    miniMetric(icon: "shield.checkered", title: storyMetricPurpose)
+                }
+            }
+            .padding(20)
+        }
+        .frame(height: 430)
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.8)
+                .strokeBorder(Color.black.opacity(0.06), lineWidth: 0.8)
         }
     }
 
@@ -76,10 +84,10 @@ struct IumrahStoryView: View {
                 .font(.system(size: 12.5, weight: .semibold, design: .rounded))
                 .lineLimit(2)
         }
-        .foregroundStyle(.white.opacity(0.88))
+        .foregroundStyle(.black.opacity(0.76))
         .padding(.horizontal, 11)
         .frame(minHeight: 38)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Color.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var whyProjectCard: some View {
@@ -169,6 +177,20 @@ struct IumrahStoryView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .iumrahMarketingCard()
+    }
+
+    private func storyImage(_ asset: String, height: CGFloat) -> some View {
+        Image(asset)
+            .resizable()
+            .scaledToFill()
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
+            }
     }
 
     private func storyParagraph(_ text: String) -> some View {

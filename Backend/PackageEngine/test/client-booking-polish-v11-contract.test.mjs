@@ -17,13 +17,17 @@ test('Hotel First variants are a peekable colored horizontal carousel with indic
   assert.match(source, /strokeBorder\(accent\.fill\.opacity\(0\.42\)/);
 });
 
-test('Booking and canonical status pages share the native compact segmented page switcher', () => {
+test('Booking and status switch in place with one native compact segmented control', () => {
   const detail = read('Sources/Views/Booking/BookingDetailView.swift');
   const checkout = read('Sources/Views/Booking/PilgrimCheckoutView.swift');
   const switcher = read('Sources/Views/Booking/BookingPageSwitcher.swift');
-  assert.match(detail, /BookingPageSwitcher\([\s\S]*selection: \.booking/);
-  assert.match(detail, /PilgrimCheckoutView\(bookingID: bookingID, presentation: \.screen\)/);
-  assert.match(checkout, /BookingPageSwitcher\([\s\S]*selection: \.status/);
+  assert.match(detail, /@State private var selectedPrimaryPage: BookingPrimaryPage = \.booking/);
+  assert.match(detail, /BookingPageSwitcher\([\s\S]*selection: selectedPrimaryPage/);
+  assert.match(detail, /selectedPrimaryPage = \.booking/);
+  assert.match(detail, /selectedPrimaryPage = \.status/);
+  assert.match(detail, /PilgrimCheckoutView\(bookingID: bookingID, presentation: \.bookingStatus\)/);
+  assert.doesNotMatch(detail, /navigationDestination\(isPresented: \$showStatusPage/);
+  assert.match(checkout, /BookingDetailView\(bookingID: bookingID, initialPage: \.status\)/);
   assert.match(switcher, /Picker\(/);
   assert.match(switcher, /\.pickerStyle\(\.segmented\)/);
   assert.doesNotMatch(switcher, /IumrahGlassGroup|\.iumrahGlass\(/);
@@ -69,7 +73,7 @@ test('chat and deletion prefer permanent account authorization before stale book
 
 test('Care chat composer stays compact and maps authorization failures', () => {
   const source = read('Sources/Views/Chat/BookingChatView.swift');
-  assert.match(source, /frame\(minHeight: 44, maxHeight: 78/);
+  assert.match(source, /frame\(minHeight: 40, maxHeight: 86/);
   assert.match(source, /lineLimit\(1\.\.\.3\)/);
   assert.match(source, /chatErrorMessage\(error\)/);
   assert.match(source, /isAuthorizationError/);

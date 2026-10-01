@@ -34,6 +34,7 @@ struct SystemNotificationsCarouselView: View {
                 .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
                 .scrollPosition(id: $selectedID, anchor: .center)
+                .scrollClipDisabled()
             }
             .frame(height: 188)
 

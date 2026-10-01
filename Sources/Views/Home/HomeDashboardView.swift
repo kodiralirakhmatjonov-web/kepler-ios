@@ -13,6 +13,14 @@ struct HomeDashboardView: View {
     @State private var showFlightsService = false
     @State private var showTransferService = false
     @State private var selectedFlightPackage: StorefrontFlightPackagePreview?
+    @State private var selectedHotel: HotelSummary?
+    @State private var selectedHotelPackageID: String?
+    @State private var packageShareArtifacts: IumrahPackageShareArtifacts?
+    @State private var packageShareError: String?
+    @State private var readyCarouselID: String?
+    @State private var hotelCarouselID: String?
+    @State private var buildCarouselID: String? = "configurator"
+    @State private var productsCarouselID: String? = "iumrah-system"
     @State private var expandedHomeFAQID: String?
     @State private var showAboutProject = false
 
@@ -56,8 +64,26 @@ struct HomeDashboardView: View {
             .navigationDestination(item: $selectedFlightPackage) { preview in
                 StorefrontUmrahPackageDetailView(preview: preview)
             }
+            .navigationDestination(item: $selectedHotel) { hotel in
+                HotelDetailView(
+                    hotel: hotel,
+                    autoOpenConfigurator: true,
+                    initialPackageID: selectedHotelPackageID
+                )
+            }
             .navigationDestination(isPresented: $showAboutProject) {
                 IumrahStoryView()
+            }
+            .sheet(item: $packageShareArtifacts) { artifacts in
+                IumrahPackageActivitySheet(artifacts: artifacts)
+            }
+            .alert(homeShareErrorTitle, isPresented: Binding(
+                get: { packageShareError != nil },
+                set: { if !$0 { packageShareError = nil } }
+            )) {
+                Button(homeShareErrorDismiss, role: .cancel) { packageShareError = nil }
+            } message: {
+                Text(packageShareError ?? "")
             }
     }
 
@@ -101,12 +127,15 @@ struct HomeDashboardView: View {
                 .buttonStyle(.plain)
 
                 readyPackagesSection
-                buildMyUmrahSection
 
                 VStack(alignment: .leading, spacing: 15) {
                     IumrahHomeSectionHeader(title: homeProductsTitle)
                     productsCarousel()
+                    IumrahHomeCarouselDots(count: 3, selectedIndex: productsCarouselIndex)
                 }
+
+                hotelFirstPackagesSection
+                buildMyUmrahSection
 
                 confidenceStrip
                 philosophyCard
@@ -530,18 +559,36 @@ struct HomeDashboardView: View {
                                 onOpen: { selectedFlightPackage = entry.preview }
                             )
                             .frame(width: 318)
+                            .id(entry.id)
 
                         }
 
                         allPackagesCard
                             .frame(width: 318)
+                            .id("all-flight-packages")
                     }
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                .scrollPosition(id: $readyCarouselID, anchor: .center)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
+                .scrollClipDisabled()
+
+                IumrahHomeCarouselDots(
+                    count: readyPackageEntries.count + 1,
+                    selectedIndex: readyPackagesCarouselIndex
+                )
             }
         }
+        .onAppear {
+            if readyCarouselID == nil { readyCarouselID = readyPackageEntries.first?.id ?? "all-flight-packages" }
+        }
+    }
+
+    private var readyPackagesCarouselIndex: Int {
+        let ids = readyPackageEntries.map(\.id) + ["all-flight-packages"]
+        guard let readyCarouselID, let index = ids.firstIndex(of: readyCarouselID) else { return 0 }
+        return index
     }
 
     private var allPackagesCard: some View {
@@ -596,6 +643,224 @@ struct HomeDashboardView: View {
         .buttonStyle(.plain)
     }
 
+    private var homeHotelFirstHotels: [HotelSummary] {
+        Array(
+            storefront.allHotels
+                .filter { storefront.automaticQuote(for: $0) != nil }
+                .prefix(12)
+        )
+    }
+
+    private var hotelFirstPackagesSection: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            IumrahHomeSectionHeader(
+                title: hotelFirstHomeTitle,
+                subtitle: hotelFirstHomeSubtitle
+            )
+
+            if homeHotelFirstHotels.isEmpty {
+                HStack(spacing: 11) {
+                    ProgressView()
+                    Text(hotelFirstLoadingTitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .iumrahHomeFlatCard()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 13) {
+                        ForEach(homeHotelFirstHotels) { hotel in
+                            HotelStorefrontCard(
+                                hotel: hotel,
+                                images: storefront.previewImages(for: hotel),
+                                quote: storefront.automaticQuote(for: hotel),
+                                language: settings.language,
+                                isFavorite: storefront.isFavorite(hotel),
+                                onOpen: {
+                                    selectedHotelPackageID = storefront.hotelConfiguratorPreview(for: hotel)?.packageID
+                                    selectedHotel = hotel
+                                },
+                                onFavorite: { storefront.toggleFavorite(hotel) },
+                                onShare: { shareHomeHotelPackage(hotel) }
+                            )
+                            .frame(width: 340)
+                            .id(hotel.id)
+                        }
+
+                        allHotelFirstPackagesCard
+                            .frame(width: 340, height: 204)
+                            .id("all-hotel-first-packages")
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                .scrollPosition(id: $hotelCarouselID, anchor: .center)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
+                .scrollClipDisabled()
+
+                IumrahHomeCarouselDots(
+                    count: homeHotelFirstHotels.count + 1,
+                    selectedIndex: hotelFirstCarouselIndex
+                )
+            }
+        }
+        .onAppear {
+            if hotelCarouselID == nil {
+                hotelCarouselID = homeHotelFirstHotels.first?.id ?? "all-hotel-first-packages"
+            }
+        }
+    }
+
+    private var allHotelFirstPackagesCard: some View {
+        Button {
+            IumrahHaptics.selection()
+            chrome.openHotels(board: .hotels)
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                Image("IumrahHotelsShowcaseHero")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 102)
+                    .clipped()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(hotelFirstAllTitle)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text(hotelFirstAllBody)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                    HStack {
+                        Text(hotelFirstAllCTA)
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.subheadline.weight(.bold))
+                }
+                .padding(14)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.6)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var hotelFirstCarouselIndex: Int {
+        let ids = homeHotelFirstHotels.map(\.id) + ["all-hotel-first-packages"]
+        guard let hotelCarouselID, let index = ids.firstIndex(of: hotelCarouselID) else { return 0 }
+        return index
+    }
+
+    @MainActor
+    private func shareHomeHotelPackage(_ hotel: HotelSummary) {
+        guard let preview = storefront.hotelConfiguratorPreview(for: hotel) else {
+            packageShareError = homeShareUnavailable
+            IumrahHaptics.error()
+            return
+        }
+        do {
+            packageShareArtifacts = try IumrahPackageShareFactory.make(
+                payload: .defaultHotelFirst(hotel: hotel, preview: preview, language: settings.language),
+                language: settings.language,
+                invitation: false
+            )
+            IumrahHaptics.selection()
+        } catch {
+            packageShareError = homeShareUnavailable
+            IumrahHaptics.error()
+        }
+    }
+
+    private var hotelFirstHomeTitle: String {
+        switch settings.language {
+        case .russian: return "Hotel First пакеты"
+        case .english: return "Hotel First packages"
+        case .uzbek: return "Hotel First paketlari"
+        case .uzbekCyrillic: return "Hotel First пакетлари"
+        }
+    }
+
+    private var hotelFirstHomeSubtitle: String {
+        switch settings.language {
+        case .russian: return "Выберите отель — даты, перелёт и услуги уже собраны в готовый пакет."
+        case .english: return "Choose the hotel — dates, flights and services are already assembled into a ready package."
+        case .uzbek: return "Mehmonxonani tanlang — sanalar, parvoz va xizmatlar tayyor paketga yig‘ilgan."
+        case .uzbekCyrillic: return "Меҳмонхонани танланг — саналар, парвоз ва хизматлар тайёр пакетга йиғилган."
+        }
+    }
+
+    private var hotelFirstLoadingTitle: String {
+        switch settings.language {
+        case .russian: return "Готовим Hotel First пакеты…"
+        case .english: return "Preparing Hotel First packages…"
+        case .uzbek: return "Hotel First paketlari tayyorlanmoqda…"
+        case .uzbekCyrillic: return "Hotel First пакетлари тайёрланмоқда…"
+        }
+    }
+
+    private var hotelFirstAllTitle: String {
+        switch settings.language {
+        case .russian: return "Посмотреть все Hotel First пакеты"
+        case .english: return "See all Hotel First packages"
+        case .uzbek: return "Barcha Hotel First paketlarini ko‘rish"
+        case .uzbekCyrillic: return "Барча Hotel First пакетларини кўриш"
+        }
+    }
+
+    private var hotelFirstAllBody: String {
+        switch settings.language {
+        case .russian: return "Откройте полный каталог отелей и готовых вариантов поездки."
+        case .english: return "Open the full hotel catalogue and ready-made journey options."
+        case .uzbek: return "Mehmonxonalar va tayyor safar variantlarining to‘liq katalogini oching."
+        case .uzbekCyrillic: return "Меҳмонхоналар ва тайёр сафар вариантларининг тўлиқ каталогини очинг."
+        }
+    }
+
+    private var hotelFirstAllCTA: String {
+        switch settings.language {
+        case .russian: return "Все пакеты"
+        case .english: return "All packages"
+        case .uzbek: return "Barcha paketlar"
+        case .uzbekCyrillic: return "Барча пакетлар"
+        }
+    }
+
+    private var homeShareUnavailable: String {
+        switch settings.language {
+        case .russian: return "Не удалось подготовить пакет для отправки. Обновите каталог и попробуйте снова."
+        case .english: return "The package could not be prepared for sharing. Refresh the catalogue and try again."
+        case .uzbek: return "Paketni ulashish uchun tayyorlab bo‘lmadi. Katalogni yangilang va qayta urinib ko‘ring."
+        case .uzbekCyrillic: return "Пакетни улашиш учун тайёрлаб бўлмади. Каталогни янгиланг ва қайта уриниб кўринг."
+        }
+    }
+
+    private var homeShareErrorTitle: String {
+        switch settings.language {
+        case .russian: return "Не удалось поделиться"
+        case .english: return "Could not share"
+        case .uzbek: return "Ulashib bo‘lmadi"
+        case .uzbekCyrillic: return "Улашиб бўлмади"
+        }
+    }
+
+    private var homeShareErrorDismiss: String {
+        switch settings.language {
+        case .russian: return "Понятно"
+        case .english: return "OK"
+        case .uzbek: return "Tushunarli"
+        case .uzbekCyrillic: return "Тушунарли"
+        }
+    }
+
     private var buildMyUmrahSection: some View {
         VStack(alignment: .leading, spacing: 15) {
             IumrahHomeSectionHeader(title: buildUmrahSectionTitle, subtitle: buildUmrahSectionSubtitle)
@@ -608,15 +873,21 @@ struct HomeDashboardView: View {
                     LazyHStack(alignment: .top, spacing: 16) {
                         hero
                             .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                            .id("configurator")
                         careRequestBuilderCard
                             .frame(width: cardWidth, height: cardHeight, alignment: .top)
+                            .id("care-request")
                     }
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                .scrollPosition(id: $buildCarouselID, anchor: .center)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
+                .scrollClipDisabled()
             }
             .frame(height: 554)
+
+            IumrahHomeCarouselDots(count: 2, selectedIndex: buildCarouselID == "care-request" ? 1 : 0)
         }
         .padding(.bottom, 6)
     }
@@ -1202,48 +1473,76 @@ struct HomeDashboardView: View {
             IumrahHaptics.soft()
             showAboutProject = true
         } label: {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 12) {
-                    IumrahIconBadge(systemName: "sparkles.rectangle.stack.fill", role: .care, size: 46, symbolSize: 18, cornerRadius: 14)
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .bottomLeading) {
+                    Image("AboutIumrahKaabaCorner")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 236)
+                        .clipped()
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.62)],
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
+
+                    VStack(alignment: .leading, spacing: 5) {
                         Text(homeSinceTitle)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(.secondary)
+                            .font(.caption.weight(.bold))
+                            .tracking(0.9)
                             .textCase(.uppercase)
-                            .tracking(0.8)
-
-                        Text(homeSinceBody)
-                            .font(.system(size: 14.5, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundStyle(.white.opacity(0.76))
+                        Text(homeAboutCardTitle)
+                            .font(.system(size: 27, weight: .bold, design: .rounded))
+                            .tracking(-0.55)
+                            .foregroundStyle(.white)
                     }
+                    .padding(18)
                 }
+                .frame(height: 236)
 
-                HStack(spacing: 10) {
-                    Text(homeAboutCTA)
-                    Spacer(minLength: 8)
-                    Image(systemName: "arrow.right")
+                VStack(alignment: .leading, spacing: 15) {
+                    Text(homeSinceBody)
+                        .font(.system(size: 15, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 10) {
+                        Text(homeAboutCTA)
+                        Spacer(minLength: 8)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.system(size: 15.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.iumrahPrimaryButtonText)
+                    .padding(.horizontal, 17)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        Color.iumrahPrimaryButtonBackground,
+                        in: RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    )
                 }
-                .font(.system(size: 15.5, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.iumrahPrimaryButtonText)
-                .padding(.horizontal, 17)
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .background(
-                    Color.iumrahPrimaryButtonBackground,
-                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-                )
+                .padding(18)
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
             }
         }
         .buttonStyle(.plain)
+    }
+
+    private var homeAboutCardTitle: String {
+        switch settings.language {
+        case .russian: return "О проекте iumrah"
+        case .english: return "About iumrah"
+        case .uzbek: return "iumrah haqida"
+        case .uzbekCyrillic: return "iumrah ҳақида"
+        }
     }
 
     private func productsCarousel() -> some View {
@@ -1276,9 +1575,19 @@ struct HomeDashboardView: View {
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+            .scrollPosition(id: $productsCarouselID, anchor: .center)
             .contentMargins(.horizontal, 0, for: .scrollContent)
+            .scrollClipDisabled()
         }
         .frame(height: 472)
+    }
+
+    private var productsCarouselIndex: Int {
+        switch productsCarouselID {
+        case "iumrah-advisor": return 1
+        case "sunday-umrah-club": return 2
+        default: return 0
+        }
     }
 
     private var homeSundayClubProductCard: some View {

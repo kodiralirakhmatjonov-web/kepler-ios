@@ -17,6 +17,11 @@ private struct IumrahTelegramLinkRequest: Encodable {
     let language: String
 }
 
+private struct IumrahTelegramStatusResponse: Decodable {
+    let ok: Bool
+    let linked: Bool
+}
+
 struct TelegramBookingIntegrationService {
     private let api = APIClient.shared
 
@@ -40,5 +45,17 @@ struct TelegramBookingIntegrationService {
             throw APIError.invalidResponse
         }
         return url
+    }
+
+    func isLinked(
+        bookingID: String,
+        authorizationHeaders: [String: String]
+    ) async throws -> Bool {
+        let response: IumrahTelegramStatusResponse = try await api.get(
+            "/api/package/booking/\(bookingID)/telegram-status",
+            headers: authorizationHeaders,
+            timeoutInterval: 12
+        )
+        return response.ok && response.linked
     }
 }

@@ -99,7 +99,7 @@ struct PilgrimCheckoutView: View {
     var body: some View {
         Group {
             if presentation == .screen {
-                screenBody
+                BookingDetailView(bookingID: bookingID, initialPage: .status)
             } else {
                 embeddedStatusBody
             }
@@ -144,10 +144,11 @@ struct PilgrimCheckoutView: View {
             VStack(spacing: 18) {
                 BookingPageSwitcher(
                     selection: .status,
-                    onBooking: { showBookingPage = true },
+                    onBooking: { dismiss() },
                     onStatus: {}
                 )
                 hero
+                checkoutContent(includeProgress: true)
                 if let session {
                     IumrahTelegramConnectCard(
                         session: session,
@@ -155,7 +156,6 @@ struct PilgrimCheckoutView: View {
                         style: .compact
                     )
                 }
-                checkoutContent(includeProgress: true)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
@@ -179,21 +179,19 @@ struct PilgrimCheckoutView: View {
             }
         }
         .iumrahInternalNavigation()
-        .navigationDestination(isPresented: $showBookingPage) {
-            BookingDetailView(bookingID: bookingID)
-        }
     }
 
     private var embeddedStatusBody: some View {
         VStack(spacing: 18) {
+            checkoutContent(includeProgress: false)
             if let session {
                 IumrahTelegramConnectCard(
                     session: session,
                     accountToken: account.bearerToken,
                     style: .compact
                 )
+                .padding(.top, 8)
             }
-            checkoutContent(includeProgress: false)
         }
         .frame(maxWidth: .infinity)
     }

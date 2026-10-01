@@ -32,6 +32,23 @@ struct AccountNotificationsView: View {
             VStack(spacing: 22) {
                 hero
 
+                if let session = telegramSession {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(telegramSignalTitle)
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .tracking(-0.3)
+                        Text(telegramSignalBody)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        IumrahTelegramConnectCard(
+                            session: session,
+                            accountToken: account.bearerToken,
+                            style: .compact
+                        )
+                    }
+                }
+
                 if clientNotifications.inboxNotifications.isEmpty {
                     emptyState
                 } else {
@@ -59,7 +76,7 @@ struct AccountNotificationsView: View {
             .padding(.bottom, 44)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle("iumrah Signal")
+        .navigationTitle(signalTitle)
         .navigationBarTitleDisplayMode(.inline)
         .iumrahInternalNavigation()
         .refreshable {
@@ -70,11 +87,38 @@ struct AccountNotificationsView: View {
         }
     }
 
+    private var telegramSession: StoredBookingSession? {
+        bookings.sessions.first { !["COMPLETED", "CANCELLED"].contains($0.effectiveStatus.uppercased()) }
+            ?? bookings.sessions.first
+    }
+
+    private var signalTitle: String {
+        tr("Umrah status signal", "Umra статус сигнал", "Umra holat signali", "Умра ҳолат сигнали")
+    }
+
+    private var telegramSignalTitle: String {
+        tr(
+            "Booking status in Telegram",
+            "Получайте статус бронирования в Telegram",
+            "Bron holatini Telegram’da oling",
+            "Брон ҳолатини Telegram’да олинг"
+        )
+    }
+
+    private var telegramSignalBody: String {
+        tr(
+            "Connect once and receive booking status, payment, confirmation and document updates directly in Telegram.",
+            "Подключите один раз и получайте изменения статуса, оплаты, подтверждения и документов прямо в Telegram.",
+            "Bir marta ulang va status, to‘lov, tasdiq hamda hujjat yangilanishlarini to‘g‘ridan-to‘g‘ri Telegram’da oling.",
+            "Бир марта уланг ва статус, тўлов, тасдиқ ҳамда ҳужжат янгиланишларини тўғридан-тўғри Telegram’да олинг."
+        )
+    }
+
     private var hero: some View {
         VStack(alignment: .leading, spacing: 17) {
             HStack(alignment: .top, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("iumrah Signal")
+                    Text(signalTitle)
                         .font(.caption.weight(.bold))
                         .tracking(0.7)
                         .foregroundStyle(.white.opacity(0.72))

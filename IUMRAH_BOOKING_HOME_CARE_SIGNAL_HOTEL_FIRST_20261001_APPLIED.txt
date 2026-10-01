@@ -1,0 +1,14 @@
+Iumrah iOS cumulative feature patch — 2026-10-01
+
+- Booking / Status switches in place via one native segmented control (no navigation stacking).
+- Telegram connection card moved to the end of Booking and Status content.
+- Pull-down booking-card pass gesture/hint removed.
+- Home carousel page dots and unclipped carousel rendering without changing the root Home page inset.
+- Hotel First carousel on Home (up to 12 ready hotel packages + See all card).
+- Care chat composer and bubbles refined toward iMessage proportions; message time is shown.
+- Signal renamed to “Umra статус сигнал”; Telegram status card reflects real linked state.
+- Care request hero adds “...или позвоните” and a large Call action.
+- Home About card and About page use the five supplied local images.
+- PackageEngine adds authenticated Telegram linked-state proxy endpoint.
+
+No launch/AppStore/IAP workflow code is changed by this patch.

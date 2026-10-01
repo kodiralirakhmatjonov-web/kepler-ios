@@ -9,6 +9,7 @@ enum IumrahTelegramConnectCardStyle {
 struct IumrahTelegramConnectCard: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     let session: StoredBookingSession
     var accountToken: String? = nil
@@ -17,6 +18,8 @@ struct IumrahTelegramConnectCard: View {
     @State private var isConnecting = false
     @State private var errorMessage: String?
     @State private var openedTelegram = false
+    @State private var isLinked = false
+    @State private var isCheckingLink = false
 
     private let service = TelegramBookingIntegrationService()
 
@@ -60,6 +63,7 @@ struct IumrahTelegramConnectCard: View {
             }
 
             Button {
+                guard !isLinked else { return }
                 Task { await connect() }
             } label: {
                 HStack(spacing: 9) {
@@ -69,9 +73,12 @@ struct IumrahTelegramConnectCard: View {
                     } else {
                         Image(systemName: "paperplane.fill")
                     }
-                    Text(isConnecting ? connectingTitle : connectTitle)
+                    Text(isLinked ? connectedTitle : (isConnecting ? connectingTitle : connectTitle))
                     Spacer(minLength: 8)
-                    if !isConnecting {
+                    if isLinked {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 15, weight: .bold))
+                    } else if !isConnecting {
                         Image(systemName: "arrow.up.right")
                             .font(.system(size: 12, weight: .bold))
                     }
@@ -81,10 +88,10 @@ struct IumrahTelegramConnectCard: View {
                 .padding(.horizontal, 16)
                 .frame(maxWidth: .infinity)
                 .frame(height: style == .compact ? 48 : 52)
-                .background(telegramBlue, in: RoundedRectangle(cornerRadius: style == .compact ? 16 : 18, style: .continuous))
+                .background(isLinked ? linkedGreen : telegramBlue, in: RoundedRectangle(cornerRadius: style == .compact ? 16 : 18, style: .continuous))
             }
             .buttonStyle(.plain)
-            .disabled(isConnecting)
+            .disabled(isConnecting || isLinked)
         }
         .padding(style == .compact ? 15 : 18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -92,6 +99,11 @@ struct IumrahTelegramConnectCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: style == .compact ? 22 : 26, style: .continuous)
                 .strokeBorder(cardBorder, lineWidth: 0.8)
+        }
+        .task(id: session.id) { await refreshLinkedState() }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, openedTelegram else { return }
+            Task { await refreshLinkedState() }
         }
     }
 
@@ -101,18 +113,7 @@ struct IumrahTelegramConnectCard: View {
         errorMessage = nil
         openedTelegram = false
 
-        let trimmedBookingToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedAccountToken = accountToken?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        var headers: [String: String] = [:]
-        if !trimmedBookingToken.isEmpty {
-            headers["x-booking-token"] = trimmedBookingToken
-        }
-        if !trimmedAccountToken.isEmpty {
-            // Send the authenticated account session as a fallback as well. A
-            // TestFlight reinstall can restore the booking without restoring
-            // its old local booking token, while the account still owns it.
-            headers["Authorization"] = "Bearer \(trimmedAccountToken)"
-        }
+        let headers = authorizationHeaders
         guard !headers.isEmpty else {
             errorMessage = authorizationMissingText
             IumrahHaptics.error()
@@ -136,7 +137,30 @@ struct IumrahTelegramConnectCard: View {
         }
     }
 
+    @MainActor
+    private func refreshLinkedState() async {
+        guard !isCheckingLink else { return }
+        let headers = authorizationHeaders
+        guard !headers.isEmpty else { return }
+        isCheckingLink = true
+        defer { isCheckingLink = false }
+        if let linked = try? await service.isLinked(bookingID: session.id, authorizationHeaders: headers) {
+            isLinked = linked
+            if linked { openedTelegram = false }
+        }
+    }
+
+    private var authorizationHeaders: [String: String] {
+        let trimmedBookingToken = session.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedAccountToken = accountToken?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        var headers: [String: String] = [:]
+        if !trimmedBookingToken.isEmpty { headers["x-booking-token"] = trimmedBookingToken }
+        if !trimmedAccountToken.isEmpty { headers["Authorization"] = "Bearer \(trimmedAccountToken)" }
+        return headers
+    }
+
     private var telegramBlue: Color { Color(red: 0.15, green: 0.64, blue: 0.91) }
+    private var linkedGreen: Color { Color(red: 0.18, green: 0.68, blue: 0.36) }
     private var primaryText: Color { style == .dark ? .white : .primary }
     private var secondaryText: Color { style == .dark ? Color.white.opacity(0.62) : .secondary }
     private var cardBackground: Color { style == .dark ? Color.white.opacity(0.065) : Color.iumrahCardBackground }
@@ -166,6 +190,10 @@ struct IumrahTelegramConnectCard: View {
 
     private var connectTitle: String {
         tr("Connect Telegram", "Подключить Telegram", "Telegram’ni ulash", "Telegram’ни улаш")
+    }
+
+    private var connectedTitle: String {
+        tr("Telegram connected", "Telegram подключен", "Telegram ulangan", "Telegram уланган")
     }
 
     private var connectingTitle: String {

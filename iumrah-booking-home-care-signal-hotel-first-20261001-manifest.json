@@ -1,0 +1,42 @@
+{
+  "schema": "iumrah.patch.v1",
+  "name": "booking-home-care-signal-hotel-first",
+  "date": "2026-10-01",
+  "target": "kepler-ios",
+  "files": [
+    "Backend/PackageEngine/src/index.ts",
+    "Backend/PackageEngine/src/telegram-bridge.ts",
+    "Backend/PackageEngine/test/client-booking-polish-v11-contract.test.mjs",
+    "IUMRAH_BOOKING_HOME_CARE_SIGNAL_HOTEL_FIRST_20261001_APPLIED.txt",
+    "Resources/Assets.xcassets/AboutIumrahKaabaCorner.imageset/AboutIumrahKaabaCorner.jpeg",
+    "Resources/Assets.xcassets/AboutIumrahKaabaCorner.imageset/Contents.json",
+    "Resources/Assets.xcassets/AboutIumrahKaabaTouch.imageset/AboutIumrahKaabaTouch.jpeg",
+    "Resources/Assets.xcassets/AboutIumrahKaabaTouch.imageset/Contents.json",
+    "Resources/Assets.xcassets/AboutIumrahMapDark.imageset/AboutIumrahMapDark.jpeg",
+    "Resources/Assets.xcassets/AboutIumrahMapDark.imageset/Contents.json",
+    "Resources/Assets.xcassets/AboutIumrahMapLight.imageset/AboutIumrahMapLight.jpeg",
+    "Resources/Assets.xcassets/AboutIumrahMapLight.imageset/Contents.json",
+    "Resources/Assets.xcassets/AboutIumrahPilgrims.imageset/AboutIumrahPilgrims.jpeg",
+    "Resources/Assets.xcassets/AboutIumrahPilgrims.imageset/Contents.json",
+    "Sources/AppShell/AccountNotificationsView.swift",
+    "Sources/AppShell/IumrahAccountView.swift",
+    "Sources/Services/TelegramBookingIntegrationService.swift",
+    "Sources/Views/Booking/BookingDetailView.swift",
+    "Sources/Views/Booking/PilgrimCheckoutView.swift",
+    "Sources/Views/Chat/BookingChatView.swift",
+    "Sources/Views/Chat/CareChatMessageRow.swift",
+    "Sources/Views/Home/HomeAppleStoreSections.swift",
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Home/HomeVideoCarousel.swift",
+    "Sources/Views/Home/IumrahCareRequestView.swift",
+    "Sources/Views/Home/IumrahStoryView.swift",
+    "Sources/Views/Home/SystemNotificationsCarouselView.swift",
+    "Sources/Views/Tabs/BookingsHomeView.swift",
+    "Sources/Views/Tabs/HotelsHomeView.swift",
+    "Sources/Views/Telegram/IumrahTelegramIntegrationView.swift"
+  ],
+  "notes": [
+    "Does not modify .github/workflows.",
+    "Apply Telegram bot status patch before deploying PackageEngine for linked-state detection."
+  ]
+}

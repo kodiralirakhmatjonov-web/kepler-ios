@@ -119,13 +119,6 @@ struct BookingsHomeView: View {
                 bookingIdentity(session)
                     .padding(.bottom, 18)
 
-                IumrahTelegramConnectCard(
-                    session: session,
-                    accountToken: account.bearerToken,
-                    style: .compact
-                )
-                .padding(.bottom, 28)
-
                 if bookingPanel == .booking {
                     bookingProgress(session)
                         .padding(.bottom, 38)
@@ -162,6 +155,13 @@ struct BookingsHomeView: View {
                         .background(Color(uiColor: .systemRed).opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .padding(.top, 8)
                 }
+
+                IumrahTelegramConnectCard(
+                    session: session,
+                    accountToken: account.bearerToken,
+                    style: .compact
+                )
+                .padding(.top, 28)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)

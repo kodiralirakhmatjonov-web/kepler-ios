@@ -621,7 +621,7 @@ private struct ShowcaseHero: View {
     }
 }
 
-private struct HotelStorefrontCard: View {
+struct HotelStorefrontCard: View {
     let hotel: HotelSummary
     let images: [String]
     let quote: HotelStorefrontQuote?

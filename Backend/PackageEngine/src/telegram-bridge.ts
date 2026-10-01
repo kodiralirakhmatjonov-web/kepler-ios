@@ -123,3 +123,41 @@ export async function createTelegramBookingLink(request: Request, bookingID: str
     return json({ ok: false, error: "TELEGRAM_BOT_UNREACHABLE" }, 502);
   }
 }
+
+
+export async function getTelegramBookingStatus(request: Request, bookingID: string, env: Env): Promise<Response> {
+  if (!env.BOOKINGS_DB) return json({ ok: false, error: "BOOKING_DB_NOT_CONFIGURED" }, 503);
+  const origin = telegramOrigin(env);
+  if (!origin) return json({ ok: false, error: "TELEGRAM_BOT_NOT_CONFIGURED" }, 503);
+
+  const credential = await bookingCredential(request, bookingID, env);
+  if (!credential) return json({ ok: false, error: "BOOKING_AUTH_INVALID" }, 401);
+
+  try {
+    const response = await fetch(`${origin}/internal/link-status`, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        "user-agent": "iumrah-package-engine/telegram-bridge",
+      },
+      body: JSON.stringify({ bookingId: bookingID, ...credential }),
+      redirect: "manual",
+    });
+    const text = await response.text();
+    const headers = new Headers({
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+    });
+    if (!response.ok) {
+      return new Response(text || JSON.stringify({ ok: false, error: "TELEGRAM_STATUS_FAILED" }), {
+        status: response.status >= 400 && response.status < 600 ? response.status : 502,
+        headers,
+      });
+    }
+    return new Response(text, { status: 200, headers });
+  } catch (error) {
+    console.error("telegram-link-status-unreachable", bookingID, error);
+    return json({ ok: false, error: "TELEGRAM_BOT_UNREACHABLE" }, 502);
+  }
+}

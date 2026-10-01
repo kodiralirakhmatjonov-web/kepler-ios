@@ -23,8 +23,29 @@ struct IumrahHomeSectionHeader: View {
     }
 }
 
+struct IumrahHomeCarouselDots: View {
+    let count: Int
+    let selectedIndex: Int
+
+    var body: some View {
+        if count > 1 {
+            HStack(spacing: 6) {
+                ForEach(0..<count, id: \.self) { index in
+                    Capsule(style: .continuous)
+                        .fill(index == selectedIndex ? Color.primary.opacity(0.82) : Color.secondary.opacity(0.20))
+                        .frame(width: index == selectedIndex ? 18 : 6, height: 6)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .animation(.snappy(duration: 0.22), value: selectedIndex)
+            .accessibilityHidden(true)
+        }
+    }
+}
+
 struct IumrahHomeAudienceSection: View {
     let language: AppSettingsStore.Language
+    @State private var activeID: String?
 
     private struct Item: Identifiable {
         let id: String
@@ -44,13 +65,24 @@ struct IumrahHomeAudienceSection: View {
                     ForEach(items) { item in
                         audienceCard(item)
                             .frame(width: 286, height: 235)
+                            .id(item.id)
                     }
                 }
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+            .scrollPosition(id: $activeID, anchor: .center)
             .contentMargins(.horizontal, 0, for: .scrollContent)
+            .scrollClipDisabled()
+
+            IumrahHomeCarouselDots(count: items.count, selectedIndex: activeIndex)
         }
+        .onAppear { if activeID == nil { activeID = items.first?.id } }
+    }
+
+    private var activeIndex: Int {
+        guard let activeID, let index = items.firstIndex(where: { $0.id == activeID }) else { return 0 }
+        return index
     }
 
     private func audienceCard(_ item: Item) -> some View {
@@ -149,6 +181,7 @@ struct IumrahHomeAudienceSection: View {
 
 struct IumrahHomeServicesSection: View {
     let language: AppSettingsStore.Language
+    @State private var activeID: String?
     let onTransfer: () -> Void
     let onESIM: () -> Void
     let onFlights: () -> Void
@@ -174,13 +207,24 @@ struct IumrahHomeServicesSection: View {
                     ForEach(items) { item in
                         IumrahAppleServiceCard(item: item)
                             .frame(width: 306, height: 455)
+                            .id(item.id)
                     }
                 }
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+            .scrollPosition(id: $activeID, anchor: .center)
             .contentMargins(.horizontal, 0, for: .scrollContent)
+            .scrollClipDisabled()
+
+            IumrahHomeCarouselDots(count: items.count, selectedIndex: activeIndex)
         }
+        .onAppear { if activeID == nil { activeID = items.first?.id } }
+    }
+
+    private var activeIndex: Int {
+        guard let activeID, let index = items.firstIndex(where: { $0.id == activeID }) else { return 0 }
+        return index
     }
 
     private var sectionTitle: String {

@@ -223,7 +223,7 @@ struct BookingChatView: View {
                     ZStack(alignment: .topTrailing) {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 17, weight: .bold))
-                            .frame(width: 44, height: 44)
+                            .frame(width: 40, height: 40)
 
                         if unseenIncomingCount > 0 {
                             Text("\(min(unseenIncomingCount, 99))")
@@ -476,8 +476,8 @@ struct BookingChatView: View {
                         guard canSend else { return }
                         Task { await send(proxy: proxy) }
                     }
-                    .padding(.leading, 14)
-                    .padding(.vertical, 11)
+                    .padding(.leading, 13)
+                    .padding(.vertical, 8)
 
                 Group {
                     if canSend || isSending {
@@ -495,7 +495,7 @@ struct BookingChatView: View {
                                 }
                             }
                             .foregroundStyle(.white)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 30, height: 30)
                             .contentShape(Circle())
                         }
                         .careNativeGlassButton(prominent: true)
@@ -510,24 +510,24 @@ struct BookingChatView: View {
                                     ? Color.white.opacity(0.76)
                                     : Color.secondary
                             )
-                            .frame(width: 32, height: 32)
+                            .frame(width: 30, height: 30)
                             .transition(.scale(scale: 0.90).combined(with: .opacity))
                     }
                 }
-                .padding(.trailing, 6)
-                .padding(.bottom, 6)
+                .padding(.trailing, 5)
+                .padding(.bottom, 5)
             }
-            .frame(minHeight: 44, maxHeight: 78, alignment: .bottom)
+            .frame(minHeight: 40, maxHeight: 86, alignment: .bottom)
             .frame(maxWidth: .infinity)
-            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .onTapGesture { composerFocused = true }
             .careNativeGlassSurface(
-                in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous),
                 interactive: false,
                 tint: composerGlassTint
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .strokeBorder(
                         appearance.wallpaper.isVisual
                             ? Color.white.opacity(0.18)
@@ -536,17 +536,11 @@ struct BookingChatView: View {
                     )
                     .allowsHitTesting(false)
             }
-            .shadow(
-                color: appearance.wallpaper.isVisual
-                    ? Color.black.opacity(0.08)
-                    : Color.black.opacity(0.025),
-                radius: 4,
-                y: 1
-            )
+            .shadow(color: Color.black.opacity(0.018), radius: 1.4, y: 0.5)
             .animation(.spring(response: 0.24, dampingFraction: 0.88), value: canSend)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 10)
         .overlay(alignment: .bottomTrailing) {
             if let launchingOutgoing {
                 Text(launchingOutgoing.body)

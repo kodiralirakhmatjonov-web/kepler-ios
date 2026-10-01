@@ -1083,7 +1083,7 @@ struct IumrahAccountView: View {
             NavigationLink {
                 AccountNotificationsView()
             } label: {
-                settingsRow(icon: "bell.and.waves.left.and.right.fill", title: "iumrah Signal", value: signalHistoryValueText)
+                settingsRow(icon: "bell.and.waves.left.and.right.fill", title: tr("Umrah status signal", "Umra статус сигнал", "Umra holat signali", "Умра ҳолат сигнали"), value: signalHistoryValueText)
             }
             .buttonStyle(.plain)
 
@@ -1692,7 +1692,7 @@ struct IumrahAccountView: View {
             NavigationLink {
                 AccountNotificationsView()
             } label: {
-                settingsRow(icon: "bell.and.waves.left.and.right.fill", title: "iumrah Signal", value: signalHistoryValueText)
+                settingsRow(icon: "bell.and.waves.left.and.right.fill", title: tr("Umrah status signal", "Umra статус сигнал", "Umra holat signali", "Умра ҳолат сигнали"), value: signalHistoryValueText)
             }
             .buttonStyle(.plain)
 

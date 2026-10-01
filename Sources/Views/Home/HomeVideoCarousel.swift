@@ -20,7 +20,7 @@ struct HomeVideoCarousel: View {
         GeometryReader { proxy in
             let cardWidth = min(max(proxy.size.width * 0.91, 278), proxy.size.width)
 
-            ZStack(alignment: .bottom) {
+            VStack(spacing: 10) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 12) {
                         ForEach(stories) { story in
@@ -36,15 +36,16 @@ struct HomeVideoCarousel: View {
                     }
                     .scrollTargetLayout()
                 }
+                .frame(height: carouselHeight)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
                 .scrollPosition(id: $activeStoryID, anchor: .center)
+                .scrollClipDisabled()
 
                 pageIndicator
-                    .padding(.bottom, 14)
             }
         }
-        .frame(height: carouselHeight)
+        .frame(height: carouselHeight + 28)
         .onAppear {
             isVisible = true
             if activeStoryID == nil {
@@ -125,14 +126,13 @@ struct HomeVideoCarousel: View {
         HStack(spacing: 5) {
             ForEach(stories) { story in
                 Capsule(style: .continuous)
-                    .fill(Color.white.opacity(activeStoryID == story.id ? 0.96 : 0.46))
+                    .fill(Color.primary.opacity(activeStoryID == story.id ? 0.82 : 0.20))
                     .frame(width: activeStoryID == story.id ? 18 : 6, height: 6)
                     .animation(.snappy(duration: 0.25), value: activeStoryID)
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .iumrahGlass(in: Capsule(style: .continuous), allowsStaticGlass: true, chrome: true)
+        .padding(.vertical, 3)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

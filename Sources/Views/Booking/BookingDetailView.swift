@@ -9,6 +9,11 @@ struct BookingDetailView: View {
 
     let bookingID: String
 
+    init(bookingID: String, initialPage: BookingPrimaryPage = .booking) {
+        self.bookingID = bookingID
+        _selectedPrimaryPage = State(initialValue: initialPage)
+    }
+
     @State private var outboundExpanded = false
     @State private var inboundExpanded = false
     @State private var makkahHotelExpanded = false
@@ -29,18 +34,8 @@ struct BookingDetailView: View {
     @State private var confirmationSent = false
     @State private var showPackageCareExplanation = false
     @State private var bookingCardFlipped = false
-    @State private var bookingScrollMinY: CGFloat? = nil
-    @State private var bookingPullTranslation: CGFloat = 0
-    @State private var bookingPullArmed = false
-    @State private var bookingPullGestureActive = false
-    @State private var bookingPullGestureDecisionMade = false
-    @State private var bookingPullGestureEligible = false
-    @State private var bookingViewportHeight: CGFloat = 0
-    @State private var showFullscreenBookingCard = false
-    @State private var fullscreenBookingCardFlipped = false
-    @State private var fullscreenCardLandscape = false
     @State private var securityConfirmation: IumrahSecurityConfirmation?
-    @State private var showStatusPage = false
+    @State private var selectedPrimaryPage: BookingPrimaryPage = .booking
 
     private let bookingService = BookingService()
     private var session: StoredBookingSession? { bookings.booking(id: bookingID) }
@@ -50,101 +45,71 @@ struct BookingDetailView: View {
             if let session {
                 GeometryReader { viewport in
                     ScrollView(showsIndicators: false) {
-                        GeometryReader { proxy in
-                            Color.clear
-                                .preference(
-                                    key: BookingPullDistancePreferenceKey.self,
-                                    value: Optional(proxy.frame(in: .named("booking-detail-scroll")).minY)
-                                )
-                        }
-                        .frame(height: 0)
-
                         VStack(spacing: 16) {
                             BookingPageSwitcher(
-                                selection: .booking,
-                                onBooking: {},
-                                onStatus: { showStatusPage = true }
+                                selection: selectedPrimaryPage,
+                                onBooking: { withAnimation(.snappy(duration: 0.24)) { selectedPrimaryPage = .booking } },
+                                onStatus: { withAnimation(.snappy(duration: 0.24)) { selectedPrimaryPage = .status } }
                             )
 
-                            bookingIdentityStrip(session)
+                            if selectedPrimaryPage == .booking {
+                                bookingIdentityStrip(session)
 
-                            IumrahBookingDomeCard(
-                                bookingNumber: session.displayBookingNumber,
-                                travelerName: bookingTravelerName(session),
-                                language: settings.language,
-                                isFlipped: $bookingCardFlipped
-                            )
-                            statusHero(session)
-                            IumrahTelegramConnectCard(
-                                session: session,
-                                accountToken: account.bearerToken,
-                                style: .compact
-                            )
-                            if shouldShowCheckoutEntry(for: session) {
-                                IumrahManualPaymentNotice()
-                                IumrahRefundPolicyCard(component: .package, compact: true)
-                                IumrahInvoiceShareCard(session: session, compact: true)
+                                IumrahBookingDomeCard(
+                                    bookingNumber: session.displayBookingNumber,
+                                    travelerName: bookingTravelerName(session),
+                                    language: settings.language,
+                                    isFlipped: $bookingCardFlipped
+                                )
+                                statusHero(session)
+                                if shouldShowCheckoutEntry(for: session) {
+                                    IumrahManualPaymentNotice()
+                                    IumrahRefundPolicyCard(component: .package, compact: true)
+                                    IumrahInvoiceShareCard(session: session, compact: true)
+                                }
+                                bookingMetaCard(session.booking)
+                                if session.booking.perPilgrimUsd >= 1800 {
+                                    bookingCareBalanceCard
+                                }
+                                BookingItineraryCalendarView(
+                                    bookingID: session.id,
+                                    startDate: session.booking.input.startDate,
+                                    endDate: session.booking.input.endDate,
+                                    booking: session.booking
+                                )
+
+                                BookingFlightFirstComponentsView(
+                                    session: session,
+                                    onChangeMakkahHotel: { showMakkahHotelChange = true },
+                                    onChangeMadinahHotel: { showMadinahHotelChange = true }
+                                )
+
+                                contactCard(session)
+
+                                if session.pendingChangeConfirmation == true || confirmationSent {
+                                    confirmationCard(session)
+                                }
+
+                                careAction
+                                destructiveActions
+
+                                IumrahTelegramConnectCard(
+                                    session: session,
+                                    accountToken: account.bearerToken,
+                                    style: .compact
+                                )
+                                .padding(.top, 8)
+                            } else {
+                                PilgrimCheckoutView(bookingID: bookingID, presentation: .bookingStatus)
+                                    .transition(.opacity)
                             }
-                            bookingMetaCard(session.booking)
-                            if session.booking.perPilgrimUsd >= 1800 {
-                                bookingCareBalanceCard
-                            }
-                            BookingItineraryCalendarView(
-                                bookingID: session.id,
-                                startDate: session.booking.input.startDate,
-                                endDate: session.booking.input.endDate,
-                                booking: session.booking
-                            )
-
-                            BookingFlightFirstComponentsView(
-                                session: session,
-                                onChangeMakkahHotel: { showMakkahHotelChange = true },
-                                onChangeMadinahHotel: { showMadinahHotelChange = true }
-                            )
-
-                            contactCard(session)
-
-                            if session.pendingChangeConfirmation == true || confirmationSent {
-                                confirmationCard(session)
-                            }
-
-                            careAction
-                            destructiveActions
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, IumrahDesign.pagePadding)
                         .padding(.top, 12)
                         .padding(.bottom, 56)
-                        .offset(y: bookingPullVisualOffset)
                     }
-                    .coordinateSpace(name: "booking-detail-scroll")
                     .background(Color.iumrahPageBackground)
-                    .onAppear {
-                        bookingViewportHeight = viewport.size.height
-                    }
-                    .onChange(of: viewport.size.height) { _, newValue in
-                        bookingViewportHeight = newValue
-                    }
-                    .onPreferenceChange(BookingPullDistancePreferenceKey.self) { value in
-                        bookingScrollMinY = value
-                    }
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 4, coordinateSpace: .local)
-                            .onChanged { value in
-                                updateBookingPull(translation: value.translation.height)
-                            }
-                            .onEnded { value in
-                                finishBookingPull(translation: value.translation.height)
-                            }
-                    )
-                    .overlay(alignment: .top) {
-                        if bookingPullTranslation > 10, !showFullscreenBookingCard {
-                            bookingPullHint
-                                .padding(.top, bookingPullHintOffset)
-                                .transition(.opacity.combined(with: .scale(scale: 0.94)))
-                                .allowsHitTesting(false)
-                        }
-                    }
                     .task {
                         await bookings.refreshAll()
                         await bookings.syncHotelSelectionIfNeeded(bookingID: bookingID)
@@ -192,16 +157,6 @@ struct BookingDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .overlay {
-            if let session, showFullscreenBookingCard {
-                fullscreenBookingPass(session)
-                    .transition(.opacity)
-                    .zIndex(100)
-            }
-        }
-        .navigationDestination(isPresented: $showStatusPage) {
-            PilgrimCheckoutView(bookingID: bookingID, presentation: .screen)
-        }
         .confirmationDialog(
             L10n.text("booking_delete_confirm_title", settings.language),
             isPresented: $showDeleteConfirmation,
@@ -216,179 +171,9 @@ struct BookingDetailView: View {
         }
     }
 
-    private var bookingPullThreshold: CGFloat {
-        // The gesture intentionally requires a long, deliberate pull — about
-        // half of the visible booking interface — so it reads as a physical
-        // pass interaction rather than ordinary ScrollView rubber-banding.
-        let viewport = bookingViewportHeight > 0 ? bookingViewportHeight : 720
-        return min(max(viewport * 0.46, 300), 420)
-    }
-
-    private var bookingPullVisualOffset: CGFloat {
-        min(max(bookingPullTranslation, 0), bookingPullThreshold)
-    }
-
-    private var bookingPullHintOffset: CGFloat {
-        let visual = bookingPullVisualOffset
-        return min(max(18, visual * 0.44), 150)
-    }
-
     private func bookingTravelerName(_ session: StoredBookingSession) -> String {
         let value = session.travelerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return value.isEmpty ? settings.displayName : value
-    }
-
-    private var bookingPullHint: some View {
-        let progress = min(max(bookingPullTranslation / bookingPullThreshold, 0), 1)
-
-        return VStack(spacing: 7) {
-            Image(systemName: bookingPullArmed ? "arrow.down.circle.fill" : "arrow.down")
-                .font(.system(size: 17, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .offset(y: bookingPullArmed ? 2 : 0)
-
-            Text(BookingCardCopy.releaseToFlip(settings.language))
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .lineLimit(1)
-                .minimumScaleFactor(0.74)
-        }
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 15)
-        .padding(.vertical, 10)
-        .iumrahGlass(in: Capsule())
-        .scaleEffect(0.92 + (0.08 * progress))
-        .opacity(0.18 + (0.82 * progress))
-        .blur(radius: (1 - progress) * 2.2)
-        .animation(.interactiveSpring(response: 0.22, dampingFraction: 0.88), value: bookingPullArmed)
-    }
-
-    private func updateBookingPull(translation: CGFloat) {
-        guard !showFullscreenBookingCard else { return }
-
-        if !bookingPullGestureDecisionMade {
-            bookingPullGestureDecisionMade = true
-
-            // The pass gesture is eligible only when this drag STARTS at the
-            // real beginning of the booking page. `bookingScrollMinY` is the
-            // live position of a single marker at content y = 0. Once the
-            // user has scrolled down it is negative, so swipes on itinerary,
-            // flights, hotels, Care, etc. remain ordinary scrolling gestures.
-            if let topY = bookingScrollMinY {
-                bookingPullGestureEligible = translation > 0 && topY >= -1.5
-            } else {
-                bookingPullGestureEligible = false
-            }
-            bookingPullGestureActive = bookingPullGestureEligible
-        }
-
-        // The decision is locked for the life of this drag. A user who began
-        // while scrolled down cannot accidentally trigger the pass when that
-        // same gesture later reaches the top of the ScrollView.
-        guard bookingPullGestureEligible else { return }
-
-        bookingPullTranslation = max(0, translation)
-
-        if bookingPullTranslation >= bookingPullThreshold, !bookingPullArmed {
-            bookingPullArmed = true
-            IumrahHaptics.selection()
-        } else if bookingPullTranslation < bookingPullThreshold * 0.86, bookingPullArmed {
-            bookingPullArmed = false
-        }
-    }
-
-    private func finishBookingPull(translation: CGFloat) {
-        let eligible = bookingPullGestureEligible
-        let shouldPresent = eligible && (bookingPullArmed || translation >= bookingPullThreshold)
-
-        bookingPullGestureActive = false
-        bookingPullGestureDecisionMade = false
-        bookingPullGestureEligible = false
-        bookingPullArmed = false
-
-        guard eligible else { return }
-
-        if shouldPresent {
-            presentFullscreenBookingPass()
-            withAnimation(.easeOut(duration: 0.18)) {
-                bookingPullTranslation = 0
-            }
-        } else {
-            withAnimation(.spring(response: 0.46, dampingFraction: 0.86)) {
-                bookingPullTranslation = 0
-            }
-        }
-    }
-
-    private func presentFullscreenBookingPass() {
-        guard !showFullscreenBookingCard else { return }
-        fullscreenBookingCardFlipped = false
-        fullscreenCardLandscape = false
-        IumrahHaptics.soft()
-
-        withAnimation(.easeOut(duration: 0.22)) {
-            showFullscreenBookingCard = true
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            guard showFullscreenBookingCard else { return }
-            withAnimation(.spring(response: 0.72, dampingFraction: 0.84)) {
-                fullscreenCardLandscape = true
-            }
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
-            guard showFullscreenBookingCard else { return }
-            withAnimation(.spring(response: 0.70, dampingFraction: 0.84)) {
-                fullscreenBookingCardFlipped = true
-            }
-            IumrahHaptics.soft()
-        }
-    }
-
-    private func dismissFullscreenBookingPass() {
-        IumrahHaptics.selection()
-        withAnimation(.easeInOut(duration: 0.22)) {
-            showFullscreenBookingCard = false
-            fullscreenCardLandscape = false
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
-            fullscreenBookingCardFlipped = false
-        }
-    }
-
-    @ViewBuilder
-    private func fullscreenBookingPass(_ session: StoredBookingSession) -> some View {
-        GeometryReader { proxy in
-            // Before the 90° rotation this is the card's landscape width.
-            // After rotation the physical pass nearly fills the portrait
-            // screen width while preserving its true 1.60:1 proportions.
-            let landscapeCardWidth = min(
-                proxy.size.height * 0.88,
-                proxy.size.width * 0.94 * 1.60
-            )
-
-            ZStack {
-                Color.black.opacity(0.985)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture { dismissFullscreenBookingPass() }
-
-                IumrahBookingDomeCard(
-                    bookingNumber: session.displayBookingNumber,
-                    travelerName: bookingTravelerName(session),
-                    language: settings.language,
-                    isFlipped: $fullscreenBookingCardFlipped
-                )
-                .frame(width: landscapeCardWidth)
-                .rotationEffect(.degrees(fullscreenCardLandscape ? 90 : 0))
-                .scaleEffect(fullscreenCardLandscape ? 1.0 : 0.60)
-                .opacity(showFullscreenBookingCard ? 1 : 0)
-                .shadow(color: .black.opacity(0.38), radius: 34, y: 16)
-                .accessibilityAddTraits(.isButton)
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-        }
-        .ignoresSafeArea()
     }
 
     private var topBar: some View {
@@ -1921,19 +1706,6 @@ func statusIcon(_ status: String) -> String {
     IumrahBookingStatusVisual.symbol(for: status)
 }
 
-
-private struct BookingPullDistancePreferenceKey: PreferenceKey {
-    // nil means the marker has not been measured yet. This deliberately fails
-    // closed so a drag can never arm before SwiftUI reports the real scroll
-    // position. There is one marker, so the latest concrete value is exact.
-    static var defaultValue: CGFloat? = nil
-
-    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
-        if let next = nextValue() {
-            value = next
-        }
-    }
-}
 
 
 private enum BookingDetailLifecyclePhase {
