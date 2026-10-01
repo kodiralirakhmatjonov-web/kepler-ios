@@ -14,7 +14,7 @@ test('iOS exposes Telegram booking connection on Home, Account, Booking and comp
   const celebration = read('Sources/Views/Booking/IumrahBookingCelebrationView.swift');
   const service = read('Sources/Services/TelegramBookingIntegrationService.swift');
 
-  assert.match(home, /IumrahTelegramEntryCard\(language: settings\.language, large: true\)/);
+  assert.match(home, /IumrahTelegram(?:EntryCard\(language: settings\.language, large: true\)|IntegrationView\(preferredBookingID: bookings\.sessions\.first\?\.id\))/);
   assert.match(account, /telegramIntegrationSection/);
   assert.match(bookings, /IumrahTelegramConnectCard\(/);
   assert.match(detail, /IumrahTelegramConnectCard\(/);
