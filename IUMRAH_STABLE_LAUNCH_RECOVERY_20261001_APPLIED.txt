@@ -1,0 +1,10 @@
+IUMRAH stable launch recovery — 2026-10-01
+
+Scope:
+- Defer RootView construction until splash hand-off.
+- Remove particle/timeline work from critical launch path.
+- Make Home content lazy so off-screen heavy carousels/media are not built at launch.
+- Delay Home booking/catalog network refresh until after first visible frame.
+- Remove forced caches-directory unwrap from HotelStorefrontStore initialization.
+
+Does NOT include or modify Widget Extension, StoreKit/IAP, App Store update prompt, Telegram backend, PackageEngine, or signing/workflows.

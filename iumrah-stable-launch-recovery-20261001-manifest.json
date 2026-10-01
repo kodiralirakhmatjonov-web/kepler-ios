@@ -1,0 +1,12 @@
+{
+  "name": "iumrah stable launch recovery",
+  "date": "2026-10-01",
+  "files": [
+    "Sources/App/IumrahLaunchExperience.swift",
+    "Sources/Views/RootView.swift",
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/State/HotelStorefrontStore.swift"
+  ],
+  "widgetsIncluded": false,
+  "backendChanged": false
+}

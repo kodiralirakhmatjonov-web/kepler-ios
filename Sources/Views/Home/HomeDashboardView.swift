@@ -38,6 +38,10 @@ struct HomeDashboardView: View {
     var body: some View {
         marketingHome
             .task(id: activeSession?.id) {
+                // Do not compete with the first app frame. Booking refresh begins only
+                // after Home is visibly mounted.
+                try? await Task.sleep(for: .milliseconds(650))
+                guard !Task.isCancelled else { return }
                 await bookings.refreshAll()
                 while !Task.isCancelled {
                     if let activeSession { _ = try? await bookings.loadESIMs(for: activeSession.id) }
@@ -45,6 +49,10 @@ struct HomeDashboardView: View {
                 }
             }
             .task(id: journey.trip.originCode.uppercased()) {
+                // Hotel/package preparation is intentionally delayed so splash -> Home
+                // never starts media/catalog/network work in the same render transaction.
+                try? await Task.sleep(for: .milliseconds(850))
+                guard !Task.isCancelled else { return }
                 await storefront.prepareIfNeeded()
                 await storefront.updateDepartureAirport(journey.trip.originCode)
             }
@@ -75,12 +83,6 @@ struct HomeDashboardView: View {
             .navigationDestination(isPresented: $showAboutProject) {
                 IumrahStoryView()
             }
-            .navigationDestination(isPresented: Binding(
-                get: { chrome.shouldOpenUmrahPlan },
-                set: { chrome.shouldOpenUmrahPlan = $0 }
-            )) {
-                UmrahPlanHubView()
-            }
             .sheet(item: $packageShareArtifacts) { artifacts in
                 IumrahPackageActivitySheet(artifacts: artifacts)
             }
@@ -96,7 +98,7 @@ struct HomeDashboardView: View {
 
     private var marketingHome: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 30) {
+            LazyVStack(spacing: 30) {
                 IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
                 if !clientNotifications.homeNotifications.isEmpty {
                     SystemNotificationsCarouselView(

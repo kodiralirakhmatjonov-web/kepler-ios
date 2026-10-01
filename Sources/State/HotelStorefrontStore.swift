@@ -28,7 +28,8 @@ final class HotelStorefrontStore: ObservableObject {
     private var flightServerPackages: [String: StorefrontServerPackageSnapshot] = [:]
 
     init() {
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
         snapshotURL = caches.appendingPathComponent("iumrah-hotel-storefront-v3.json")
         favoriteHotelIDs = Set(UserDefaults.standard.stringArray(forKey: favoritesKey) ?? [])
         restoreDiskSnapshot()
