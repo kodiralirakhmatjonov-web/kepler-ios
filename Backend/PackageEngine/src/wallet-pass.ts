@@ -6,6 +6,9 @@ import {
   ICON_3X_PNG,
   LOGO_PNG,
   LOGO_2X_PNG,
+  THUMBNAIL_PNG,
+  THUMBNAIL_2X_PNG,
+  THUMBNAIL_3X_PNG,
 } from "./wallet-pass-assets";
 
 type WalletAccountProfile = {
@@ -414,15 +417,13 @@ export async function buildIumrahWalletPass(env: Env, profile: WalletAccountProf
     serialNumber: `iumrah-id-${normalizedID}`,
     teamIdentifier: configuration.teamIdentifier,
     organizationName: configuration.organizationName,
-    description: "Iumrah Digital Pilgrim ID",
-    logoText: "iumrah ID",
+    description: "iumrah ID",
     foregroundColor: "rgb(255,255,255)",
-    backgroundColor: "rgb(5,5,7)",
-    labelColor: "rgb(160,160,168)",
+    backgroundColor: "rgb(8,8,11)",
+    labelColor: "rgb(151,151,160)",
     generic: {
-      primaryFields: [{ key: "iumrah-id", label: "IUMRAH ID", value: normalizedID }],
-      secondaryFields: [{ key: "pilgrim", label: "PILGRIM", value: localizedName(profile) }],
-      auxiliaryFields: [{ key: "platform", label: "PLATFORM", value: "iumrah.app" }],
+      primaryFields: [{ key: "pilgrim", label: "PILGRIM", value: localizedName(profile) }],
+      secondaryFields: [{ key: "iumrah-id", label: "IUMRAH ID", value: normalizedID }],
       backFields: [
         {
           key: "about",
@@ -436,7 +437,6 @@ export async function buildIumrahWalletPass(env: Env, profile: WalletAccountProf
       format: "PKBarcodeFormatQR",
       message: verificationURL,
       messageEncoding: "iso-8859-1",
-      altText: normalizedID,
     }],
   };
 
@@ -448,6 +448,9 @@ export async function buildIumrahWalletPass(env: Env, profile: WalletAccountProf
     "icon@3x.png": base64Bytes(ICON_3X_PNG),
     "logo.png": base64Bytes(LOGO_PNG),
     "logo@2x.png": base64Bytes(LOGO_2X_PNG),
+    "thumbnail.png": base64Bytes(THUMBNAIL_PNG),
+    "thumbnail@2x.png": base64Bytes(THUMBNAIL_2X_PNG),
+    "thumbnail@3x.png": base64Bytes(THUMBNAIL_3X_PNG),
   };
 
   const manifestEntries = await Promise.all(
