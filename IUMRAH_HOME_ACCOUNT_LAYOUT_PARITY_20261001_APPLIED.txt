@@ -1,0 +1,9 @@
+Iumrah Home / Account layout parity patch — 2026-10-01
+
+HomeDashboardView now uses the same outer ScrollView/VStack layout contract as IumrahAccountView:
+- no maxWidth infinity frame before horizontal page padding
+- horizontal padding: IumrahDesign.pagePadding
+- top padding: 12
+- bottom padding: 46
+
+No launch, backend, Telegram, Booking, StoreKit, header, or carousel logic changed.

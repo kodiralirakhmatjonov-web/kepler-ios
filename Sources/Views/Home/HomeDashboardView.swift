@@ -107,12 +107,11 @@ struct HomeDashboardView: View {
                 personalUmrahFAQ
                 homeAboutFooter
             }
-            // Home uses one ordinary content column. Nothing on this screen is
-            // allowed to enlarge the parent width or offset the trailing edge.
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            // Use the same root layout contract as Account: the content column
+            // gets its width from ScrollView, then receives the shared page inset.
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 128)
+            .padding(.top, 12)
+            .padding(.bottom, 46)
         }
         .background(Color.iumrahPageBackground)
     }

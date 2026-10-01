@@ -1,0 +1,7 @@
+{
+  "patch": "iumrah-home-account-layout-parity-20261001",
+  "files": [
+    "Sources/Views/Home/HomeDashboardView.swift"
+  ],
+  "scope": "Make Home root layout modifiers match Account root layout modifiers exactly."
+}
