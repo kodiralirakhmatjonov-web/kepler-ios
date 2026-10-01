@@ -75,6 +75,13 @@ struct HomeDashboardView: View {
                 HomeEmotionalJourneyPrompt()
                 HomeVideoCarousel()
 
+                NavigationLink {
+                    UmrahPlanHubView()
+                } label: {
+                    UmrahPlanHomeEntryCard(language: settings.language)
+                }
+                .buttonStyle(.plain)
+
                 IumrahHomeAudienceSection(language: settings.language)
 
                 IumrahHomeServicesSection(

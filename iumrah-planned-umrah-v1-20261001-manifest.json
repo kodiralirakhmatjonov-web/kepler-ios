@@ -1,0 +1,26 @@
+{
+  "name": "iumrah-planned-umrah-v1-20261001",
+  "files": [
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Planning/UmrahPlanFeature.swift",
+    "IUMRAH_PLANNED_UMRAH_V1_20261001_APPLIED.txt"
+  ],
+  "notes": {
+    "online_background_search": false,
+    "local_notifications": true,
+    "persistence": "UserDefaults",
+    "default_reminder_days": [
+      60,
+      30,
+      20,
+      15,
+      10,
+      7,
+      5,
+      3,
+      2,
+      1
+    ],
+    "package_matching": "placeholder only; no package push yet"
+  }
+}

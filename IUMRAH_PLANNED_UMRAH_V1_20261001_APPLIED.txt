@@ -1,0 +1,14 @@
+Iumrah Planned Umrah v1 — 2026-10-01
+
+Adds a Tripsy-inspired future Umrah planning flow without online background search.
+- Home entry card becomes the saved trip card after planning.
+- Full-screen trip creator with local photo / color background picker.
+- Existing local assets only for photo backgrounds; no network image search.
+- Start/end date planning.
+- Local notification schedule with 60/30/20/15/10/7/5/3/2/1 day defaults.
+- User-selectable reminder time, per-milestone toggles and custom days-before reminders.
+- Notification preview content + test local notification.
+- Saved locally across launches.
+- Placeholder block for future Hotel First / Flight First package matching.
+
+No launch, StoreKit, Telegram backend, Booking backend, project.yml or workflow files changed.
