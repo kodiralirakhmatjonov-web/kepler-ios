@@ -21,6 +21,7 @@ struct HomeDashboardView: View {
     @State private var hotelCarouselID: String?
     @State private var buildCarouselID: String? = "configurator"
     @State private var productsCarouselID: String? = "iumrah-system"
+    @State private var integrationCarouselID: String? = "plan"
     @State private var expandedHomeFAQID: String?
     @State private var showAboutProject = false
 
@@ -89,7 +90,7 @@ struct HomeDashboardView: View {
 
     private var marketingHome: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 22) {
+            VStack(spacing: 30) {
                 IumrahRootPageTitle(title: L10n.text("tab_home", settings.language), usesBrandLogo: true, brandScale: 1.25, showsConnectivityStatus: true)
                 if !clientNotifications.homeNotifications.isEmpty {
                     SystemNotificationsCarouselView(
@@ -100,13 +101,6 @@ struct HomeDashboardView: View {
                 }
                 HomeEmotionalJourneyPrompt()
                 HomeVideoCarousel()
-
-                NavigationLink {
-                    UmrahPlanHubView()
-                } label: {
-                    UmrahPlanHomeEntryCard(language: settings.language)
-                }
-                .buttonStyle(.plain)
 
                 IumrahHomeAudienceSection(language: settings.language)
 
@@ -119,14 +113,10 @@ struct HomeDashboardView: View {
                     onCare: { chrome.navigate(to: .care) }
                 )
 
-                NavigationLink {
-                    IumrahTelegramIntegrationView(preferredBookingID: bookings.sessions.first?.id)
-                } label: {
-                    IumrahTelegramEntryCard(language: settings.language, large: true)
-                }
-                .buttonStyle(.plain)
-
                 readyPackagesSection
+                buildMyUmrahSection
+                hotelFirstPackagesSection
+                homeIntegrationsSection
 
                 VStack(alignment: .leading, spacing: 15) {
                     IumrahHomeSectionHeader(title: homeProductsTitle)
@@ -134,20 +124,18 @@ struct HomeDashboardView: View {
                     IumrahHomeCarouselDots(count: 3, selectedIndex: productsCarouselIndex)
                 }
 
-                hotelFirstPackagesSection
-                buildMyUmrahSection
-
                 confidenceStrip
                 philosophyCard
                 connectedTripCard
                 personalUmrahFAQ
                 homeAboutFooter
             }
-            // Use the same root layout contract as Account: the content column
-            // gets its width from ScrollView, then receives the shared page inset.
+            // Same adaptive page-column rule as Account/Gear. Padding is part of
+            // the column first; the outer frame then clamps the whole tree to the viewport.
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
             .padding(.bottom, 46)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(Color.iumrahPageBackground)
     }
@@ -782,10 +770,10 @@ struct HomeDashboardView: View {
 
     private var hotelFirstHomeTitle: String {
         switch settings.language {
-        case .russian: return "Hotel First пакеты"
-        case .english: return "Hotel First packages"
-        case .uzbek: return "Hotel First paketlari"
-        case .uzbekCyrillic: return "Hotel First пакетлари"
+        case .russian: return "Пакеты с выбранным отелем"
+        case .english: return "Packages by hotel"
+        case .uzbek: return "Mehmonxona bo‘yicha paketlar"
+        case .uzbekCyrillic: return "Меҳмонхона бўйича пакетлар"
         }
     }
 
@@ -800,19 +788,19 @@ struct HomeDashboardView: View {
 
     private var hotelFirstLoadingTitle: String {
         switch settings.language {
-        case .russian: return "Готовим Hotel First пакеты…"
-        case .english: return "Preparing Hotel First packages…"
-        case .uzbek: return "Hotel First paketlari tayyorlanmoqda…"
-        case .uzbekCyrillic: return "Hotel First пакетлари тайёрланмоқда…"
+        case .russian: return "Готовим пакеты по отелям…"
+        case .english: return "Preparing hotel packages…"
+        case .uzbek: return "Mehmonxona paketlari tayyorlanmoqda…"
+        case .uzbekCyrillic: return "Меҳмонхона пакетлари тайёрланмоқда…"
         }
     }
 
     private var hotelFirstAllTitle: String {
         switch settings.language {
-        case .russian: return "Посмотреть все Hotel First пакеты"
-        case .english: return "See all Hotel First packages"
-        case .uzbek: return "Barcha Hotel First paketlarini ko‘rish"
-        case .uzbekCyrillic: return "Барча Hotel First пакетларини кўриш"
+        case .russian: return "Посмотреть все пакеты по отелям"
+        case .english: return "See all hotel packages"
+        case .uzbek: return "Barcha mehmonxona paketlarini ko‘rish"
+        case .uzbekCyrillic: return "Барча меҳмонхона пакетларини кўриш"
         }
     }
 
@@ -1081,6 +1069,239 @@ struct HomeDashboardView: View {
         case .english: return "Tell us about the trip"
         case .uzbek: return "Safar haqida aytish"
         case .uzbekCyrillic: return "Сафар ҳақида айтиш"
+        }
+    }
+
+
+    private var homeIntegrationsSection: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            IumrahHomeSectionHeader(title: integrationsTitle, subtitle: integrationsSubtitle)
+
+            GeometryReader { proxy in
+                let availableWidth = max(proxy.size.width, 1)
+                let cardWidth = min(max(availableWidth * 0.88, 286), availableWidth)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 14) {
+                        NavigationLink {
+                            UmrahPlanHubView()
+                        } label: {
+                            integrationCard(
+                                asset: "HomeIntegrationCalendar",
+                                badge: integrationPlanBadge,
+                                title: integrationPlanTitle,
+                                body: integrationPlanBody,
+                                cta: integrationOpenCTA
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: cardWidth, height: 366)
+                        .id("plan")
+
+                        NavigationLink {
+                            IumrahTelegramIntegrationView(preferredBookingID: bookings.sessions.first?.id)
+                        } label: {
+                            integrationCard(
+                                asset: "TelegramIntegrationHero",
+                                badge: "Telegram",
+                                title: integrationTelegramTitle,
+                                body: integrationTelegramBody,
+                                cta: integrationConnectCTA
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: cardWidth, height: 366)
+                        .id("telegram")
+
+                        integrationCard(
+                            asset: "HomeIntegrationSoon",
+                            badge: integrationSoonBadge,
+                            title: integrationSoonTitle,
+                            body: integrationSoonBody,
+                            cta: nil
+                        )
+                        .frame(width: cardWidth, height: 366)
+                        .id("soon")
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                .scrollPosition(id: $integrationCarouselID, anchor: .center)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
+                .scrollClipDisabled()
+            }
+            .frame(height: 366)
+
+            IumrahHomeCarouselDots(count: 3, selectedIndex: integrationCarouselIndex)
+        }
+    }
+
+    private func integrationCard(asset: String, badge: String, title: String, body: String, cta: String?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(asset)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 176)
+                .clipped()
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(badge)
+                    .font(.caption.weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(.secondary)
+
+                Text(title)
+                    .font(.system(size: 23, weight: .bold, design: .rounded))
+                    .tracking(-0.45)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(body)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 4)
+
+                if let cta {
+                    HStack(spacing: 8) {
+                        Text(cta)
+                        Spacer(minLength: 8)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 15)
+                    .frame(height: 46)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .background(Color.iumrahCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+        }
+    }
+
+    private var integrationCarouselIndex: Int {
+        switch integrationCarouselID {
+        case "telegram": return 1
+        case "soon": return 2
+        default: return 0
+        }
+    }
+
+    private var integrationsTitle: String {
+        switch settings.language {
+        case .russian: return "Интеграции"
+        case .english: return "Integrations"
+        case .uzbek: return "Integratsiyalar"
+        case .uzbekCyrillic: return "Интеграциялар"
+        }
+    }
+
+    private var integrationsSubtitle: String {
+        switch settings.language {
+        case .russian: return "Планируйте следующую Umrah, подключайте Telegram и используйте новые возможности iumrah в одном месте."
+        case .english: return "Plan your next Umrah, connect Telegram and access new iumrah integrations in one place."
+        case .uzbek: return "Keyingi Umrani rejalashtiring, Telegram’ni ulang va yangi iumrah integratsiyalaridan bir joyda foydalaning."
+        case .uzbekCyrillic: return "Кейинги Умрани режалаштиринг, Telegram’ни уланг ва янги iumrah интеграцияларидан бир жойда фойдаланинг."
+        }
+    }
+
+    private var integrationPlanBadge: String {
+        switch settings.language {
+        case .russian: return "ПЛАНИРОВАНИЕ"
+        case .english: return "PLANNING"
+        case .uzbek: return "REJALASHTIRISH"
+        case .uzbekCyrillic: return "РЕЖАЛАШТИРИШ"
+        }
+    }
+
+    private var integrationPlanTitle: String {
+        switch settings.language {
+        case .russian: return "Запланировать Umrah"
+        case .english: return "Plan your Umrah"
+        case .uzbek: return "Umrani rejalashtirish"
+        case .uzbekCyrillic: return "Умрани режалаштириш"
+        }
+    }
+
+    private var integrationPlanBody: String {
+        switch settings.language {
+        case .russian: return "Выберите будущие даты и настройте напоминания за 2 месяца, месяц и последние дни перед поездкой."
+        case .english: return "Choose future dates and set reminders for two months, one month and the final days before departure."
+        case .uzbek: return "Kelajakdagi sanalarni tanlang va safargacha 2 oy, 1 oy hamda so‘nggi kunlar uchun eslatmalarni sozlang."
+        case .uzbekCyrillic: return "Келажакдаги саналарни танланг ва сафаргача 2 ой, 1 ой ҳамда сўнгги кунлар учун эслатмаларни созланг."
+        }
+    }
+
+    private var integrationTelegramTitle: String {
+        switch settings.language {
+        case .russian: return "Статус бронирования в Telegram"
+        case .english: return "Booking status in Telegram"
+        case .uzbek: return "Bron holati Telegram’da"
+        case .uzbekCyrillic: return "Брон ҳолати Telegram’да"
+        }
+    }
+
+    private var integrationTelegramBody: String {
+        switch settings.language {
+        case .russian: return "Получайте изменения статуса, оплаты, подтверждения и документов прямо в Telegram."
+        case .english: return "Receive status, payment, confirmation and document updates directly in Telegram."
+        case .uzbek: return "Status, to‘lov, tasdiq va hujjat yangilanishlarini to‘g‘ridan-to‘g‘ri Telegram’da oling."
+        case .uzbekCyrillic: return "Статус, тўлов, тасдиқ ва ҳужжат янгиланишларини тўғридан-тўғри Telegram’да олинг."
+        }
+    }
+
+    private var integrationSoonBadge: String {
+        switch settings.language {
+        case .russian: return "СКОРО"
+        case .english: return "COMING SOON"
+        case .uzbek: return "TEZ ORADA"
+        case .uzbekCyrillic: return "ТЕЗ ОРАДА"
+        }
+    }
+
+    private var integrationSoonTitle: String {
+        switch settings.language {
+        case .russian: return "Следующая интеграция"
+        case .english: return "Next integration"
+        case .uzbek: return "Keyingi integratsiya"
+        case .uzbekCyrillic: return "Кейинги интеграция"
+        }
+    }
+
+    private var integrationSoonBody: String {
+        switch settings.language {
+        case .russian: return "Мы готовим ещё один способ связать iumrah с сервисами, которыми Вы пользуетесь каждый день."
+        case .english: return "We are preparing another way to connect iumrah with the services you use every day."
+        case .uzbek: return "iumrah’ni har kuni foydalanadigan servislaringiz bilan bog‘lashning yana bir usulini tayyorlayapmiz."
+        case .uzbekCyrillic: return "iumrah’ни ҳар куни фойдаланадиган сервисларингиз билан боғлашнинг яна бир усулини тайёрлаяпмиз."
+        }
+    }
+
+    private var integrationOpenCTA: String {
+        switch settings.language {
+        case .russian: return "Запланировать"
+        case .english: return "Plan trip"
+        case .uzbek: return "Rejalashtirish"
+        case .uzbekCyrillic: return "Режалаштириш"
+        }
+    }
+
+    private var integrationConnectCTA: String {
+        switch settings.language {
+        case .russian: return "Открыть Telegram"
+        case .english: return "Open Telegram"
+        case .uzbek: return "Telegram’ni ochish"
+        case .uzbekCyrillic: return "Telegram’ни очиш"
         }
     }
 
@@ -1915,10 +2136,10 @@ struct HomeDashboardView: View {
 
     private var homeSinceTitle: String {
         switch settings.language {
-        case .russian: return "Since 2026"
-        case .english: return "Since 2026"
-        case .uzbek: return "Since 2026"
-        case .uzbekCyrillic: return "Since 2026"
+        case .russian: return "3 года опыта"
+        case .english: return "3 years of experience"
+        case .uzbek: return "3 yillik tajriba"
+        case .uzbekCyrillic: return "3 йиллик тажриба"
         }
     }
 

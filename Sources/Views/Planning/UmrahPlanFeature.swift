@@ -438,6 +438,109 @@ struct UmrahPlanHomeEntryCard: View {
     }
 }
 
+
+struct UmrahPlanReminderCenterView: View {
+    @EnvironmentObject private var settings: AppSettingsStore
+    @ObservedObject private var store = UmrahPlanStore.shared
+    @State private var showReminderSettings = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if let trip = store.trip {
+                NavigationLink {
+                    UmrahPlanHubView()
+                } label: {
+                    UmrahPlanHomeEntryCard(language: settings.language)
+                }
+                .buttonStyle(.plain)
+
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top, spacing: 12) {
+                        IumrahIconBadge(systemName: "bell.badge.fill", role: .notification, size: 48, symbolSize: 19, cornerRadius: 16)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(PlanCopy.text(settings.language, "Напоминания о следующей поездке", "Next-trip reminders", "Keyingi safar eslatmalari", "Кейинги сафар эслатмалари"))
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                            Text(PlanCopy.text(settings.language,
+                                "iumrah напомнит о подготовке заранее и будет делать это чаще по мере приближения поездки.",
+                                "iumrah reminds you early, then increases the cadence as your journey gets closer.",
+                                "iumrah safar yaqinlashgani sari eslatmalarni oldindan va tez-tez yuboradi.",
+                                "iumrah сафар яқинлашгани сари эслатмаларни олдиндан ва тез-тез юборади."
+                            ))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    HStack(spacing: 8) {
+                        ForEach(Array(trip.reminderDays.sorted(by: >).prefix(4)), id: \.self) { day in
+                            Text(reminderDayLabel(day))
+                                .font(.caption.weight(.bold))
+                                .padding(.horizontal, 10)
+                                .frame(height: 30)
+                                .background(Color.iumrahRaisedBackground, in: Capsule())
+                        }
+                        Spacer(minLength: 0)
+                        Text(String(format: "%02d:%02d", trip.reminderHour, trip.reminderMinute))
+                            .font(.caption.monospacedDigit().weight(.bold))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        IumrahHaptics.selection()
+                        showReminderSettings = true
+                    } label: {
+                        HStack {
+                            Text(PlanCopy.text(settings.language, "Настроить напоминания", "Edit reminders", "Eslatmalarni sozlash", "Эслатмаларни созлаш"))
+                            Spacer()
+                            Image(systemName: "slider.horizontal.3")
+                        }
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .frame(height: 50)
+                        .background(Color.black, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .iumrahCard()
+            } else {
+                NavigationLink {
+                    UmrahPlanHubView()
+                } label: {
+                    UmrahPlanHomeEntryCard(language: settings.language)
+                }
+                .buttonStyle(.plain)
+
+                Text(PlanCopy.text(settings.language,
+                    "Сначала запланируйте следующую Umrah — после этого здесь появится расписание напоминаний.",
+                    "Plan your next Umrah first; your reminder schedule will then appear here.",
+                    "Avval keyingi Umrani rejalashtiring — so‘ng bu yerda eslatmalar jadvali paydo bo‘ladi.",
+                    "Аввал кейинги Умрани режалаштиринг — сўнг бу ерда эслатмалар жадвали пайдо бўлади."
+                ))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 4)
+            }
+        }
+        .sheet(isPresented: $showReminderSettings) {
+            if let trip = store.trip {
+                UmrahPlanReminderSettingsView(trip: trip)
+            }
+        }
+    }
+
+    private func reminderDayLabel(_ day: Int) -> String {
+        switch settings.language {
+        case .russian: return day >= 30 ? "\(day / 30) мес." : "\(day) дн."
+        case .english: return day >= 30 ? "\(day / 30) mo" : "\(day)d"
+        case .uzbek: return day >= 30 ? "\(day / 30) oy" : "\(day) kun"
+        case .uzbekCyrillic: return day >= 30 ? "\(day / 30) ой" : "\(day) кун"
+        }
+    }
+}
+
 struct UmrahPlanHubView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var chrome: AppChromeStore

@@ -7,6 +7,15 @@ struct AccountNotificationsView: View {
     @EnvironmentObject private var chrome: AppChromeStore
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
 
+    private enum SignalPage: String, CaseIterable, Identifiable {
+        case signal
+        case reminders
+        case telegram
+        var id: String { rawValue }
+    }
+
+    @State private var selectedPage: SignalPage = .signal
+
     private static let isoFractionalFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -30,50 +39,21 @@ struct AccountNotificationsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 22) {
-                hero
+                pageSwitcher
 
-                if let session = telegramSession {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(telegramSignalTitle)
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .tracking(-0.3)
-                        Text(telegramSignalBody)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        IumrahTelegramConnectCard(
-                            session: session,
-                            accountToken: account.bearerToken,
-                            style: .compact
-                        )
-                    }
-                }
-
-                if clientNotifications.inboxNotifications.isEmpty {
-                    emptyState
-                } else {
-                    if !unreadNotifications.isEmpty {
-                        notificationSection(
-                            title: tr("New", "Новые", "Yangi", "Янги"),
-                            subtitle: tr("Needs your attention", "То, что стоит посмотреть", "E’tibor berish kerak", "Эътибор бериш керак"),
-                            notifications: unreadNotifications,
-                            unreadSection: true
-                        )
-                    }
-
-                    if !readNotifications.isEmpty {
-                        notificationSection(
-                            title: tr("Earlier", "Ранее", "Avvalgi", "Аввалги"),
-                            subtitle: tr("Already opened", "Уже просмотрено", "Ko‘rib chiqilgan", "Кўриб чиқилган"),
-                            notifications: readNotifications,
-                            unreadSection: false
-                        )
-                    }
+                switch selectedPage {
+                case .signal:
+                    signalPage
+                case .reminders:
+                    remindersPage
+                case .telegram:
+                    telegramPage
                 }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
             .padding(.bottom, 44)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(Color.iumrahPageBackground)
         .navigationTitle(signalTitle)
@@ -87,13 +67,163 @@ struct AccountNotificationsView: View {
         }
     }
 
+    private var pageSwitcher: some View {
+        IumrahGlassGroup(spacing: 5) {
+            HStack(spacing: 5) {
+                pageSegment(
+                    title: tr("Signal", "Сигнал", "Signal", "Сигнал"),
+                    symbol: "bell.badge.fill",
+                    page: .signal
+                )
+                pageSegment(
+                    title: tr("Reminders", "Напоминания", "Eslatmalar", "Эслатмалар"),
+                    symbol: "calendar.badge.clock",
+                    page: .reminders
+                )
+                pageSegment(
+                    title: "Telegram",
+                    symbol: "paperplane.fill",
+                    page: .telegram
+                )
+            }
+        }
+        .padding(5)
+        .iumrahGlass(
+            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
+            interactive: false,
+            allowsStaticGlass: true,
+            chrome: true
+        )
+    }
+
+    private func pageSegment(title: String, symbol: String, page: SignalPage) -> some View {
+        let selected = selectedPage == page
+        return Button {
+            guard !selected else { return }
+            IumrahHaptics.selection()
+            withAnimation(.snappy(duration: 0.28)) { selectedPage = page }
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: symbol)
+                    .font(.system(size: 12.5, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(selected ? Color.primary : Color.secondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 45)
+            .contentShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .iumrahGlass(
+                in: RoundedRectangle(cornerRadius: 17, style: .continuous),
+                interactive: true,
+                tint: selected ? Color.white.opacity(0.26) : nil,
+                allowsStaticGlass: true,
+                chrome: true
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var signalPage: some View {
+        VStack(spacing: 22) {
+            hero
+
+            if clientNotifications.inboxNotifications.isEmpty {
+                emptyState
+            } else {
+                if !unreadNotifications.isEmpty {
+                    notificationSection(
+                        title: tr("New", "Новые", "Yangi", "Янги"),
+                        subtitle: tr("Needs your attention", "То, что стоит посмотреть", "E’tibor berish kerak", "Эътибор бериш керак"),
+                        notifications: unreadNotifications,
+                        unreadSection: true
+                    )
+                }
+
+                if !readNotifications.isEmpty {
+                    notificationSection(
+                        title: tr("Earlier", "Ранее", "Avvalgi", "Аввалги"),
+                        subtitle: tr("Already opened", "Уже просмотрено", "Ko‘rib chiqilgan", "Кўриб чиқилган"),
+                        notifications: readNotifications,
+                        unreadSection: false
+                    )
+                }
+            }
+        }
+    }
+
+    private var remindersPage: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            pageHeading(
+                title: tr("Next-trip reminders", "Напоминания о следующей поездке", "Keyingi safar eslatmalari", "Кейинги сафар эслатмалари"),
+                body: tr(
+                    "Plan your Umrah and choose exactly when iumrah should remind you as the journey gets closer.",
+                    "Запланируйте Umrah и выберите, когда именно iumrah должен напоминать Вам по мере приближения поездки.",
+                    "Umrani rejalashtiring va safar yaqinlashgani sari iumrah qachon eslatishini o‘zingiz belgilang.",
+                    "Умрани режалаштиринг ва сафар яқинлашгани сари iumrah қачон эслатишини ўзингиз белгиланг."
+                )
+            )
+            UmrahPlanReminderCenterView()
+        }
+    }
+
+    @ViewBuilder
+    private var telegramPage: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            pageHeading(title: telegramSignalTitle, body: telegramSignalBody)
+
+            if let session = telegramSession {
+                IumrahTelegramConnectCard(
+                    session: session,
+                    accountToken: account.bearerToken,
+                    style: .standard
+                )
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    Image(systemName: "paperplane.circle.fill")
+                        .font(.system(size: 42))
+                        .foregroundStyle(Color(red: 0.15, green: 0.64, blue: 0.91))
+                    Text(tr("No booking to connect yet", "Пока нет бронирования для подключения", "Ulash uchun bron hali yo‘q", "Улаш учун брон ҳали йўқ"))
+                        .font(.headline)
+                    Text(tr(
+                        "Create a booking first. Telegram linking will appear here automatically.",
+                        "Сначала создайте бронирование. Подключение Telegram появится здесь автоматически.",
+                        "Avval bron yarating. Telegram ulanishi bu yerda avtomatik paydo bo‘ladi.",
+                        "Аввал брон яратинг. Telegram уланиши бу ерда автоматик пайдо бўлади."
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .iumrahCard()
+            }
+        }
+    }
+
+    private func pageHeading(title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.system(size: 27, weight: .bold, design: .rounded))
+                .tracking(-0.45)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(body)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var telegramSession: StoredBookingSession? {
         bookings.sessions.first { !["COMPLETED", "CANCELLED"].contains($0.effectiveStatus.uppercased()) }
             ?? bookings.sessions.first
     }
 
     private var signalTitle: String {
-        tr("Umrah status signal", "Umra статус сигнал", "Umra holat signali", "Умра ҳолат сигнали")
+        tr("Iumrah Status Signal", "Iumrah Status Signal", "Iumrah Status Signal", "Iumrah Status Signal")
     }
 
     private var telegramSignalTitle: String {

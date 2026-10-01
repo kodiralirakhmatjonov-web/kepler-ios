@@ -1,0 +1,10 @@
+IUMRAH_HOME_SIGNAL_CONFIRMATION_LAYOUT_20261001_APPLIED
+- Home uses the same adaptive page-column clamp as Account; carousel overflow remains local to carousel viewports.
+- Home section order: Audience -> Services -> Ready packages -> Build your Umrah -> Hotel-based packages -> Integrations -> Products.
+- Home Integrations carousel: planned Umrah, Telegram, coming soon.
+- Hotel First consumer-facing naming removed from Home.
+- Booking delete and Account sign-out use image-backed native sheets with Confirm/Cancel.
+- Status Signal uses three in-place tabs: Signal / Reminders / Telegram.
+- Telegram connect card moved to Telegram tab.
+- Reminder tab reuses planned-Umrah reminder store/scheduler.
+- About page rebuilt with responsive layout and 3 years of experience.

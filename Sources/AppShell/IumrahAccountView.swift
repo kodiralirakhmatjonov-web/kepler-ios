@@ -145,6 +145,7 @@ struct IumrahAccountView: View {
                 .padding(.horizontal, IumrahDesign.pagePadding)
                 .padding(.top, 12)
                 .padding(.bottom, 46)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .onChange(of: loginScrollNonce) { _, _ in
                 withAnimation(.spring(response: 0.55, dampingFraction: 0.90)) {
@@ -201,26 +202,26 @@ struct IumrahAccountView: View {
         } message: {
             Text(walletAlertMessage ?? "")
         }
-        .confirmationDialog(
-            tr("Sign out of iumrah?", "Выйти из iumrah?", "iumrah akkauntidan chiqasizmi?", "iumrah аккаунтидан чиқасизми?"),
-            isPresented: $showSignOutConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(tr("Sign out", "Выйти", "Chiqish", "Чиқиш"), role: .destructive) {
+        .sheet(isPresented: $showSignOutConfirmation) {
+            IumrahActionConfirmationSheet(
+                imageAsset: "AccountLogoutConfirmHero",
+                title: tr("Sign out of iumrah?", "Выйти из iumrah?", "iumrah akkauntidan chiqasizmi?", "iumrah аккаунтидан чиқасизми?"),
+                message: tr(
+                    "Your trips stay safely linked to your iumrah account. You will need to sign in again on this device.",
+                    "Ваши поездки останутся безопасно привязаны к аккаунту iumrah. На этом устройстве потребуется войти снова.",
+                    "Safarlaringiz iumrah akkauntingizga xavfsiz bog‘langan holda qoladi. Bu qurilmada qayta kirishingiz kerak bo‘ladi.",
+                    "Сафарларингиз iumrah аккаунтингизга хавфсиз боғланган ҳолда қолади. Бу қурилмада қайта киришингиз керак бўлади."
+                ),
+                confirmTitle: tr("Sign out", "Выйти", "Chiqish", "Чиқиш"),
+                cancelTitle: tr("Cancel", "Отмена", "Bekor qilish", "Бекор қилиш"),
+                confirmColor: .red
+            ) {
                 Task {
                     await account.logout()
                     bookings.setAccountToken(nil)
                     IumrahHaptics.soft()
                 }
             }
-            Button(tr("Cancel", "Отмена", "Bekor qilish", "Бекор қилиш"), role: .cancel) {}
-        } message: {
-            Text(tr(
-                "Your trips stay safely linked to your iumrah account. You will need to sign in again on this device.",
-                "Ваши поездки останутся безопасно привязаны к аккаунту iumrah. На этом устройстве потребуется войти снова.",
-                "Safarlaringiz iumrah akkauntingizga xavfsiz bog‘langan holda qoladi. Bu qurilmada qayta kirishingiz kerak bo‘ladi.",
-                "Сафарларингиз iumrah аккаунтингизга хавфсиз боғланган ҳолда қолади. Бу қурилмада қайта киришингиз керак бўлади."
-            ))
         }
     }
 

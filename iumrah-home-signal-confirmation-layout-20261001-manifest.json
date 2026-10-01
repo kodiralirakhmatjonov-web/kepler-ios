@@ -1,0 +1,18 @@
+{
+  "name": "iumrah-home-signal-confirmation-layout-20261001",
+  "target": "Kepler iOS / iumrah Beta",
+  "launch_files_touched": false,
+  "backend_touched": false,
+  "storekit_touched": false,
+  "workflow_files_touched": false,
+  "changes": [
+    "adaptive Home and Account page-column clamp",
+    "Home section reordering and spacing",
+    "Integrations carousel with local assets",
+    "consumer hotel-package naming",
+    "native booking-delete and account-signout sheets",
+    "three-mode Iumrah Status Signal",
+    "planned-trip reminders embedded in Signal",
+    "responsive About page with 3 years experience"
+  ]
+}

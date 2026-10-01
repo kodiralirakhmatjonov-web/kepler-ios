@@ -157,17 +157,17 @@ struct BookingDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        .confirmationDialog(
-            L10n.text("booking_delete_confirm_title", settings.language),
-            isPresented: $showDeleteConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(L10n.text("booking_delete_confirm_action", settings.language), role: .destructive) {
+        .sheet(isPresented: $showDeleteConfirmation) {
+            IumrahActionConfirmationSheet(
+                imageAsset: "BookingDeleteConfirmHero",
+                title: L10n.text("booking_delete_confirm_title", settings.language),
+                message: L10n.text("booking_delete_confirm_body", settings.language),
+                confirmTitle: L10n.text("booking_delete_confirm_action", settings.language),
+                cancelTitle: L10n.text("cancel", settings.language),
+                confirmColor: .red
+            ) {
                 Task { await deleteBooking() }
             }
-            Button(L10n.text("cancel", settings.language), role: .cancel) {}
-        } message: {
-            Text(L10n.text("booking_delete_confirm_body", settings.language))
         }
     }
 

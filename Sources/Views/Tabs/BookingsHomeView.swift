@@ -61,22 +61,22 @@ struct BookingsHomeView: View {
                 await loadActiveCheckout()
             }
         }
-        .confirmationDialog(
-            L10n.text("booking_delete_confirm_title", settings.language),
-            isPresented: Binding(
-                get: { pendingDeleteID != nil },
-                set: { if !$0 { pendingDeleteID = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button(L10n.text("booking_delete_confirm_action", settings.language), role: .destructive) {
+        .sheet(isPresented: Binding(
+            get: { pendingDeleteID != nil },
+            set: { if !$0 { pendingDeleteID = nil } }
+        )) {
+            IumrahActionConfirmationSheet(
+                imageAsset: "BookingDeleteConfirmHero",
+                title: L10n.text("booking_delete_confirm_title", settings.language),
+                message: L10n.text("booking_delete_confirm_body", settings.language),
+                confirmTitle: L10n.text("booking_delete_confirm_action", settings.language),
+                cancelTitle: L10n.text("cancel", settings.language),
+                confirmColor: .red
+            ) {
                 guard let id = pendingDeleteID else { return }
                 pendingDeleteID = nil
                 Task { await deleteBooking(id) }
             }
-            Button(L10n.text("cancel", settings.language), role: .cancel) { pendingDeleteID = nil }
-        } message: {
-            Text(L10n.text("booking_delete_confirm_body", settings.language))
         }
         .navigationDestination(isPresented: $chrome.shouldStartTripBuilder) {
             TripBuilderView()
