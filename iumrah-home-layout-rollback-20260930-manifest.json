@@ -1,0 +1,8 @@
+{
+  "patch": "iumrah-home-layout-rollback-20260930",
+  "purpose": "exact rollback of last Home root layout patch",
+  "files": [
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Components/IumrahRootPageTitle.swift"
+  ]
+}

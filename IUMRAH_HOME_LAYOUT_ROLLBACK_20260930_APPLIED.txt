@@ -1,0 +1,7 @@
+Iumrah Home launch recovery rollback — 2026-09-30
+
+Purpose:
+- Revert ONLY the two files changed by the last Home root-layout patch.
+- Restore HomeDashboardView.swift to the immediately previous running state.
+- Restore IumrahRootPageTitle.swift to the header version used before the last patch.
+- No changes to launch, Telegram, StoreKit/IAP, backend, booking, chat, or transfer logic.
