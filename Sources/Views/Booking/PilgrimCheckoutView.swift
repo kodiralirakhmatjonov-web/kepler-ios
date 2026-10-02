@@ -67,6 +67,7 @@ struct PilgrimCheckoutView: View {
     @State private var isLoginPasswordVisible = false
     @State private var showExistingAccountLogin = false
     @State private var showPasswordRecovery = false
+    @State private var screenPrimaryPage: BookingPrimaryPage = .status
     @State private var isSubmittingAccount = false
     @State private var travelerEditor: IumrahTravelerForm?
     @State private var paymentMethod = "visa"
@@ -80,7 +81,6 @@ struct PilgrimCheckoutView: View {
     @State private var isApplyingFriendBenefit = false
     @State private var friendsMessage: String?
     @State private var showBookingPage = false
-    @State private var showSchedulePage = false
 
     private let service = IumrahAccountService()
     private let bookingService = BookingService()
@@ -100,7 +100,7 @@ struct PilgrimCheckoutView: View {
     var body: some View {
         Group {
             if presentation == .screen {
-                screenBody
+                BookingDetailView(bookingID: bookingID, initialPage: .status)
             } else {
                 embeddedStatusBody
             }
@@ -144,13 +144,32 @@ struct PilgrimCheckoutView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
                 BookingPageSwitcher(
-                    selection: .status,
-                    onBooking: { showBookingPage = true },
-                    onStatus: {},
-                    onSchedule: { showSchedulePage = true }
+                    selection: screenPrimaryPage,
+                    onBooking: { dismiss() },
+                    onStatus: { withAnimation(.snappy(duration: 0.24)) { screenPrimaryPage = .status } },
+                    onSchedule: { withAnimation(.snappy(duration: 0.24)) { screenPrimaryPage = .schedule } }
                 )
-                hero
-                checkoutContent(includeProgress: true)
+
+                if screenPrimaryPage == .schedule, let session {
+                    BookingItineraryCalendarView(
+                        bookingID: session.id,
+                        startDate: session.booking.input.startDate,
+                        endDate: session.booking.input.endDate,
+                        booking: session.booking,
+                        presentation: .fullScreen
+                    )
+                    .transition(.opacity)
+                } else {
+                    hero
+                    checkoutContent(includeProgress: true)
+                    if let session {
+                        IumrahTelegramConnectCard(
+                            session: session,
+                            accountToken: account.bearerToken,
+                            style: .compact
+                        )
+                    }
+                }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
@@ -174,17 +193,19 @@ struct PilgrimCheckoutView: View {
             }
         }
         .iumrahInternalNavigation()
-        .navigationDestination(isPresented: $showBookingPage) {
-            BookingDetailView(bookingID: bookingID)
-        }
-        .navigationDestination(isPresented: $showSchedulePage) {
-            BookingScheduleView(bookingID: bookingID)
-        }
     }
 
     private var embeddedStatusBody: some View {
         VStack(spacing: 18) {
             checkoutContent(includeProgress: false)
+            if let session {
+                IumrahTelegramConnectCard(
+                    session: session,
+                    accountToken: account.bearerToken,
+                    style: .compact
+                )
+                .padding(.top, 8)
+            }
         }
         .frame(maxWidth: .infinity)
     }

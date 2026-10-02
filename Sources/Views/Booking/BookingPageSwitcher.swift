@@ -15,70 +15,30 @@ struct BookingPageSwitcher: View {
     var onSchedule: () -> Void = {}
 
     var body: some View {
-        IumrahGlassGroup(spacing: 6) {
-            HStack(spacing: 4) {
-                segment(
-                    title: localized("Бронирование", "Booking", "Bron", "Брон"),
-                    symbol: "rectangle.stack.fill",
-                    selected: selection == .booking,
-                    action: onBooking
-                )
-                segment(
-                    title: localized("Статус", "Status", "Holat", "Ҳолат"),
-                    symbol: "checkmark.circle.fill",
-                    selected: selection == .status,
-                    action: onStatus
-                )
-                segment(
-                    title: localized("Расписание", "Schedule", "Jadval", "Жадвал"),
-                    symbol: "calendar.badge.clock",
-                    selected: selection == .schedule,
-                    action: onSchedule
-                )
-            }
-        }
-        .padding(5)
-        .iumrahGlass(
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous),
-            interactive: false,
-            allowsStaticGlass: true,
-            chrome: true
-        )
-        .accessibilityElement(children: .contain)
-    }
-
-    private func segment(
-        title: String,
-        symbol: String,
-        selected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button {
-            guard !selected else { return }
-            IumrahHaptics.selection()
-            action()
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-            }
-            .foregroundStyle(selected ? Color.primary : Color.secondary)
-            .frame(maxWidth: .infinity)
-            .frame(height: 42)
-            .contentShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-            .iumrahGlass(
-                in: RoundedRectangle(cornerRadius: 17, style: .continuous),
-                interactive: true,
-                tint: selected ? Color.white.opacity(0.26) : nil,
-                allowsStaticGlass: true,
-                chrome: true
+        Picker(
+            localized("Раздел бронирования", "Booking section", "Bron bo‘limi", "Брон бўлими"),
+            selection: Binding(
+                get: { selection },
+                set: { newValue in
+                    guard newValue != selection else { return }
+                    IumrahHaptics.selection()
+                    switch newValue {
+                    case .booking: onBooking()
+                    case .status: onStatus()
+                    case .schedule: onSchedule()
+                    }
+                }
             )
+        ) {
+            Text(localized("Бронирование", "Booking", "Bron", "Брон"))
+                .tag(BookingPrimaryPage.booking)
+            Text(localized("Статус", "Status", "Holat", "Ҳолат"))
+                .tag(BookingPrimaryPage.status)
+            Text(localized("Расписание", "Schedule", "Jadval", "Жадвал"))
+                .tag(BookingPrimaryPage.schedule)
         }
-        .buttonStyle(.plain)
+        .pickerStyle(.segmented)
+        .accessibilityElement(children: .contain)
     }
 
     private func localized(_ ru: String, _ en: String, _ uz: String, _ cyrl: String) -> String {

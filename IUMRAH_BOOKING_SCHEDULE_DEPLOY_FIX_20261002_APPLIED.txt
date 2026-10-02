@@ -1,0 +1,6 @@
+Booking schedule deploy fix (2026-10-02)
+- Restored native Picker(.segmented) BookingPageSwitcher.
+- Restored BookingDetail in-place page switching using selectedPrimaryPage.
+- Restored Telegram booking connection card in BookingsHome and booking/status surfaces.
+- Added Schedule as a third in-place segment.
+- Preserved time-aware schedule UI and current-day timeline.

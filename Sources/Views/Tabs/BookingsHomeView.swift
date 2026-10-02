@@ -5,6 +5,7 @@ struct BookingsHomeView: View {
     private enum BookingPanel: String, CaseIterable, Identifiable {
         case booking
         case status
+        case schedule
         var id: String { rawValue }
     }
 
@@ -117,12 +118,12 @@ struct BookingsHomeView: View {
                     .padding(.bottom, 12)
 
                 bookingIdentity(session)
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 18)
 
                 if bookingPanel == .booking {
                     bookingProgress(session)
                         .padding(.bottom, 38)
-                } else {
+                } else if bookingPanel == .status {
                     bookingTimerOverview(session)
                         .padding(.bottom, 28)
 
@@ -139,6 +140,15 @@ struct BookingsHomeView: View {
 
                     tripManagement(session)
                         .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
+                } else {
+                    BookingItineraryCalendarView(
+                        bookingID: session.id,
+                        startDate: session.booking.input.startDate,
+                        endDate: session.booking.input.endDate,
+                        booking: session.booking,
+                        presentation: .fullScreen
+                    )
+                    .padding(.bottom, 28)
                 }
 
                 if activeSessions.count > 1 {
@@ -155,6 +165,13 @@ struct BookingsHomeView: View {
                         .background(Color(uiColor: .systemRed).opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .padding(.top, 8)
                 }
+
+                IumrahTelegramConnectCard(
+                    session: session,
+                    accountToken: account.bearerToken,
+                    style: .compact
+                )
+                .padding(.top, 28)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
@@ -235,11 +252,10 @@ struct BookingsHomeView: View {
     private var bookingPanelPicker: some View {
         Picker(localized("Раздел бронирования", "Booking section", "Bron bo‘limi", "Брон бўлими"), selection: $bookingPanel) {
             Text(localized("Бронирование", "Booking", "Bron", "Брон")).tag(BookingPanel.booking)
-            Text(localized("Статус бронирования", "Booking status", "Bron holati", "Брон ҳолати")).tag(BookingPanel.status)
+            Text(localized("Статус", "Status", "Holat", "Ҳолат")).tag(BookingPanel.status)
+            Text(localized("Расписание", "Schedule", "Jadval", "Жадвал")).tag(BookingPanel.schedule)
         }
         .pickerStyle(.segmented)
-        .controlSize(.large)
-        .frame(height: 48)
         .onChange(of: bookingPanel) { _, _ in IumrahHaptics.selection() }
     }
 
@@ -1201,8 +1217,9 @@ struct BookingsHomeView: View {
                 Divider()
                     .padding(.leading, 17)
 
-                NavigationLink {
-                    BookingScheduleView(bookingID: session.id)
+                Button {
+                    withAnimation(.snappy(duration: 0.24)) { bookingPanel = .schedule }
+                    IumrahHaptics.selection()
                 } label: {
                     HStack {
                         Text(openFullPlanTitle)
@@ -1482,6 +1499,13 @@ struct BookingsHomeView: View {
                 )
 
                 bookingEmptyStatusCard
+
+                NavigationLink {
+                    IumrahTelegramIntegrationView()
+                } label: {
+                    IumrahTelegramEntryCard(language: settings.language, large: false)
+                }
+                .buttonStyle(.plain)
 
                 explorePackagesButton
 

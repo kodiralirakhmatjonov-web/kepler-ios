@@ -37,7 +37,7 @@ struct BookingItineraryCalendarView: View {
         self.onOpenFullSchedule = onOpenFullSchedule
     }
 
-    private enum TemporalState {
+    private enum TemporalState: Equatable {
         case neutral
         case completed
         case active
@@ -511,7 +511,7 @@ struct BookingItineraryCalendarView: View {
         switch state {
         case .active: return Color.blue
         case .upcoming: return Color.orange
-        case .completed: return Color.secondary
+        case .completed: return Color.gray
         case .neutral: return Color.blue
         }
     }

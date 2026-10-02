@@ -1,0 +1,12 @@
+{
+  "name": "iumrah-beta-update-booking-schedule-deploy-fix-20261002",
+  "version": 1,
+  "description": "Restores the current production Booking/Status in-place architecture and Telegram surface while keeping the new third Schedule tab and time-aware itinerary UI.",
+  "files": [
+    "Sources/Views/Booking/BookingPageSwitcher.swift",
+    "Sources/Views/Booking/BookingItineraryCalendarView.swift",
+    "Sources/Views/Booking/BookingDetailView.swift",
+    "Sources/Views/Booking/PilgrimCheckoutView.swift",
+    "Sources/Views/Tabs/BookingsHomeView.swift"
+  ]
+}
