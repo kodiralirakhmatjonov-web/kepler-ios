@@ -115,24 +115,11 @@ struct TransferSelectionView: View {
     // MARK: - 30-second Apple Maps search
 
     private var searchExperience: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             TransferLiveSearchMap(second: searchSecond, searchDuration: searchDuration, reduceMotion: reduceMotion)
-                .ignoresSafeArea(edges: .bottom)
+                .ignoresSafeArea()
 
-            LinearGradient(
-                colors: [
-                    pageBackground,
-                    pageBackground.opacity(0.96),
-                    pageBackground.opacity(0.74),
-                    .clear
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(maxWidth: .infinity, alignment: .top)
-            .frame(height: 164, alignment: .top)
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
+            searchCeilingGradient
 
             VStack(spacing: 0) {
                 IumrahGeneratorHeader(
@@ -149,6 +136,23 @@ struct TransferSelectionView: View {
                     .padding(.bottom, 18)
             }
         }
+    }
+
+    private var searchCeilingGradient: some View {
+        LinearGradient(
+            colors: [
+                pageBackground,
+                pageBackground.opacity(0.96),
+                pageBackground.opacity(0.74),
+                .clear
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(maxWidth: .infinity)
+        .frame(height: 164, alignment: .top)
+        .ignoresSafeArea(edges: .top)
+        .allowsHitTesting(false)
     }
 
     private var searchBottomSheet: some View {
@@ -253,29 +257,35 @@ struct TransferSelectionView: View {
     // MARK: - Matched Uber-style transfer service
 
     private var matchedExperience: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                IumrahGeneratorHeader(
-                    stage: .transfer,
-                    currentPriceText: currentPackagePriceTitle
-                )
+        ZStack {
+            pageBackground
+                .ignoresSafeArea()
 
-                matchedHeader
-                vehicleStage
-                vehicleInformation
-                IumrahRefundPolicyCard(component: .transfer, compact: false)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    IumrahGeneratorHeader(
+                        stage: .transfer,
+                        currentPriceText: currentPackagePriceTitle
+                    )
 
-                if includesMadinah {
-                    haramainExpandedCard
+                    matchedHeader
+                    vehicleStage
+                    vehicleInformation
+                    IumrahRefundPolicyCard(component: .transfer, compact: false)
+
+                    if includesMadinah {
+                        haramainExpandedCard
+                    }
+
+                    confirmationButton
                 }
-
-                confirmationButton
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 10)
+                .padding(.bottom, 46)
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 46)
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollContentBackground(.hidden)
         }
-        .scrollContentBackground(.hidden)
     }
 
     private var matchedHeader: some View {
@@ -315,7 +325,7 @@ struct TransferSelectionView: View {
     private var vehicleStage: some View {
         GeometryReader { proxy in
             let width = max(proxy.size.width, 1)
-            let pageWidth = max(width * 0.78, 1)
+            let pageWidth = max(width * 0.88, 1)
 
             ZStack {
                 RoundedRectangle(cornerRadius: 36, style: .continuous)
@@ -346,15 +356,15 @@ struct TransferSelectionView: View {
 
                 ForEach(Array(vehicles.enumerated()), id: \.element.id) { index, vehicle in
                     let relative = CGFloat(index - selectedIndex) + (dragOffset / pageWidth)
-                    let distance = min(abs(relative), 1.25)
-                    let scale = 1 - min(distance, 1) * 0.115
-                    let opacity = 1 - min(distance, 1) * 0.46
+                    let distance = min(abs(relative), 1.35)
+                    let scale = 1 - min(distance, 1) * 0.10
+                    let opacity = 1 - min(distance, 1) * 0.42
 
                     TransferVehicleHero(vehicle: vehicle, active: distance < 0.16)
                         .scaleEffect(scale)
                         .opacity(opacity)
                         .offset(
-                            x: relative * width * 0.82,
+                            x: relative * width * 0.92,
                             y: min(distance, 1) * 8
                         )
                         .zIndex(Double(10 - distance))
@@ -1108,8 +1118,8 @@ private struct TransferVehicleHero: View {
             Image(vehicle.assetName)
                 .resizable()
                 .scaledToFit()
-                .padding(.horizontal, vehicle == .malibu ? 8 : 0)
-                .scaleEffect(vehicle == .malibu ? 1.20 : 1.18)
+                .padding(.horizontal, vehicle == .malibu ? 22 : 16)
+                .scaleEffect(vehicle == .malibu ? 1.04 : 1.0)
                 .accessibilityLabel(vehicle.modelName)
         }
         .padding(.horizontal, 4)

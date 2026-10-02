@@ -31,7 +31,7 @@ struct BookingChatView: View {
     @State private var presentationByID: [String: CareMessagePresentation] = [:]
     @FocusState private var composerFocused: Bool
     @State private var scrollViewportHeight: CGFloat = 0
-    @State private var composerPanelHeight: CGFloat = 78
+    @State private var composerPanelHeight: CGFloat = 66
     @Namespace private var sendNamespace
 
     private let bottomAnchorID = "care-chat-bottom-anchor"
@@ -63,7 +63,7 @@ struct BookingChatView: View {
                         }
                         composer(proxy: proxy)
                     }
-                    .padding(.bottom, composerFocused ? 8 : 12)
+                    .padding(.bottom, composerFocused ? 6 : 10)
                     .background {
                         GeometryReader { geometry in
                             Color.clear
@@ -190,7 +190,7 @@ struct BookingChatView: View {
                 .frame(minHeight: max(scrollViewportHeight - 24, 0), alignment: .bottom)
             }
             .scrollDismissesKeyboard(.interactively)
-            .contentMargins(.bottom, max(86, composerPanelHeight + 10), for: .scrollContent)
+            .contentMargins(.bottom, max(74, composerPanelHeight + 6), for: .scrollContent)
             .coordinateSpace(name: scrollCoordinateSpace)
             .background {
                 GeometryReader { geometry in
@@ -452,21 +452,21 @@ struct BookingChatView: View {
                             .controlSize(.mini)
                     } else {
                         Image(systemName: "plus")
-                            .font(.system(size: 19, weight: .regular))
+                            .font(.system(size: 18, weight: .regular))
                     }
                 }
                 .foregroundStyle(composerControlColor)
-                .frame(width: 44, height: 44)
+                .frame(width: 40, height: 40)
                 .contentShape(Circle())
             }
             .careNativeGlassButton()
             .disabled(isSending || isSendingPhoto)
             .accessibilityLabel(tr("Add photo", "Добавить фото", "Rasm qo‘shish", "Расм қўшиш"))
 
-            HStack(alignment: .bottom, spacing: 4) {
+            HStack(alignment: .bottom, spacing: 6) {
                 TextField(L10n.text("chat_placeholder", settings.language), text: $draft, axis: .vertical)
                     .focused($composerFocused)
-                    .font(.system(size: 16.5))
+                    .font(.system(size: 16))
                     .textFieldStyle(.plain)
                     .lineLimit(1...3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -476,30 +476,35 @@ struct BookingChatView: View {
                         guard canSend else { return }
                         Task { await send(proxy: proxy) }
                     }
-                    .padding(.leading, 13)
-                    .padding(.vertical, 8)
+                    .padding(.leading, 14)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
 
                 Group {
                     if canSend || isSending {
                         Button {
                             Task { await send(proxy: proxy) }
                         } label: {
-                            Group {
-                                if isSending {
-                                    ProgressView()
-                                        .controlSize(.mini)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "arrow.up")
-                                        .font(.system(size: 14, weight: .bold))
+                            ZStack {
+                                Circle()
+                                    .fill(outgoingAccentColor)
+
+                                Group {
+                                    if isSending {
+                                        ProgressView()
+                                            .controlSize(.mini)
+                                            .tint(.white)
+                                    } else {
+                                        Image(systemName: "arrow.up")
+                                            .font(.system(size: 14, weight: .bold))
+                                    }
                                 }
+                                .foregroundStyle(.white)
                             }
-                            .foregroundStyle(.white)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 34, height: 34)
                             .contentShape(Circle())
                         }
-                        .careNativeGlassButton(prominent: true)
-                        .tint(outgoingAccentColor)
+                        .buttonStyle(.plain)
                         .disabled(!canSend)
                         .transition(.scale(scale: 0.86).combined(with: .opacity))
                     } else {
@@ -510,24 +515,24 @@ struct BookingChatView: View {
                                     ? Color.white.opacity(0.76)
                                     : Color.secondary
                             )
-                            .frame(width: 30, height: 30)
+                            .frame(width: 34, height: 34)
                             .transition(.scale(scale: 0.90).combined(with: .opacity))
                     }
                 }
-                .padding(.trailing, 5)
-                .padding(.bottom, 5)
+                .padding(.trailing, 6)
+                .padding(.bottom, 4)
             }
-            .frame(minHeight: 40, maxHeight: 86, alignment: .bottom)
+            .frame(minHeight: 38, maxHeight: 78, alignment: .bottom)
             .frame(maxWidth: .infinity)
-            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .onTapGesture { composerFocused = true }
             .careNativeGlassSurface(
-                in: RoundedRectangle(cornerRadius: 20, style: .continuous),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous),
                 interactive: false,
                 tint: composerGlassTint
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .strokeBorder(
                         appearance.wallpaper.isVisual
                             ? Color.white.opacity(0.18)
@@ -536,11 +541,11 @@ struct BookingChatView: View {
                     )
                     .allowsHitTesting(false)
             }
-            .shadow(color: Color.black.opacity(0.018), radius: 1.4, y: 0.5)
+            .shadow(color: Color.black.opacity(0.018), radius: 1.2, y: 0.5)
             .animation(.spring(response: 0.24, dampingFraction: 0.88), value: canSend)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .overlay(alignment: .bottomTrailing) {
             if let launchingOutgoing {
                 Text(launchingOutgoing.body)

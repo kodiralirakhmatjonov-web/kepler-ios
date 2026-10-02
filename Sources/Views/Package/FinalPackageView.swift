@@ -62,40 +62,45 @@ struct FinalPackageView: View {
                     }
                 )
             } else {
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        IumrahGeneratorHeader(stage: .ready)
-                        packageHeader
-                        if journey.quote != nil, journey.hasFinalGeneratorQuote {
-                            packageTierCarousel
-                                .padding(.horizontal, -IumrahDesign.pagePadding)
-                            packageRecommendationCard
-                            packageDifferenceCard
-                            packageSupportShortcutsCard
-                        } else {
-                            pricingStatusCard
-                        }
-                        includedServicesCard
-                        IumrahRefundPolicyCard(component: .package, compact: false)
-                        IumrahManualPaymentNotice()
-                        careReassuranceCard
-                        notificationCard
+                ZStack {
+                    Color.iumrahPageBackground
+                        .ignoresSafeArea()
 
-                        if let errorMessage {
-                            Text(errorMessage)
-                                .font(.footnote)
-                                .foregroundStyle(.red)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 4)
-                        }
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 20) {
+                            IumrahGeneratorHeader(stage: .ready)
+                            packageHeader
+                            if journey.quote != nil, journey.hasFinalGeneratorQuote {
+                                packageTierCarousel
+                                    .padding(.horizontal, -IumrahDesign.pagePadding)
+                                packageRecommendationCard
+                                packageDifferenceCard
+                                packageSupportShortcutsCard
+                            } else {
+                                pricingStatusCard
+                            }
+                            includedServicesCard
+                            IumrahRefundPolicyCard(component: .package, compact: false)
+                            IumrahManualPaymentNotice()
+                            careReassuranceCard
+                            notificationCard
 
-                        packagePrimaryActionButton
+                            if let errorMessage {
+                                Text(errorMessage)
+                                    .font(.footnote)
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 4)
+                            }
+
+                            packagePrimaryActionButton
+                        }
+                        .padding(.horizontal, IumrahDesign.pagePadding)
+                        .padding(.top, 10)
+                        .padding(.bottom, 32)
                     }
-                    .padding(.horizontal, IumrahDesign.pagePadding)
-                    .padding(.top, 10)
-                    .padding(.bottom, 32)
+                    .scrollBounceBehavior(.basedOnSize)
                 }
-                .background(Color.iumrahPageBackground.ignoresSafeArea())
             }
         }
         .iumrahInternalNavigation(progress: .ready, showsGeneratorAmbient: true)
