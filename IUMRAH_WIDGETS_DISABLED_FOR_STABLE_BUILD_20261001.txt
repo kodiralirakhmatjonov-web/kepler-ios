@@ -1,0 +1,9 @@
+IUMRAH_WIDGETS_DISABLED_FOR_STABLE_BUILD_20261001
+
+Reason:
+- TestFlight archive failed because target iUmraWidgets had no provisioning profile.
+- Main production build is returned to a single signed app target.
+- Widget files may remain in the repository but are not part of the generated Xcode project.
+- Widget synchronization is a no-op so widget code does not execute in the app runtime.
+
+Re-enable widgets only after creating/signing com.iumrah.app.widgets and updating the TestFlight workflow.

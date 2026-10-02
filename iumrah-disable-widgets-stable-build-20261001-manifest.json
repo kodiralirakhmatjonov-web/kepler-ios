@@ -1,0 +1,12 @@
+{
+  "name": "iumrah-beta-update-disable-widgets-stable-build-20261001",
+  "purpose": "Remove unsigned Widget Extension from production build and disable widget runtime sync",
+  "files": [
+    "IUMRAH_WIDGETS_DISABLED_FOR_STABLE_BUILD_20261001.txt",
+    "Resources/iUmra.entitlements",
+    "Sources/Services/IumrahWidgetSyncService.swift",
+    "project.yml"
+  ],
+  "widget_target_enabled": false,
+  "main_app_bundle": "com.iumrah.app"
+}

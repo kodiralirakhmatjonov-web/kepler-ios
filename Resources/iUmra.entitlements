@@ -12,9 +12,5 @@
 	<array>
 		<string>applinks:iumrah.app</string>
 	</array>
-	<key>keychain-access-groups</key>
-	<array>
-		<string>2DQ678JTNG.com.iumrah.shared</string>
-	</array>
 </dict>
 </plist>
