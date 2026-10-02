@@ -1,0 +1,7 @@
+IUMRAH layout repair applied 2026-10-02
+- Home Integrations carousel now uses the same full-width section/card sizing discipline as Our Products.
+- All three integration cards have identical height, media area, content area and CTA slot.
+- Care root layout returned to Account-style page container.
+- About iumrah rebuilt as a single adaptive column with 3 years experience.
+- Travelers page clamped to the standard page column with adaptive fact rows.
+- No launch/backend/Wallet/Booking logic changed.

@@ -1088,9 +1088,11 @@ struct HomeDashboardView: View {
             GeometryReader { proxy in
                 let availableWidth = max(proxy.size.width, 1)
                 let cardWidth = min(max(availableWidth * 0.88, 286), availableWidth)
+                let cardHeight: CGFloat = 448
+                let cardShape = RoundedRectangle(cornerRadius: 34, style: .continuous)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 14) {
+                    LazyHStack(alignment: .top, spacing: 16) {
                         NavigationLink {
                             UmrahPlanHubView()
                         } label: {
@@ -1103,7 +1105,9 @@ struct HomeDashboardView: View {
                             )
                         }
                         .buttonStyle(.plain)
-                        .frame(width: cardWidth, height: 366)
+                        .frame(width: cardWidth, height: cardHeight)
+                        .clipShape(cardShape)
+                        .contentShape(cardShape)
                         .id("plan")
 
                         NavigationLink {
@@ -1118,7 +1122,9 @@ struct HomeDashboardView: View {
                             )
                         }
                         .buttonStyle(.plain)
-                        .frame(width: cardWidth, height: 366)
+                        .frame(width: cardWidth, height: cardHeight)
+                        .clipShape(cardShape)
+                        .contentShape(cardShape)
                         .id("telegram")
 
                         integrationCard(
@@ -1128,7 +1134,9 @@ struct HomeDashboardView: View {
                             body: integrationSoonBody,
                             cta: nil
                         )
-                        .frame(width: cardWidth, height: 366)
+                        .frame(width: cardWidth, height: cardHeight)
+                        .clipShape(cardShape)
+                        .contentShape(cardShape)
                         .id("soon")
                     }
                     .scrollTargetLayout()
@@ -1138,20 +1146,26 @@ struct HomeDashboardView: View {
                 .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollClipDisabled()
             }
-            .frame(height: 366)
+            .frame(height: 448)
 
             IumrahHomeCarouselDots(count: 3, selectedIndex: integrationCarouselIndex)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func integrationCard(asset: String, badge: String, title: String, body: String, cta: String?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Image(asset)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .frame(height: 176)
-                .clipped()
+            ZStack {
+                Color.white
+                Image(asset)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 210)
+            .clipped()
 
             VStack(alignment: .leading, spacing: 10) {
                 Text(badge)
@@ -1160,9 +1174,10 @@ struct HomeDashboardView: View {
                     .foregroundStyle(.secondary)
 
                 Text(title)
-                    .font(.system(size: 23, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
                     .tracking(-0.45)
                     .foregroundStyle(.primary)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(body)
@@ -1171,28 +1186,29 @@ struct HomeDashboardView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 8)
 
-                if let cta {
-                    HStack(spacing: 8) {
-                        Text(cta)
-                        Spacer(minLength: 8)
-                        Image(systemName: "arrow.right")
-                    }
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 15)
-                    .frame(height: 46)
-                    .background(Color.black, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                HStack(spacing: 8) {
+                    Text(cta ?? integrationSoonBadge)
+                    Spacer(minLength: 8)
+                    Image(systemName: cta == nil ? "clock.fill" : "arrow.right")
                 }
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(cta == nil ? Color.secondary : Color.white)
+                .padding(.horizontal, 16)
+                .frame(height: 48)
+                .background(
+                    cta == nil ? Color.iumrahRaisedBackground : Color.black,
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                )
             }
             .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .background(Color.iumrahCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 34, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
         }
     }

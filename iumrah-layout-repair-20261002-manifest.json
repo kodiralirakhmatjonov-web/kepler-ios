@@ -1,0 +1,16 @@
+{
+  "name": "iumrah layout repair integrations care about travelers",
+  "date": "2026-10-02",
+  "scope": [
+    "Sources/Views/Home/HomeDashboardView.swift",
+    "Sources/Views/Home/IumrahStoryView.swift",
+    "Sources/Views/Tabs/CareHomeView.swift",
+    "Sources/AppShell/IumrahTravelCompanionsView.swift"
+  ],
+  "notes": [
+    "No app launch files changed",
+    "No backend files changed",
+    "No WidgetKit files changed",
+    "No Booking or Wallet business logic changed"
+  ]
+}

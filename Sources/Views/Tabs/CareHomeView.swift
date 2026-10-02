@@ -19,34 +19,27 @@ struct CareHomeView: View {
     }
 
     var body: some View {
-        GeometryReader { viewport in
-            let contentWidth = max(0, viewport.size.width - (IumrahDesign.pagePadding * 2))
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                IumrahRootPageTitle(title: "iumrah Care")
+                    .padding(.bottom, 14)
 
-            ScrollView(showsIndicators: false) {
-                // Match Account's root-page architecture: one regular VStack,
-                // one shared horizontal inset, and one stable content width.
-                VStack(alignment: .leading, spacing: 0) {
-                    IumrahRootPageTitle(title: "iumrah Care")
-                        .padding(.bottom, 14)
+                intro
+                    .padding(.bottom, 24)
 
-                    intro
-                        .padding(.bottom, 24)
+                careHero
+                    .padding(.bottom, 28)
 
-                    careHero
-                        .padding(.bottom, 28)
+                helpTopics
+                    .padding(.bottom, 30)
 
-                    helpTopics
-                        .padding(.bottom, 30)
-
-                    quickAnswers
-                        .padding(.bottom, 14)
-                }
-                .frame(width: contentWidth, alignment: .topLeading)
-                .padding(.horizontal, IumrahDesign.pagePadding)
-                .padding(.top, 10)
-                .padding(.bottom, 112)
+                quickAnswers
+                    .padding(.bottom, 14)
             }
-            .frame(width: viewport.size.width, alignment: .topLeading)
+            .padding(.horizontal, IumrahDesign.pagePadding)
+            .padding(.top, 10)
+            .padding(.bottom, 112)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
         .navigationTitle("")

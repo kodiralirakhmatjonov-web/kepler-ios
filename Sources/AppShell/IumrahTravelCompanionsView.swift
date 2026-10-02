@@ -34,6 +34,7 @@ struct IumrahTravelCompanionsView: View {
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 14)
             .padding(.bottom, 42)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(Color.iumrahPageBackground)
         .navigationTitle(tr("Travelers", "Кто едет с Вами", "Sayohatchilar", "Саёҳатчилар"))
@@ -47,7 +48,7 @@ struct IumrahTravelCompanionsView: View {
                 .resizable()
                 .scaledToFill()
                 .frame(maxWidth: .infinity)
-                .frame(height: 118)
+                .frame(height: 136)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
@@ -175,18 +176,38 @@ struct IumrahTravelCompanionsView: View {
         .shadow(color: .black.opacity(0.045), radius: 18, y: 8)
     }
     private func factRow(icon: String, title: String, value: String) -> some View {
-        HStack(spacing: 11) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 24)
-                .foregroundStyle(.primary)
-            Text(title)
-                .font(.subheadline)
-            Spacer(minLength: 10)
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 11) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 24)
+                    .foregroundStyle(.primary)
+                Text(title)
+                    .font(.subheadline)
+                    .lineLimit(1)
+                Spacer(minLength: 10)
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+
+            HStack(alignment: .top, spacing: 11) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 24)
+                    .foregroundStyle(.primary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.subheadline)
+                    Text(value)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
         }
     }
     private var travelers: [TravelerItem] {
