@@ -1,0 +1,5 @@
+{
+  "name": "iumrah-beta-update-booking-schedule-compile-fix-20261002",
+  "files": ["Sources/Views/Booking/BookingItineraryCalendarView.swift"],
+  "reason": "Fix Date? optional compile failure in current-day itinerary temporal state"
+}

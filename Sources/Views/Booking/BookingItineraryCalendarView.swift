@@ -466,7 +466,7 @@ struct BookingItineraryCalendarView: View {
             return .neutral
         }
         let now = Date()
-        let end = localDateTime(day: item.dateLocal, time: item.endTimeLocal) ?? Calendar.current.date(byAdding: .minute, value: 50, to: start)
+        let end = localDateTime(day: item.dateLocal, time: item.endTimeLocal) ?? start.addingTimeInterval(50 * 60)
         if now < start { return .upcoming }
         if now >= start && now <= end { return .active }
         return .completed

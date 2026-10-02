@@ -1,0 +1,2 @@
+Fixes the only Swift compile error reported by logs_100164818417.zip:
+BookingItineraryCalendarView temporalState() now uses a non-optional fallback Date.
