@@ -112,6 +112,7 @@ struct RemotePackageEngineClient {
             tier: trip.packageTier.rawValue,
             tripType: trip.resolvedFlightTripType.rawValue,
             includeMadinah: trip.scope == .makkahAndMadinah,
+            stayPolicy: trip.hotelFirstStayPolicy == true ? "hotelFirst" : "balanced",
             travelers: .init(adults: trip.adults, children: trip.children, infants: trip.infants, rooms: trip.rooms),
             meals: .init(
                 makkahLunch: trip.effectiveMealSelection.makkahLunch,
@@ -179,6 +180,7 @@ private struct ServerPackageQuote: Decodable {
     let isEstimated: Bool
     let quoteId: String
     let quoteProof: String
+    let stayPlan: PackageStayPlan?
 
     var publicQuote: PackageQuote {
         PackageQuote(
@@ -187,7 +189,8 @@ private struct ServerPackageQuote: Decodable {
             currency: currency,
             isEstimated: isEstimated,
             quoteId: quoteId,
-            quoteProof: quoteProof
+            quoteProof: quoteProof,
+            stayPlan: stayPlan
         )
     }
 }
@@ -210,6 +213,7 @@ private struct ServerPackageQuoteRequest: Encodable {
     let tier: String
     let tripType: String
     let includeMadinah: Bool
+    let stayPolicy: String
     let travelers: Travelers
     let meals: Meals
     let transferVehicle: String?

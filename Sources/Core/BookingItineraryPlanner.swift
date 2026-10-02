@@ -33,7 +33,10 @@ enum BookingItineraryPlanner {
                 location: location,
                 notes: "",
                 createdAt: "",
-                updatedAt: ""
+                updatedAt: "",
+                timeLocal: nil,
+                endTimeLocal: nil,
+                kind: nil
             ))
             occupied.insert(day)
         }

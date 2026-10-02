@@ -64,7 +64,23 @@ struct BookingService {
         return response
     }
 
-    func fetchItinerary(id: String, headers: [String: String]) async throws -> [BookingItineraryItem] {
+    func fetchItinerary(id: String, headers: [String: String], language: AppSettingsStore.Language) async throws -> [BookingItineraryItem] {
+        do {
+            let response: BookingItineraryResponse = try await api.get(
+                "/api/package/booking/\(id)/itinerary",
+                query: [URLQueryItem(name: "lang", value: language.rawValue)],
+                headers: headers
+            )
+            if response.ok, !response.items.isEmpty {
+                return response.items.sorted { lhs, rhs in
+                    if lhs.dateLocal != rhs.dateLocal { return lhs.dateLocal < rhs.dateLocal }
+                    return lhs.sortOrder < rhs.sortOrder
+                }
+            }
+        } catch {
+            // Backward-compatible fallback while the PackageEngine deployment rolls out.
+        }
+
         let response: BookingItineraryResponse = try await api.get(
             "/api/catalog/hotels/client/trips/\(id)/itinerary",
             headers: headers

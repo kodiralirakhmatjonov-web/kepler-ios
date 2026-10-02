@@ -1,0 +1,6 @@
+IUMRAH_TIME_AWARE_ITINERARY_ENGINE_20261002_APPLIED
+
+PackageEngine now owns time-aware stay planning from verified provider flight timestamps.
+Hotel nights are derived from actual Saudi arrival/departure timing with airport/transfer buffers.
+Booking itinerary exposes exact local times for arrival, airport exit, hotel transfers/check-ins,
+intercity transfer, Umrah, ziyarat, checkout, airport transfer, and departure.

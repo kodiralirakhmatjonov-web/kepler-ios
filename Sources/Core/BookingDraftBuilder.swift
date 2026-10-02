@@ -18,8 +18,25 @@ enum BookingDraftBuilder {
         language: AppSettingsStore.Language,
         pilgrimProfile: BookingPilgrimProfile?
     ) -> BookingCreateEnvelope {
-        let stay = TripStayPlanner.breakdown(for: trip)
-        let dates = stayDates(trip: trip, stay: stay)
+        let stay: TripStayBreakdown
+        let dates: StayDates
+        if let serverStay = quote.stayPlan {
+            stay = TripStayBreakdown(
+                totalNights: serverStay.totalNights,
+                totalDays: serverStay.totalDays,
+                makkahNights: serverStay.makkahNights,
+                madinahNights: serverStay.madinahNights
+            )
+            dates = StayDates(
+                makkahCheckIn: serverStay.makkahCheckIn,
+                makkahCheckOut: serverStay.makkahCheckOut,
+                madinahCheckIn: serverStay.madinahCheckIn,
+                madinahCheckOut: serverStay.madinahCheckOut
+            )
+        } else {
+            stay = TripStayPlanner.breakdown(for: trip)
+            dates = stayDates(trip: trip, stay: stay)
+        }
         let includeMadinah = trip.scope == .makkahAndMadinah
         // Haramain is an explicit hybrid-route add-on. Package tier never enables
         // it implicitly; the transfer stage passes the selected intercity mode.
@@ -72,6 +89,7 @@ enum BookingDraftBuilder {
                 madinahCheckOut: dates.madinahCheckOut,
                 madinahNights: stay.madinahNights
             ),
+            stayPolicy: trip.hotelFirstStayPolicy == true ? "hotelFirst" : "balanced",
             selection: .init(
                 flightId: [outbound.id, inbound?.id].compactMap { $0 }.joined(separator: "|"),
                 makkahHotelId: hotel.id,

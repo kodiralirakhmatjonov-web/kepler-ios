@@ -12,6 +12,7 @@ struct BookingDraftRequest: Encodable {
     let input: BookingInput
     let route: BookingRoute
     let stay: BookingStay
+    let stayPolicy: String
     let selection: BookingSelection
     let customization: BookingCustomization
     let includedServices: [String]
@@ -220,11 +221,16 @@ struct BookingItineraryItem: Codable, Identifiable, Hashable {
     let notes: String
     let createdAt: String
     let updatedAt: String
+    let timeLocal: String?
+    let endTimeLocal: String?
+    let kind: String?
 }
 
 struct BookingItineraryResponse: Decodable {
     let ok: Bool
     let bookingID: String
+    let timezone: String?
+    let stayPlan: PackageStayPlan?
     let items: [BookingItineraryItem]
 }
 

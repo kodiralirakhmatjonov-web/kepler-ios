@@ -22,6 +22,9 @@ struct BookingItineraryCalendarView: View {
     /// When that happens, use the package-aware baseline generated from the exact
     /// hotel stay dates and arrival city instead of presenting a broken schedule.
     private var items: [BookingItineraryItem] {
+        if serverItems.contains(where: { $0.timeLocal != nil }) {
+            return serverItems
+        }
         let distinctServerDays = Set(serverItems.map(\.dateLocal)).count
         let tripDayCount = Self.dayRange(from: startDate, through: endDate).count
         let minimumUsefulDays = min(3, max(2, tripDayCount - 1))
@@ -118,7 +121,7 @@ struct BookingItineraryCalendarView: View {
             if selectedDay == nil { selectedDay = days.first }
             loading = true
             do {
-                _ = try await bookings.loadItinerary(for: bookingID)
+                _ = try await bookings.loadItinerary(for: bookingID, language: settings.language)
                 errorText = nil
                 if selectedDay == nil { selectedDay = days.first }
             } catch {
@@ -161,7 +164,23 @@ struct BookingItineraryCalendarView: View {
     }
 
     private func eventRow(_ item: BookingItineraryItem) -> some View {
-        HStack(alignment: .top, spacing: 13) {
+        HStack(alignment: .top, spacing: 11) {
+            if let time = item.timeLocal, !time.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(time)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                    if let end = item.endTimeLocal, !end.isEmpty, end != time {
+                        Text(end)
+                            .font(.caption2.weight(.semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 43, alignment: .leading)
+                .padding(.top, 2)
+            }
+
             IumrahIconBadge(
                 systemName: safeIcon(item.icon),
                 size: 40,
@@ -211,10 +230,10 @@ struct BookingItineraryCalendarView: View {
 
     private var subtitle: String {
         switch settings.language {
-        case .russian: return "По дням — прилёт, Умра, зияраты и трансферы"
-        case .english: return "Arrival, Umrah, visits and transfers by day"
-        case .uzbek: return "Kunlar bo‘yicha parvoz, Umra, ziyorat va transferlar"
-        case .uzbekCyrillic: return "Кунлар бўйича парвоз, Умра, зиёрат ва трансферлар"
+        case .russian: return "По времени — прилёт, отели, Умра, зияраты и трансферы"
+        case .english: return "Timed arrival, hotels, Umrah, visits and transfers"
+        case .uzbek: return "Vaqt bo‘yicha parvoz, mehmonxona, Umra va transferlar"
+        case .uzbekCyrillic: return "Вақт бўйича парвоз, меҳмонхона, Умра ва трансферлар"
         }
     }
 

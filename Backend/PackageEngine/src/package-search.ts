@@ -3,6 +3,7 @@ import { readFlightSearchCache, type NormalizedFlightSearch } from "./flight-cac
 import { resolveServerHotelPricing } from "./hotel-costs";
 import { calculatePackageQuote, calculateStorefrontPreviewQuote, type PackageTier, type ServerQuoteInput, type TripType, type TransferVehicle, type VerifiedJourneyFare } from "./pricing";
 import { sealPricingSnapshot } from "./quote-audit";
+import { deriveAuthoritativeStayPlan, type StayPolicy, type VerifiedFlightSchedule } from "./itinerary-planner";
 
 type QuoteRequest = {
   tier?: unknown;
@@ -23,6 +24,7 @@ type QuoteRequest = {
     makkah?: { hotelId?: unknown; roomId?: unknown; nights?: unknown };
     madinah?: { hotelId?: unknown; roomId?: unknown; nights?: unknown } | null;
   };
+  stayPolicy?: unknown;
 };
 
 type CuratedRow = {
@@ -41,7 +43,7 @@ type CachedItinerary = {
   observed_at?: string;
   fare_scope?: string;
   price?: { amount?: number; currency?: string; status?: string };
-  legs?: Array<{ departure_at?: string }>;
+  legs?: Array<{ origin?: string; destination?: string; departure_at?: string; arrival_at?: string }>;
 };
 
 const IATA = /^[A-Z]{3}$/;
@@ -194,6 +196,87 @@ async function resolveJourneyFare(request: QuoteRequest, travelerCount: number, 
   return resolveIgnavFare(request, travelers, env);
 }
 
+type ScheduleLeg = { origin?: string; destination?: string; departure_at?: string; arrival_at?: string };
+
+function normalizedScheduleLeg(value: ScheduleLeg | undefined): VerifiedFlightSchedule["outbound"] | null {
+  if (!value) return null;
+  const origin = text(value.origin, 3).toUpperCase();
+  const destination = text(value.destination, 3).toUpperCase();
+  const departureAt = text(value.departure_at, 64);
+  const arrivalAt = text(value.arrival_at, 64);
+  if (!IATA.test(origin) || !IATA.test(destination) || origin === destination) return null;
+  if (!Number.isFinite(Date.parse(departureAt)) || !Number.isFinite(Date.parse(arrivalAt)) || Date.parse(departureAt) >= Date.parse(arrivalAt)) return null;
+  return { origin, destination, departureAt, arrivalAt };
+}
+
+async function resolveCuratedSchedule(providerItineraryId: string, env: Env): Promise<VerifiedFlightSchedule | null> {
+  if (!env.HOTELS_DB) return null;
+  const raw = providerItineraryId.slice("curated:".length);
+  const ids = raw.split("+").map((id) => id.trim()).filter(Boolean);
+  if (ids.length < 1 || ids.length > 2) return null;
+  const allLegs: ScheduleLeg[] = [];
+  for (const id of ids) {
+    const row = await env.HOTELS_DB.prepare(
+      "SELECT itinerary_json FROM curated_flight_offers WHERE id=?1 AND published=1 LIMIT 1",
+    ).bind(id).first<{ itinerary_json: string }>();
+    if (!row) return null;
+    try {
+      const itinerary = JSON.parse(row.itinerary_json || "{}") as { legs?: ScheduleLeg[] };
+      const legs = Array.isArray(itinerary.legs) ? itinerary.legs : [];
+      if (ids.length === 1) allLegs.push(...legs.slice(0, 2));
+      else if (legs[0]) allLegs.push(legs[0]);
+    } catch { return null; }
+  }
+  const outbound = normalizedScheduleLeg(allLegs[0]);
+  if (!outbound) return null;
+  const inbound = normalizedScheduleLeg(allLegs[1]);
+  return { outbound, inbound };
+}
+
+async function resolveIgnavSchedule(request: QuoteRequest, travelers: { adults: number; children: number; infants: number }, env: Env): Promise<VerifiedFlightSchedule | null> {
+  if (!env.HOTELS_DB || !request.flight) return null;
+  const providerItineraryId = text(request.flight.providerItineraryId, 220);
+  const legs = Array.isArray(request.flight.legs) ? request.flight.legs : [];
+  if (!providerItineraryId || legs.length < 1 || legs.length > 2) return null;
+  const normalizedLegs = legs.map((leg) => ({
+    origin: text(leg.origin, 3).toUpperCase(),
+    destination: text(leg.destination, 3).toUpperCase(),
+    departure_date: text(leg.departureDate, 10),
+  }));
+  if (normalizedLegs.some((leg) => !IATA.test(leg.origin) || !IATA.test(leg.destination) || !DATE.test(leg.departure_date))) return null;
+  const cabin = text(request.flight.cabinClass, 30) || "economy";
+  const infantsInSeat = int(request.flight.infantsInSeat ?? 0, 0, 8);
+  const infantsOnLap = int(request.flight.infantsOnLap ?? 0, 0, 8);
+  const cached = await readFlightSearchCache(env.HOTELS_DB, {
+    legs: normalizedLegs, adults: travelers.adults, children: travelers.children,
+    infants_in_seat: infantsInSeat, infants_on_lap: infantsOnLap, cabin_class: cabin,
+    allow_self_transfer: true, market: "US",
+  });
+  if (!cached) return null;
+  const itineraries = Array.isArray(cached.itineraries) ? cached.itineraries as CachedItinerary[] : [];
+  const itinerary = itineraries.find((item) => item.id === providerItineraryId || item.ignav_id === providerItineraryId);
+  const scheduleLegs = Array.isArray(itinerary?.legs) ? itinerary!.legs! : [];
+  const outbound = normalizedScheduleLeg(scheduleLegs[0]);
+  if (!outbound) return null;
+  return { outbound, inbound: normalizedScheduleLeg(scheduleLegs[1]) };
+}
+
+async function resolveJourneySchedule(request: QuoteRequest, travelers: { adults: number; children: number; infants: number }, env: Env): Promise<VerifiedFlightSchedule | null> {
+  try {
+    const providerID = text(request.flight?.providerItineraryId, 220);
+    if (providerID.startsWith("curated:")) return await resolveCuratedSchedule(providerID, env);
+    return await resolveIgnavSchedule(request, travelers, env);
+  } catch {
+    // Schedule enrichment must never make an otherwise valid quote unavailable.
+    // In that case the engine preserves the selected night count and marks it fallback.
+    return null;
+  }
+}
+
+function parseStayPolicy(value: unknown): StayPolicy {
+  return text(value, 24) === "hotelFirst" ? "hotelFirst" : "balanced";
+}
+
 export async function generatePackageQuote(request: Request, env: Env): Promise<Response> {
   let raw: QuoteRequest;
   try { raw = await request.json() as QuoteRequest; }
@@ -216,10 +299,20 @@ export async function generatePackageQuote(request: Request, env: Env): Promise<
 
     const makkahRequest = parseHotel(raw.hotels?.makkah, "MAKKAH");
     const madinahRequest = includeMadinah ? parseHotel(raw.hotels?.madinah, "MADINAH") : null;
-    const [journeyFare, makkahHotel, madinahHotel] = await Promise.all([
+    const [journeyFare, verifiedSchedule] = await Promise.all([
       resolveJourneyFare(raw, travelerCount, { adults, children, infants }, env),
-      resolveServerHotelPricing(env.HOTELS_DB, makkahRequest.hotelId, makkahRequest.roomId, makkahRequest.nights),
-      madinahRequest ? resolveServerHotelPricing(env.HOTELS_DB, madinahRequest.hotelId, madinahRequest.roomId, madinahRequest.nights) : Promise.resolve(null),
+      resolveJourneySchedule(raw, { adults, children, infants }, env),
+    ]);
+    const stayPlan = deriveAuthoritativeStayPlan({
+      includeMadinah,
+      requestedMakkahNights: makkahRequest.nights,
+      requestedMadinahNights: madinahRequest?.nights ?? 0,
+      stayPolicy: parseStayPolicy(raw.stayPolicy),
+      schedule: verifiedSchedule,
+    });
+    const [makkahHotel, madinahHotel] = await Promise.all([
+      resolveServerHotelPricing(env.HOTELS_DB, makkahRequest.hotelId, makkahRequest.roomId, stayPlan.makkahNights),
+      madinahRequest ? resolveServerHotelPricing(env.HOTELS_DB, madinahRequest.hotelId, madinahRequest.roomId, stayPlan.madinahNights) : Promise.resolve(null),
     ]);
 
     const fareClass = text(raw.haramain?.fareClass, 20) === "business" ? "business" : "economy";
@@ -256,6 +349,7 @@ export async function generatePackageQuote(request: Request, env: Env): Promise<
         isEstimated: calculated.isEstimated,
         quoteId: calculated.quoteId,
         quoteProof,
+        stayPlan,
       },
     });
   } catch (error) {

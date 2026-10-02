@@ -15,6 +15,7 @@ import { commitPackageQuoteReport } from "./booking-gateway";
 import { quoteSealingMode } from "./quote-audit";
 import { createCarePackageRequest, listCarePackageRequests, updateCarePackageRequest } from "./care-requests";
 import { createTelegramBookingLink, getTelegramBookingStatus } from "./telegram-bridge";
+import { getBookingItineraryPlan } from "./itinerary-planner";
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -175,6 +176,12 @@ export default {
     const bookingTelegramStatusMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/telegram-status$/);
     if (bookingTelegramStatusMatch) {
       if (request.method === "GET") return getTelegramBookingStatus(request, bookingTelegramStatusMatch[1], env);
+      return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
+    const bookingItineraryMatch = url.pathname.match(/^\/api\/package\/booking\/(IUM-\d{4}-[A-Z2-9]{7})\/itinerary$/);
+    if (bookingItineraryMatch) {
+      if (request.method === "GET") return getBookingItineraryPlan(request, bookingItineraryMatch[1], env, url);
       return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
     }
 

@@ -367,6 +367,24 @@ struct FlightOffer: Identifiable, Hashable, Codable {
 
 }
 
+struct PackageStayPlan: Hashable, Codable {
+    let timezone: String
+    let source: String
+    let firstCity: String
+    let lastCity: String
+    let totalNights: Int
+    let totalDays: Int
+    let makkahNights: Int
+    let madinahNights: Int
+    let makkahCheckIn: String
+    let makkahCheckOut: String
+    let madinahCheckIn: String?
+    let madinahCheckOut: String?
+    let hotelReadyAt: String?
+    let leaveHotelAt: String?
+    let earlyArrivalNight: Bool
+}
+
 struct PackageQuote: Hashable, Codable {
     let totalPackagePrice: Decimal
     let pricePerPerson: Decimal
@@ -377,13 +395,15 @@ struct PackageQuote: Hashable, Codable {
     /// It is intentionally unreadable by iOS/Android/Web and is submitted only
     /// after a real booking exists so PackageEngine can persist the Business audit.
     let quoteProof: String?
+    let stayPlan: PackageStayPlan?
     init(
         totalPackagePrice: Decimal,
         pricePerPerson: Decimal,
         currency: String,
         isEstimated: Bool,
         quoteId: String?,
-        quoteProof: String? = nil
+        quoteProof: String? = nil,
+        stayPlan: PackageStayPlan? = nil
     ) {
         self.totalPackagePrice = totalPackagePrice
         self.pricePerPerson = pricePerPerson
@@ -391,6 +411,7 @@ struct PackageQuote: Hashable, Codable {
         self.isEstimated = isEstimated
         self.quoteId = quoteId
         self.quoteProof = quoteProof
+        self.stayPlan = stayPlan
     }
 }
 

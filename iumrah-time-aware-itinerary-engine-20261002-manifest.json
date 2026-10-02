@@ -1,0 +1,97 @@
+{
+  "schema": "iumrah.beta.update.v1",
+  "name": "time-aware-itinerary-engine",
+  "date": "2026-10-02",
+  "requires_package_engine_deploy": true,
+  "requires_testflight_build": true,
+  "d1_migration_required": false,
+  "architecture": {
+    "timezone": "Asia/Riyadh",
+    "airport_exit_minutes": 120,
+    "international_airport_buffer_minutes": 180,
+    "jed_makkah_transfer_minutes": 105,
+    "med_madinah_transfer_minutes": 40,
+    "cross_city_transfer_minutes": 300,
+    "haramain_door_to_door_minutes": 210,
+    "hotel_standard_checkin": "15:00",
+    "hotel_standard_checkout": "12:00"
+  },
+  "notes": [
+    "Server verifies flight timestamps from curated inventory or the server flight cache; client-supplied times are not trusted for hotel-night pricing.",
+    "If exact provider schedule is unavailable or clearly inconsistent, existing requested-night behavior is preserved as a fail-safe.",
+    "Existing bookings may receive a richer display itinerary if their stored generatorTrace contains exact flight times; historical financial terms are not repriced.",
+    "New quotes persist the authoritative stayPlan into booking data and validate hotel-night counts against the sealed quote."
+  ],
+  "files": [
+    {
+      "path": "Backend/PackageEngine/src/booking-gateway.ts",
+      "sha256": "01112d440fadb52f97b979c193fa4fa6021a7c3011596fdf0b90eb7e4c62f9d7",
+      "bytes": 10138
+    },
+    {
+      "path": "Backend/PackageEngine/src/index.ts",
+      "sha256": "9d479fb4131ac7aa0dd3048a6bb31adb885bd2b66ee807e9905197e4ae1b6d0a",
+      "bytes": 14441
+    },
+    {
+      "path": "Backend/PackageEngine/src/itinerary-planner.ts",
+      "sha256": "a17fea4abeee25bd238df933cc6db77bcf67af0fa2631246a40c84821440efb9",
+      "bytes": 29318
+    },
+    {
+      "path": "Backend/PackageEngine/src/package-search.ts",
+      "sha256": "ad7954ee3bab9d6de5a4179b672172ac5112010e84023bc8df5d5209e59b07f8",
+      "bytes": 21991
+    },
+    {
+      "path": "Backend/PackageEngine/test/itinerary-planner-contract.test.mjs",
+      "sha256": "e2e989be559858715f0fce1cde9cdfb8dd5f8ff524a318c3a5c4e0f952e5ddc1",
+      "bytes": 2597
+    },
+    {
+      "path": "IUMRAH_TIME_AWARE_ITINERARY_ENGINE_20261002_APPLIED.txt",
+      "sha256": "e3be0cd87a1d78e5094722c85f42b7807087f3c24fb9db1c6cbe3693e77debb0",
+      "bytes": 419
+    },
+    {
+      "path": "Sources/Core/BookingDraftBuilder.swift",
+      "sha256": "268d77866db081f584f6d77607559ad55fb39277fe74f06c2081d951f6907d9e",
+      "bytes": 10485
+    },
+    {
+      "path": "Sources/Core/BookingItineraryPlanner.swift",
+      "sha256": "22a9ae517e6387cfaeea642769333e4b9664bdc4344aaba6141d9029f1a2b058",
+      "bytes": 18209
+    },
+    {
+      "path": "Sources/Models/BookingModels.swift",
+      "sha256": "47933c48606693f19aa37e3543557e6b9fd727380c42228a1b915ca5b4c3e32b",
+      "bytes": 15224
+    },
+    {
+      "path": "Sources/Models/FlightModels.swift",
+      "sha256": "1074be69cd3531a857019ea4f98f4c19443b480b8624184563709aecf525838e",
+      "bytes": 17401
+    },
+    {
+      "path": "Sources/Services/BookingService.swift",
+      "sha256": "20bd0b09a4c8e22de6ffd8a14ffdfd30e894e735fcbef4f00682d8a36d7750fb",
+      "bytes": 9841
+    },
+    {
+      "path": "Sources/Services/RemotePackageEngineClient.swift",
+      "sha256": "55e9abdb6a3d2be720c275d115391e8d438c7ff6697c8bb31a4344cb618704d6",
+      "bytes": 10441
+    },
+    {
+      "path": "Sources/State/BookingStore.swift",
+      "sha256": "91b098868a4b14df27eb8e7a64c9d1b67e3b59d828fb98d842a86fbc30a4a146",
+      "bytes": 39080
+    },
+    {
+      "path": "Sources/Views/Booking/BookingItineraryCalendarView.swift",
+      "sha256": "7b6c94dcc3d20f2a435b4c62d981f7fe09b71831e2da32002b080f319a23dd62",
+      "bytes": 11902
+    }
+  ]
+}

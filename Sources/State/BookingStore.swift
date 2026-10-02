@@ -417,10 +417,10 @@ final class BookingStore: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    func loadItinerary(for bookingID: String) async throws -> [BookingItineraryItem] {
+    func loadItinerary(for bookingID: String, language: AppSettingsStore.Language) async throws -> [BookingItineraryItem] {
         guard let session = booking(id: bookingID) else { throw APIError.missingBookingToken }
         let (items, _) = try await performWithClientAuthorization(for: session) { headers in
-            try await bookingService.fetchItinerary(id: bookingID, headers: headers)
+            try await bookingService.fetchItinerary(id: bookingID, headers: headers, language: language)
         }
         itineraries[bookingID] = items
         return items

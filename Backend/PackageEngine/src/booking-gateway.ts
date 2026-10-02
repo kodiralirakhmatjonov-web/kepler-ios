@@ -63,6 +63,15 @@ function assertBookingMatchesSnapshot(booking: Record<string, any>, snapshot: Ge
   const expectedMadinah = snapshot.selectedPricingInputs.madinahHotel?.hotelId ?? "";
   if (String(selection.madinahHotelId ?? "") !== expectedMadinah) throw new Error("BOOKING_QUOTE_MADINAH_HOTEL_MISMATCH");
 
+  const stay = booking.stay ?? {};
+  if (Number(stay.makkahNights ?? -1) !== snapshot.selectedPricingInputs.makkahHotel.nights) {
+    throw new Error("BOOKING_QUOTE_MAKKAH_NIGHTS_MISMATCH");
+  }
+  const expectedMadinahNights = snapshot.selectedPricingInputs.madinahHotel?.nights ?? 0;
+  if (Number(stay.madinahNights ?? 0) !== expectedMadinahNights) {
+    throw new Error("BOOKING_QUOTE_MADINAH_NIGHTS_MISMATCH");
+  }
+
   const traceQuoteID = String(booking.generatorTrace?.quoteId ?? "");
   if (traceQuoteID && traceQuoteID !== snapshot.quoteId) throw new Error("BOOKING_QUOTE_ID_MISMATCH");
 }
