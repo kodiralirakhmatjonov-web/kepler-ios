@@ -1,0 +1,14 @@
+{
+  "name": "iumrah-beta-update-20261002-booking-schedule-ui-v1",
+  "version": 1,
+  "generated_at": "2026-10-02T00:00:00Z",
+  "description": "Adds the third Booking/Status/Schedule switcher tab, a dedicated full trip schedule page, and a time-aware itinerary timeline UI with current-day emphasis.",
+  "files": [
+    "Sources/Views/Booking/BookingPageSwitcher.swift",
+    "Sources/Views/Booking/BookingScheduleView.swift",
+    "Sources/Views/Booking/BookingItineraryCalendarView.swift",
+    "Sources/Views/Booking/BookingDetailView.swift",
+    "Sources/Views/Booking/PilgrimCheckoutView.swift",
+    "Sources/Views/Tabs/BookingsHomeView.swift"
+  ]
+}

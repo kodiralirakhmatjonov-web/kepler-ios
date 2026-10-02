@@ -61,22 +61,22 @@ struct BookingsHomeView: View {
                 await loadActiveCheckout()
             }
         }
-        .sheet(isPresented: Binding(
-            get: { pendingDeleteID != nil },
-            set: { if !$0 { pendingDeleteID = nil } }
-        )) {
-            IumrahActionConfirmationSheet(
-                imageAsset: "BookingDeleteConfirmHero",
-                title: L10n.text("booking_delete_confirm_title", settings.language),
-                message: L10n.text("booking_delete_confirm_body", settings.language),
-                confirmTitle: L10n.text("booking_delete_confirm_action", settings.language),
-                cancelTitle: L10n.text("cancel", settings.language),
-                confirmColor: .red
-            ) {
+        .confirmationDialog(
+            L10n.text("booking_delete_confirm_title", settings.language),
+            isPresented: Binding(
+                get: { pendingDeleteID != nil },
+                set: { if !$0 { pendingDeleteID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(L10n.text("booking_delete_confirm_action", settings.language), role: .destructive) {
                 guard let id = pendingDeleteID else { return }
                 pendingDeleteID = nil
                 Task { await deleteBooking(id) }
             }
+            Button(L10n.text("cancel", settings.language), role: .cancel) { pendingDeleteID = nil }
+        } message: {
+            Text(L10n.text("booking_delete_confirm_body", settings.language))
         }
         .navigationDestination(isPresented: $chrome.shouldStartTripBuilder) {
             TripBuilderView()
@@ -117,7 +117,7 @@ struct BookingsHomeView: View {
                     .padding(.bottom, 12)
 
                 bookingIdentity(session)
-                    .padding(.bottom, 18)
+                    .padding(.bottom, 28)
 
                 if bookingPanel == .booking {
                     bookingProgress(session)
@@ -155,13 +155,6 @@ struct BookingsHomeView: View {
                         .background(Color(uiColor: .systemRed).opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .padding(.top, 8)
                 }
-
-                IumrahTelegramConnectCard(
-                    session: session,
-                    accountToken: account.bearerToken,
-                    style: .compact
-                )
-                .padding(.top, 28)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
@@ -245,6 +238,8 @@ struct BookingsHomeView: View {
             Text(localized("Статус бронирования", "Booking status", "Bron holati", "Брон ҳолати")).tag(BookingPanel.status)
         }
         .pickerStyle(.segmented)
+        .controlSize(.large)
+        .frame(height: 48)
         .onChange(of: bookingPanel) { _, _ in IumrahHaptics.selection() }
     }
 
@@ -1207,7 +1202,7 @@ struct BookingsHomeView: View {
                     .padding(.leading, 17)
 
                 NavigationLink {
-                    BookingDetailView(bookingID: session.id)
+                    BookingScheduleView(bookingID: session.id)
                 } label: {
                     HStack {
                         Text(openFullPlanTitle)
@@ -1487,13 +1482,6 @@ struct BookingsHomeView: View {
                 )
 
                 bookingEmptyStatusCard
-
-                NavigationLink {
-                    IumrahTelegramIntegrationView()
-                } label: {
-                    IumrahTelegramEntryCard(language: settings.language, large: false)
-                }
-                .buttonStyle(.plain)
 
                 explorePackagesButton
 

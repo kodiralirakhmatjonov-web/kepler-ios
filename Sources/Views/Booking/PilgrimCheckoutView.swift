@@ -80,6 +80,7 @@ struct PilgrimCheckoutView: View {
     @State private var isApplyingFriendBenefit = false
     @State private var friendsMessage: String?
     @State private var showBookingPage = false
+    @State private var showSchedulePage = false
 
     private let service = IumrahAccountService()
     private let bookingService = BookingService()
@@ -99,7 +100,7 @@ struct PilgrimCheckoutView: View {
     var body: some View {
         Group {
             if presentation == .screen {
-                BookingDetailView(bookingID: bookingID, initialPage: .status)
+                screenBody
             } else {
                 embeddedStatusBody
             }
@@ -144,18 +145,12 @@ struct PilgrimCheckoutView: View {
             VStack(spacing: 18) {
                 BookingPageSwitcher(
                     selection: .status,
-                    onBooking: { dismiss() },
-                    onStatus: {}
+                    onBooking: { showBookingPage = true },
+                    onStatus: {},
+                    onSchedule: { showSchedulePage = true }
                 )
                 hero
                 checkoutContent(includeProgress: true)
-                if let session {
-                    IumrahTelegramConnectCard(
-                        session: session,
-                        accountToken: account.bearerToken,
-                        style: .compact
-                    )
-                }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
@@ -179,19 +174,17 @@ struct PilgrimCheckoutView: View {
             }
         }
         .iumrahInternalNavigation()
+        .navigationDestination(isPresented: $showBookingPage) {
+            BookingDetailView(bookingID: bookingID)
+        }
+        .navigationDestination(isPresented: $showSchedulePage) {
+            BookingScheduleView(bookingID: bookingID)
+        }
     }
 
     private var embeddedStatusBody: some View {
         VStack(spacing: 18) {
             checkoutContent(includeProgress: false)
-            if let session {
-                IumrahTelegramConnectCard(
-                    session: session,
-                    accountToken: account.bearerToken,
-                    style: .compact
-                )
-                .padding(.top, 8)
-            }
         }
         .frame(maxWidth: .infinity)
     }

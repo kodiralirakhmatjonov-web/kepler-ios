@@ -1,0 +1,6 @@
+Applied booking schedule UI update (2026-10-02):
+- Added Booking / Status / Schedule top switcher.
+- Added dedicated full schedule screen.
+- Added time-aware itinerary card UI with current-day expansion and active step highlighting.
+- Updated booking and status screens to navigate into the new schedule screen.
+- Updated booking-home trip plan CTA to open the full schedule screen.
