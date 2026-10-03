@@ -10,33 +10,43 @@ struct IumrahTravelCompanionsView: View {
     @State private var errorMessage: String?
 
     private let service = IumrahAccountService()
-    var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                introCard
 
-                if isLoading && checkouts.isEmpty {
-                    loadingCard
-                } else if travelers.isEmpty {
-                    emptyCard
-                } else {
-                    ForEach(travelers) { item in
-                        travelerCard(item)
+    var body: some View {
+        GeometryReader { viewport in
+            let horizontalInset = IumrahDesign.pagePadding
+            let contentWidth = max(0, viewport.size.width - (horizontalInset * 2))
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 18) {
+                    introCard
+
+                    if isLoading && checkouts.isEmpty {
+                        loadingCard
+                    } else if travelers.isEmpty {
+                        emptyCard
+                    } else {
+                        ForEach(travelers) { item in
+                            travelerCard(item)
+                        }
+                    }
+
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 4)
                     }
                 }
-                if let errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.orange)
-                        .padding(.horizontal, 4)
-                }
+                .frame(width: contentWidth, alignment: .topLeading)
+                .padding(.horizontal, horizontalInset)
+                .padding(.top, 14)
+                .padding(.bottom, 42)
             }
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 14)
-            .padding(.bottom, 42)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(width: viewport.size.width)
+            .clipped()
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .background(Color.iumrahPageBackground)
+        .background(Color.iumrahPageBackground.ignoresSafeArea())
         .navigationTitle(tr("Travelers", "Кто едет с Вами", "Sayohatchilar", "Саёҳатчилар"))
         .navigationBarTitleDisplayMode(.large)
         .refreshable { await loadTravelers() }
@@ -46,10 +56,9 @@ struct IumrahTravelCompanionsView: View {
         VStack(alignment: .leading, spacing: 14) {
             Image("TravelCompanionsCover")
                 .resizable()
-                .scaledToFill()
+                .scaledToFit()
                 .frame(maxWidth: .infinity)
                 .frame(height: 136)
-                .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             HStack(alignment: .top, spacing: 13) {
@@ -62,12 +71,18 @@ struct IumrahTravelCompanionsView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .layoutPriority(1)
             }
-            Label(
-                tr("You can fill in passport details while availability is being checked.", "Паспортные данные можно заполнить заранее, пока мы проверяем наличие.", "Mavjudlik tekshirilayotganda pasport ma’lumotlarini oldindan to‘ldirishingiz mumkin.", "Мавжудлик текширилаётганда паспорт маълумотларини олдиндан тўлдиришингиз мумкин."),
-                systemImage: "lightbulb.fill"
-            )
-            .font(.footnote.weight(.semibold))
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 18, height: 20, alignment: .top)
+
+                Text(tr("You can fill in passport details while availability is being checked.", "Паспортные данные можно заполнить заранее, пока мы проверяем наличие.", "Mavjudlik tekshirilayotganda pasport ma’lumotlarini oldindan to‘ldirishingiz mumkin.", "Мавжудлик текширилаётганда паспорт маълумотларини олдиндан тўлдиришингиз мумкин."))
+                    .font(.footnote.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
+            }
             .foregroundStyle(.primary)
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)

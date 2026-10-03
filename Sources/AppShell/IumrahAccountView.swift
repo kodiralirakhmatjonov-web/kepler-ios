@@ -118,18 +118,21 @@ struct IumrahAccountView: View {
                             copyMessage: identityCopyMessage,
                             onCopy: { copyIdentityID(profile) }
                         )
+
+                        // Account starts with the two people-centric actions users need
+                        // before any booking: their own reusable booking profile and the
+                        // saved people who may travel with them.
+                        userDataEntryCard(profile)
+                        travelCompanionsEntryCard
+
                         if let active = activeTrip {
                             IumrahTripWalletEntry(session: active, profile: profile, language: settings.language)
-                        }
-                        walletSection(profile)
-                        if let active = activeTrip {
                             activeTripCard(active)
                         }
                         tripsSection
+                        walletSection(profile)
                         telegramIntegrationSection
-                        travelCompanionsSection
                         paymentSecuritySection
-                        profileSection(profile)
                         settingsSection
                         signOutButton
                     } else {
@@ -780,44 +783,123 @@ struct IumrahAccountView: View {
         .iumrahCard()
     }
 
-    private var travelCompanionsSection: some View {
+    private func userDataEntryCard(_ profile: IumrahAccountProfile) -> some View {
+        NavigationLink {
+            IumrahUserDataView()
+        } label: {
+            HStack(spacing: 14) {
+                IumrahIconBadge(
+                    systemName: "person.crop.circle.fill",
+                    role: .profile,
+                    size: 52,
+                    symbolSize: 22,
+                    cornerRadius: 17
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(displayName(profile))
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    Text(tr(
+                        "Your details for flights, hotels and bookings",
+                        "Ваши данные для билетов, отелей и бронирований",
+                        "Aviachipta, mehmonxona va bron uchun ma’lumotlaringiz",
+                        "Авиачипта, меҳмонхона ва брон учун маълумотларингиз"
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                    Label(
+                        userDataReady
+                            ? tr("Profile ready", "Профиль заполнен", "Profil tayyor", "Профил тайёр")
+                            : tr("Complete your profile", "Заполните данные", "Ma’lumotlarni to‘ldiring", "Маълумотларни тўлдиринг"),
+                        systemImage: userDataReady ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(userDataReady ? Color.green : Color.orange)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(17)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var travelCompanionsEntryCard: some View {
         NavigationLink {
             IumrahTravelCompanionsView()
         } label: {
-            VStack(alignment: .leading, spacing: 14) {
-                Image("TravelCompanionsCover")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 94)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            HStack(spacing: 14) {
+                IumrahIconBadge(
+                    systemName: "person.2.fill",
+                    role: .profile,
+                    size: 52,
+                    symbolSize: 21,
+                    cornerRadius: 17
+                )
 
-                HStack(alignment: .top, spacing: 13) {
-                    IumrahIconBadge(systemName: "person.2.fill", role: .profile, size: 50, symbolSize: 20, cornerRadius: 17)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(tr("Who is traveling with you", "Кто едет с Вами", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"))
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                        Text(tr("Your family and loved ones", "Ваша семья и близкие", "Oilangiz va yaqinlaringiz", "Оилангиз ва яқинларингиз"))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 17)
-                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tr("Who is traveling with you", "Кто едет с Вами", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"))
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
 
-                Text(tr("Keep each traveler’s passport details in a separate, clear card and reuse them for the booking.", "Храните данные каждого участника в отдельной понятной карточке и используйте их в бронировании.", "Har bir sayohatchi ma’lumotini alohida kartada saqlang va bronda ishlating.", "Ҳар бир саёҳатчи маълумотини алоҳида картада сақланг ва бронда ишлатинг."))
-                    .font(.caption)
+                    Text(tr(
+                        "Family, loved ones and other travelers",
+                        "Семья, близкие и другие участники",
+                        "Oila, yaqinlar va boshqa sayohatchilar",
+                        "Оила, яқинлар ва бошқа саёҳатчилар"
+                    ))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(2)
+
+                    Text(tr(
+                        "Separate traveler cards",
+                        "Отдельные карточки участников",
+                        "Har bir sayohatchi uchun alohida karta",
+                        "Ҳар бир саёҳатчи учун алоҳида карта"
+                    ))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
             }
-            .iumrahCard()
+            .padding(17)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+            }
         }
         .buttonStyle(.plain)
+    }
+
+    private var userDataReady: Bool {
+        guard let profile = account.account else { return false }
+        let hasName = !profile.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !profile.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasContact = !profile.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !profile.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasPersonal = !settings.dateOfBirth.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !settings.gender.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !settings.nationality.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return hasName && hasContact && hasPersonal
     }
 
     private func profileSection(_ profile: IumrahAccountProfile) -> some View {
@@ -947,13 +1029,13 @@ struct IumrahAccountView: View {
     private var paymentSecuritySection: some View {
         VStack(alignment: .leading, spacing: 4) {
             sectionHeader(
-                icon: "lock.shield.fill",
-                title: tr("Payment & security", "Оплата и безопасность", "To‘lov va xavfsizlik", "Тўлов ва хавфсизлик"),
+                icon: "creditcard.and.123",
+                title: tr("Payment & privacy", "Оплата и правила", "To‘lov va qoidalar", "Тўлов ва қоидалар"),
                 subtitle: tr(
-                    "Payment, policies, KYC and account protection",
-                    "Оплата, правила, KYC и защита аккаунта",
-                    "To‘lov, qoidalar, KYC va akkaunt himoyasi",
-                    "Тўлов, қоидалар, KYC ва аккаунт ҳимояси"
+                    "Payment methods, refunds and privacy",
+                    "Способы оплаты, возвраты и конфиденциальность",
+                    "To‘lov usullari, qaytarish va maxfiylik",
+                    "Тўлов усуллари, қайтариш ва махфийлик"
                 )
             )
             .padding(.bottom, 8)
@@ -1010,52 +1092,6 @@ struct IumrahAccountView: View {
             }
             .buttonStyle(.plain)
 
-            Divider().padding(.leading, 54)
-
-            if let trip = kycTrip {
-                NavigationLink {
-                    IumrahSecurityConfirmationView(bookingID: trip.id)
-                } label: {
-                    settingsRow(
-                        icon: "person.text.rectangle.fill",
-                        title: "KYC · iumrah Security",
-                        value: tr(
-                            "Identity confirmation for booking \(trip.displayBookingNumber)",
-                            "Подтверждение личности для брони \(trip.displayBookingNumber)",
-                            "\(trip.displayBookingNumber) broni uchun shaxsni tasdiqlash",
-                            "\(trip.displayBookingNumber) брони учун шахсни тасдиқлаш"
-                        )
-                    )
-                }
-                .buttonStyle(.plain)
-            } else {
-                settingsRow(
-                    icon: "person.text.rectangle.fill",
-                    title: "KYC · iumrah Security",
-                    value: tr(
-                        "Available when you have a booking",
-                        "Доступно после создания бронирования",
-                        "Bron yaratilgandan keyin mavjud",
-                        "Брон яратилгандан кейин мавжуд"
-                    )
-                )
-                .opacity(0.58)
-            }
-
-            if account.isAuthenticated {
-                Divider().padding(.leading, 54)
-
-                NavigationLink {
-                    IumrahAccountSecurityView()
-                } label: {
-                    settingsRow(
-                        icon: "lock.shield.fill",
-                        title: tr("Account security", "Безопасность аккаунта", "Akkaunt xavfsizligi", "Аккаунт хавфсизлиги"),
-                        value: tr("Apple, Google and active sessions", "Apple, Google и активные сеансы", "Apple, Google va faol seanslar", "Apple, Google ва фаол сеанслар")
-                    )
-                }
-                .buttonStyle(.plain)
-            }
         }
         .iumrahCard()
     }
@@ -1073,6 +1109,21 @@ struct IumrahAccountView: View {
                 )
             )
             .padding(.bottom, 8)
+
+            if account.isAuthenticated {
+                NavigationLink {
+                    IumrahAccountSecurityView()
+                } label: {
+                    settingsRow(
+                        icon: "lock.shield.fill",
+                        title: tr("Account security", "Безопасность аккаунта", "Akkaunt xavfsizligi", "Аккаунт хавфсизлиги"),
+                        value: tr("Apple, Google and active sessions", "Apple, Google и активные сеансы", "Apple, Google va faol seanslar", "Apple, Google ва фаол сеанслар")
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Divider().padding(.leading, 54)
+            }
 
             Button {
                 IumrahHaptics.soft()

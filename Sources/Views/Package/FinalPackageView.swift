@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 private enum FinalPackageServiceSection: Hashable {
     case outboundFlight
@@ -62,44 +63,59 @@ struct FinalPackageView: View {
                     }
                 )
             } else {
-                ZStack {
-                    Color.iumrahPageBackground
-                        .ignoresSafeArea()
+                GeometryReader { viewport in
+                    ZStack {
+                        Color.iumrahPageBackground
+                            .ignoresSafeArea()
 
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 20) {
-                            IumrahGeneratorHeader(stage: .ready)
-                            packageHeader
-                            if journey.quote != nil, journey.hasFinalGeneratorQuote {
-                                packageTierCarousel
-                                    .padding(.horizontal, -IumrahDesign.pagePadding)
-                                packageRecommendationCard
-                                packageDifferenceCard
-                                packageSupportShortcutsCard
-                            } else {
-                                pricingStatusCard
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(spacing: 20) {
+                                // This zero-size bridge configures only the outer vertical
+                                // Final Package scroll view. The nested horizontal package
+                                // carousel keeps its own native scrolling behavior.
+                                FinalPackageScrollLock()
+                                    .frame(width: 0, height: 0)
+
+                                IumrahGeneratorHeader(stage: .ready)
+                                packageHeader
+                                if journey.quote != nil, journey.hasFinalGeneratorQuote {
+                                    packageTierCarousel
+                                    packageRecommendationCard
+                                    packageDifferenceCard
+                                    packageSupportShortcutsCard
+                                } else {
+                                    pricingStatusCard
+                                }
+                                includedServicesCard
+                                IumrahRefundPolicyCard(component: .package, compact: false)
+                                IumrahManualPaymentNotice()
+                                careReassuranceCard
+                                notificationCard
+
+                                if let errorMessage {
+                                    Text(errorMessage)
+                                        .font(.footnote)
+                                        .foregroundStyle(.red)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 4)
+                                }
+
+                                packagePrimaryActionButton
                             }
-                            includedServicesCard
-                            IumrahRefundPolicyCard(component: .package, compact: false)
-                            IumrahManualPaymentNotice()
-                            careReassuranceCard
-                            notificationCard
-
-                            if let errorMessage {
-                                Text(errorMessage)
-                                    .font(.footnote)
-                                    .foregroundStyle(.red)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 4)
-                            }
-
-                            packagePrimaryActionButton
+                            .padding(.horizontal, IumrahDesign.pagePadding)
+                            .padding(.top, 10)
+                            .padding(.bottom, 32)
+                            // The complete page is constrained to the physical viewport.
+                            // No child can enlarge the vertical ScrollView's content width,
+                            // which removes the browser-like horizontal drift.
+                            .frame(width: viewport.size.width, alignment: .top)
                         }
-                        .padding(.horizontal, IumrahDesign.pagePadding)
-                        .padding(.top, 10)
-                        .padding(.bottom, 32)
+                        .frame(width: viewport.size.width)
+                        .clipped()
+                        .scrollBounceBehavior(.basedOnSize, axes: .vertical)
                     }
-                    .scrollBounceBehavior(.basedOnSize)
+                    .frame(width: viewport.size.width, height: viewport.size.height)
+                    .clipped()
                 }
             }
         }
@@ -2075,6 +2091,38 @@ private struct FinalPackageInformationSheet: View {
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
+        }
+    }
+}
+
+// MARK: - Final package scroll anchoring
+
+/// Keeps the final configurator page physically anchored to the iPhone viewport.
+/// Only the outer vertical UIScrollView is configured; nested horizontal galleries
+/// and the package comparison carousel remain fully interactive.
+private struct FinalPackageScrollLock: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        DispatchQueue.main.async { configureNearestScrollView(from: view) }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async { configureNearestScrollView(from: uiView) }
+    }
+
+    private func configureNearestScrollView(from view: UIView) {
+        var candidate = view.superview
+        while let current = candidate {
+            if let scrollView = current as? UIScrollView {
+                scrollView.alwaysBounceHorizontal = false
+                scrollView.alwaysBounceVertical = false
+                scrollView.bounces = false
+                scrollView.isDirectionalLockEnabled = true
+                return
+            }
+            candidate = current.superview
         }
     }
 }
