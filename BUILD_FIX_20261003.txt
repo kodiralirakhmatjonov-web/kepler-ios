@@ -1,0 +1,8 @@
+Build fix based on GitHub Actions run logs_100548345073.zip:
+- IumrahTravelCompanionsView.swift: made flatMap/compactMap result types explicit.
+- Fixes Swift compiler error: generic parameter 'ElementOfResult' could not be inferred.
+
+Verification performed before packaging:
+- Inspected GitHub Actions simulator-build log; this was the only Swift compiler error in the failing step.
+- Parsed every changed Swift file with swiftc -parse successfully.
+- Verified ZIP root paths start at Sources/ and Resources/ for the update unpacker.

@@ -278,12 +278,15 @@ struct IumrahTravelCompanionsView: View {
     }
 
     private var companions: [TravelerItem] {
-        bookings.sessions.flatMap { session in
+        bookings.sessions.flatMap { session -> [TravelerItem] in
             let checkout = checkouts[session.id]
-            return (checkout?.travelers ?? []).compactMap { traveler in
+            let travelers: [IumrahTravelerForm] = checkout?.travelers ?? []
+
+            return travelers.compactMap { traveler -> TravelerItem? in
                 let relationship = traveler.relationship?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
                 let isOwner = relationship == "self" || (relationship.isEmpty && traveler.position == 1)
                 guard !isOwner else { return nil }
+
                 return TravelerItem(
                     bookingID: session.id,
                     tripTitle: companionTripTitle(session),
