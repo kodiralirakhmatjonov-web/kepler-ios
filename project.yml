@@ -93,5 +93,33 @@ targets:
         products:
           - GoogleSignIn
           - GoogleSignInSwift
+      - target: iUmraWidgets
+        embed: true
     scheme:
       testTargets: []
+
+  iUmraWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: WidgetExtension/IumrahWidgets.swift
+      - path: Sources/WidgetShared/IumrahWidgetSnapshot.swift
+      - path: WidgetExtension/Assets.xcassets
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app.widgets
+        PRODUCT_NAME: iUmraWidgets
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: WidgetExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: WidgetExtension/iUmraWidgets.entitlements
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: "$(IUMRAH_APPLE_TEAM_ID)"
+        CODE_SIGN_IDENTITY: "Apple Distribution"
+        PROVISIONING_PROFILE_SPECIFIER: "$(IUMRAH_WIDGET_PROFILE_NAME)"
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES

@@ -37,6 +37,7 @@ struct RootView: View {
                 guard !Task.isCancelled else { return }
 
                 await bootstrapAfterOnboardingIfNeeded()
+                syncWidgets()
                 await push.ensureAuthorizationForClientNotifications()
                 await syncPushSubscriptions()
                 await syncClientNotifications()
@@ -49,7 +50,8 @@ struct RootView: View {
                     await syncClientNotifications()
                 }
             }
-            .onChange(of: bookings.sessions.map(\.id)) { _, _ in
+            .onChange(of: bookings.sessions) { _, _ in
+                syncWidgets()
                 Task {
                     await linkLocalBookingsToAccount()
                     guard hasCompletedOnboarding else { return }
@@ -58,11 +60,12 @@ struct RootView: View {
                     await syncClientNotifications()
                 }
             }
-            .onChange(of: account.iumrahID) { _, newValue in
+            .onChange(of: account.account) { _, newAccount in
                 bookings.setAccountToken(account.bearerToken)
                 syncLocalProfileFromAccount()
+                syncWidgets()
                 Task { await syncClientNotifications() }
-                guard newValue != nil, let token = account.bearerToken else { return }
+                guard newAccount != nil, let token = account.bearerToken else { return }
                 Task {
                     await bookings.restoreAccountTrips(token: token)
                     await linkLocalBookingsToAccount()
@@ -81,6 +84,7 @@ struct RootView: View {
                 guard completed else { return }
                 Task {
                     await bootstrapAfterOnboardingIfNeeded()
+                    syncWidgets()
                     await push.ensureAuthorizationForClientNotifications()
                     await syncPushSubscriptions()
                     await syncClientNotifications()
@@ -111,6 +115,7 @@ struct RootView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, hasCompletedOnboarding else { return }
+                syncWidgets()
                 Task {
                     await push.refreshAndRegisterIfAllowed()
                     // Retry booking-scoped chat push registration whenever the app
@@ -124,6 +129,27 @@ struct RootView: View {
 
     @MainActor
     private func handleDeepLink(_ url: URL) {
+        if url.scheme?.lowercased() == "iumrah",
+           url.host?.lowercased() == "widget" {
+            let components = url.pathComponents.filter { $0 != "/" }
+            guard let destination = components.first?.lowercased() else { return }
+
+            switch destination {
+            case "booking":
+                guard components.count >= 2 else { return }
+                let bookingID = components[1].removingPercentEncoding ?? components[1]
+                guard !bookingID.isEmpty else { return }
+                chrome.openBooking(id: bookingID)
+            case "planned":
+                chrome.openUmrahPlan()
+            case "account":
+                chrome.navigate(to: .account)
+            default:
+                break
+            }
+            return
+        }
+
         let hotelID: String?
 
         if url.scheme?.lowercased() == "https",
@@ -200,6 +226,15 @@ struct RootView: View {
             id: hotelID,
             openConfigurator: openConfigurator,
             configuratorDeepLink: configuratorDeepLink
+        )
+    }
+
+    @MainActor
+    private func syncWidgets() {
+        IumrahWidgetSyncService.sync(
+            bookings: bookings.sessions,
+            account: account.account,
+            plannedTrip: UmrahPlanStore.shared.trip
         )
     }
 

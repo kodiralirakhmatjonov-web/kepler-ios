@@ -1,0 +1,31 @@
+IUMRAH_WIDGETS_REENABLED_20261003_APPLIED
+
+Production Widget Extension restored after provisioning was completed.
+
+Bundle IDs:
+- App: com.iumrah.app
+- Widgets: com.iumrah.app.widgets
+
+Signing:
+- Widget profile: iumrah Widgets App Store
+- Team: 2DQ678JTNG
+- App and widget profiles use the same Apple Distribution certificate.
+- Shared keychain group: 2DQ678JTNG.com.iumrah.shared
+
+Enabled widgets:
+- Active Trip
+- Booking Status
+- Planned Umrah
+- iumrah ID
+- Lock Screen Countdown
+
+Runtime:
+- App writes a private widget snapshot to the shared keychain.
+- Widget timelines reload when account, bookings or planned Umrah data changes.
+- Widget deep links open Booking, Planned Umrah or Account destinations.
+
+CI/TestFlight:
+- TestFlight workflow discovers, validates and installs both App Store profiles.
+- Archive receives separate provisioning-profile specifiers for app and widget targets.
+- ExportOptions maps both bundle IDs to their corresponding profiles.
+- Archive and final IPA preflight verify the embedded .appex and shared-keychain entitlements.
