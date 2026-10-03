@@ -73,8 +73,8 @@ test('chat and deletion prefer permanent account authorization before stale book
 
 test('Care chat composer stays compact and maps authorization failures', () => {
   const source = read('Sources/Views/Chat/BookingChatView.swift');
-  assert.match(source, /frame\(minHeight: 40, maxHeight: 86/);
-  assert.match(source, /lineLimit\(1\.\.\.3\)/);
+  assert.match(source, /frame\(minHeight: 36, maxHeight: 92/);
+  assert.match(source, /lineLimit\(1\.\.\.4\)/);
   assert.match(source, /chatErrorMessage\(error\)/);
   assert.match(source, /isAuthorizationError/);
 });
