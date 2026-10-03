@@ -1,0 +1,16 @@
+Build fix after logs_100569112069.zip
+
+Cause from GitHub Actions archive log:
+- Simulator build completed with iUmraWidgets sources.
+- Archive failed during GatherProvisioningInputs:
+  "iUmraWidgets requires a provisioning profile."
+
+Why it happened:
+- project.yml enabled iUmraWidgets.
+- the current apply-beta-update workflow protects .github/workflows/testflight.yml and Signing/ from ZIP updates,
+  so the widget-aware TestFlight signing workflow and widget provisioning profile from the widget patch were not applied.
+
+This hotfix removes only the Widget Extension target/dependency from project.yml so the existing production
+archive workflow can sign com.iumrah.app exactly as before. Account/Care/traveler changes are untouched.
+
+Widgets remain in source and can be re-enabled after the protected TestFlight workflow is updated once.
