@@ -75,11 +75,11 @@ struct IumrahEmergencyContactView: View {
 
     private var explanation: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "checkmark.shield.fill")
+            Image(systemName: "sos.circle.fill")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.green)
+                .foregroundStyle(.red)
                 .frame(width: 42, height: 42)
-                .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Color.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(tr("No duplicate forms", "Без повторного заполнения", "Takroriy to‘ldirish yo‘q", "Такрорий тўлдириш йўқ"))
@@ -139,7 +139,7 @@ struct IumrahEmergencyContactView: View {
             if saved {
                 Label(tr("Saved", "Сохранено", "Saqlandi", "Сақланди"), systemImage: "checkmark.circle.fill")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(.primary)
                     .transition(.opacity)
             }
         }

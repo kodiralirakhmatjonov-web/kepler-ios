@@ -2062,6 +2062,53 @@ async function terminateSession(request: Request, db: D1Like, sessionID: string)
   return json({ ok: true, signedOut: self });
 }
 
+async function startAccountPhoneVerification(request: Request, env: Env, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  const payload = await request.json().catch(() => null) as { phone?: unknown; locale?: unknown } | null;
+  const phone = normalizePhone(payload?.phone);
+  if (!phone.startsWith("+998")) throw new RouteError("SMS_COUNTRY_UNSUPPORTED", 400);
+  if (!validUzbekPhone(phone)) throw new RouteError("PHONE_INVALID", 400);
+  await ensurePhoneAvailable(db, phone, auth.pilgrimID);
+  const challenge = await createSMSChallenge(
+    db,
+    env,
+    request,
+    "verify_phone",
+    auth.pilgrimID,
+    phone,
+  );
+  await audit(db, auth.pilgrimID, "account_phone_change_started", auth.sessionID, null);
+  return json({
+    ok: true,
+    challengeID: challenge.id,
+    expiresAt: challenge.expiresAt,
+    phone: challenge.phoneNormalized,
+  });
+}
+
+async function confirmAccountPhoneVerification(request: Request, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  const payload = await request.json().catch(() => null) as { challengeID?: unknown; code?: unknown } | null;
+  const challenge = await verifySMSChallenge(
+    db,
+    cleanText(payload?.challengeID, 120),
+    "verify_phone",
+    cleanText(payload?.code, 12),
+    auth.pilgrimID,
+  );
+  await ensurePhoneAvailable(db, challenge.phone_normalized, auth.pilgrimID);
+  const verifiedAt = await linkVerifiedPhone(
+    db,
+    auth.pilgrimID,
+    challenge.phone_display,
+    challenge.phone_normalized,
+  );
+  await audit(db, auth.pilgrimID, "account_phone_changed", auth.sessionID, null);
+  return json({ ok: true, phone: challenge.phone_normalized, verifiedAt });
+}
+
 async function startEmailVerification(request: Request, env: Env, db: D1Like) {
   const auth = await requireDevice(request, db);
   if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
@@ -2817,6 +2864,12 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/google/sign-in") {
       return await signInWithGoogle(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/security/phone/start") {
+      return await startAccountPhoneVerification(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/security/phone/confirm") {
+      return await confirmAccountPhoneVerification(request, db);
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/email/start") {
       return await startEmailVerification(request, env, db);

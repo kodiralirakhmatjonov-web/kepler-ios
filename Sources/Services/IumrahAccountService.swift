@@ -404,6 +404,22 @@ struct IumrahAccountService {
         )
     }
 
+    func startPhoneVerification(phone: String, locale: String, token: String) async throws -> IumrahPhoneChallengeStartResponse {
+        try await api.post(
+            "/api/package/client/account/security/phone/start",
+            body: IumrahAccountPhoneVerificationStartRequest(phone: phone, locale: locale),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func confirmPhoneVerification(challengeID: String, code: String, token: String) async throws -> IumrahPhoneVerificationResponse {
+        try await api.post(
+            "/api/package/client/account/security/phone/confirm",
+            body: IumrahAccountPhoneVerificationConfirmRequest(challengeID: challengeID, code: code),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
     func startEmailVerification(email: String, locale: String, token: String) async throws -> IumrahEmailChallengeStartResponse {
         try await api.post(
             "/api/package/client/account/email/start",

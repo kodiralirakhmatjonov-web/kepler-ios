@@ -18,8 +18,8 @@ struct IumrahTravelCompanionsView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    pageHeader
                     introCard
+                    emergencyContactCard
 
                     if isLoading && checkouts.isEmpty {
                         loadingCard
@@ -48,8 +48,8 @@ struct IumrahTravelCompanionsView: View {
             .scrollBounceBehavior(.basedOnSize)
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(tr("Who is traveling with you", "Кто едет с Вами", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"))
+        .navigationBarTitleDisplayMode(.large)
         .toolbar(.hidden, for: .tabBar)
         .refreshable { await loadTravelers() }
         .task { await loadTravelers() }
@@ -78,6 +78,14 @@ struct IumrahTravelCompanionsView: View {
 
     private var introCard: some View {
         VStack(alignment: .leading, spacing: 14) {
+            Image("TravelCompanionsCover")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 148)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
             HStack(alignment: .top, spacing: 13) {
                 IumrahIconBadge(systemName: "person.2.fill", role: .profile, size: 52, symbolSize: 21, cornerRadius: 17)
                 VStack(alignment: .leading, spacing: 4) {
@@ -102,10 +110,10 @@ struct IumrahTravelCompanionsView: View {
                     .frame(width: 18, height: 20, alignment: .top)
 
                 Text(tr(
-                    "Passport details can be prepared in advance. The emergency contact is shared from Account and is not repeated here.",
-                    "Паспортные данные можно заполнить заранее. Экстренный контакт берётся из Account и здесь повторно не заполняется.",
-                    "Pasport ma’lumotlarini oldindan to‘ldirish mumkin. Favqulodda kontakt Account’dan olinadi va bu yerda qayta kiritilmaydi.",
-                    "Паспорт маълумотларини олдиндан тўлдириш мумкин. Фавқулодда контакт Account’дан олинади ва бу ерда қайта киритилмайди."
+                    "Passport details can be prepared in advance. Your emergency contact is saved once below and reused for the whole travel party.",
+                    "Паспортные данные можно заполнить заранее. Экстренный контакт сохраняется один раз ниже и используется для всей группы путешественников.",
+                    "Pasport ma’lumotlarini oldindan to‘ldirish mumkin. Favqulodda kontakt quyida bir marta saqlanadi va butun guruh uchun ishlatiladi.",
+                    "Паспорт маълумотларини олдиндан тўлдириш мумкин. Фавқулодда контакт қуйида бир марта сақланади ва бутун гуруҳ учун ишлатилади."
                 ))
                 .font(.footnote.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
@@ -117,6 +125,71 @@ struct IumrahTravelCompanionsView: View {
             .background(Color.yellow.opacity(0.13), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .iumrahCard()
+    }
+
+    private var emergencyContactCard: some View {
+        NavigationLink {
+            IumrahEmergencyContactView()
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .fill(Color.red.opacity(0.10))
+                    Image(systemName: "sos.circle.fill")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(.red)
+                }
+                .frame(width: 52, height: 52)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tr("Emergency contact", "Экстренный контакт", "Favqulodda kontakt", "Фавқулодда контакт"))
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    Text(emergencyContactSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+
+                    Text(emergencyContactReady
+                         ? tr("Used for the whole travel party", "Используется для всей группы", "Butun guruh uchun ishlatiladi", "Бутун гуруҳ учун ишлатилади")
+                         : tr("Add one trusted person", "Добавьте одного доверенного человека", "Bitta ishonchli insonni qo‘shing", "Битта ишончли инсонни қўшинг"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.red)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(17)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(Color.red.opacity(0.12), lineWidth: 0.8)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var emergencyContactReady: Bool {
+        !settings.emergencyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !settings.emergencyPhone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var emergencyContactSubtitle: String {
+        if emergencyContactReady {
+            let name = settings.emergencyName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let phone = settings.emergencyPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+            return [name, phone].filter { !$0.isEmpty }.joined(separator: " · ")
+        }
+        return tr(
+            "One contact for you and every companion",
+            "Один контакт для Вас и всех участников",
+            "Siz va barcha hamrohlar uchun bitta kontakt",
+            "Сиз ва барча ҳамроҳлар учун битта контакт"
+        )
     }
 
     private var loadingCard: some View {

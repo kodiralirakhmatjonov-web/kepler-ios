@@ -124,7 +124,6 @@ struct IumrahAccountView: View {
                         // saved people who may travel with them.
                         userDataEntryCard(profile)
                         travelCompanionsEntryCard
-                        emergencyContactEntryCard
 
                         if let active = activeTrip {
                             IumrahTripWalletEntry(session: active, profile: profile, language: settings.language)
@@ -853,111 +852,63 @@ struct IumrahAccountView: View {
         NavigationLink {
             IumrahTravelCompanionsView()
         } label: {
-            HStack(spacing: 14) {
-                IumrahIconBadge(
-                    systemName: "person.2.fill",
-                    role: .profile,
-                    size: 52,
-                    symbolSize: 21,
-                    cornerRadius: 17
-                )
+            VStack(alignment: .leading, spacing: 0) {
+                Image("TravelCompanionsCover")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 118)
+                    .clipped()
+                    .overlay(alignment: .bottom) {
+                        LinearGradient(
+                            colors: [.clear, Color.black.opacity(0.18)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .allowsHitTesting(false)
+                    }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tr("Who is traveling with you", "Кто едет с Вами", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"))
-                        .font(.system(size: 19, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-
-                    Text(tr(
-                        "Family, loved ones and other travelers",
-                        "Семья, близкие и другие участники",
-                        "Oila, yaqinlar va boshqa sayohatchilar",
-                        "Оила, яқинлар ва бошқа саёҳатчилар"
-                    ))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
-                    Text(tr(
-                        "Separate traveler cards",
-                        "Отдельные карточки участников",
-                        "Har bir sayohatchi uchun alohida karta",
-                        "Ҳар бир саёҳатчи учун алоҳида карта"
-                    ))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(17)
-            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var emergencyContactEntryCard: some View {
-        NavigationLink {
-            IumrahEmergencyContactView()
-        } label: {
-            HStack(spacing: 14) {
-                IumrahIconBadge(
-                    systemName: "sos.circle.fill",
-                    role: emergencyContactReady ? .success : .profile,
-                    size: 52,
-                    symbolSize: 21,
-                    cornerRadius: 17
-                )
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tr("Emergency contact", "Экстренный контакт", "Favqulodda kontakt", "Фавқулодда контакт"))
-                        .font(.system(size: 19, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-
-                    Text(tr(
-                        "One trusted contact for all travelers",
-                        "Один доверенный контакт для всех участников",
-                        "Barcha sayohatchilar uchun bitta ishonchli kontakt",
-                        "Барча саёҳатчилар учун битта ишончли контакт"
-                    ))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
-                    Label(
-                        emergencyContactReady
-                            ? tr("Contact saved", "Контакт сохранён", "Kontakt saqlandi", "Контакт сақланди")
-                            : tr("Add a contact", "Добавьте контакт", "Kontakt qo‘shing", "Контакт қўшинг"),
-                        systemImage: emergencyContactReady ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
+                HStack(spacing: 14) {
+                    IumrahIconBadge(
+                        systemName: "person.2.fill",
+                        role: .profile,
+                        size: 50,
+                        symbolSize: 20,
+                        cornerRadius: 16
                     )
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(emergencyContactReady ? Color.green : Color.orange)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.tertiary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(tr("Who is traveling with you", "Кто едет с Вами", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"))
+                            .font(.system(size: 19, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+
+                        Text(tr(
+                            "Family, loved ones, traveler cards and emergency contact",
+                            "Семья, близкие, карточки участников и экстренный контакт",
+                            "Oila, yaqinlar, sayohatchi kartalari va favqulodda kontakt",
+                            "Оила, яқинлар, саёҳатчи карталари ва фавқулодда контакт"
+                        ))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(16)
             }
-            .padding(17)
-            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
             }
+            .shadow(color: .black.opacity(0.045), radius: 18, y: 8)
         }
         .buttonStyle(.plain)
-    }
-
-    private var emergencyContactReady: Bool {
-        !settings.emergencyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !settings.emergencyPhone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var userDataReady: Bool {

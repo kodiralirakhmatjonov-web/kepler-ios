@@ -257,6 +257,31 @@ final class IumrahAccountStore: ObservableObject {
         return try await service.linkGoogle(credential, token: token)
     }
 
+    func startPhoneVerification(phone: String, locale: String) async throws -> IumrahPhoneChallengeStartResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.startPhoneVerification(phone: phone, locale: locale, token: token)
+    }
+
+    func confirmPhoneVerification(challengeID: String, code: String) async throws -> IumrahPhoneVerificationResponse {
+        guard let token else { throw APIError.status(401) }
+        let response = try await service.confirmPhoneVerification(challengeID: challengeID, code: code, token: token)
+        if let profile = account {
+            let updated = IumrahAccountProfile(
+                iumrahID: profile.iumrahID,
+                displayName: profile.displayName,
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+                phone: response.phone,
+                email: profile.email,
+                telegram: profile.telegram,
+                whatsapp: profile.whatsapp
+            )
+            account = updated
+            IumrahAccountVault.save(.init(token: token, account: updated))
+        }
+        return response
+    }
+
     func startEmailVerification(email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {
         guard let token else { throw APIError.status(401) }
         return try await service.startEmailVerification(email: email, locale: locale, token: token)

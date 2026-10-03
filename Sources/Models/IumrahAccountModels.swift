@@ -162,6 +162,16 @@ struct IumrahBookingPhoneVerificationConfirmRequest: Encodable {
     let code: String
 }
 
+struct IumrahAccountPhoneVerificationStartRequest: Encodable {
+    let phone: String
+    let locale: String
+}
+
+struct IumrahAccountPhoneVerificationConfirmRequest: Encodable {
+    let challengeID: String
+    let code: String
+}
+
 struct IumrahPhoneChallengeStartResponse: Decodable {
     let ok: Bool
     let challengeID: String

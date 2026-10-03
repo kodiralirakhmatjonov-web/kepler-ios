@@ -234,10 +234,10 @@ struct IumrahTravelerProfileView: View {
                 Text(tr("Emergency contact is shared", "Экстренный контакт общий", "Favqulodda kontakt umumiy", "Фавқулодда контакт умумий"))
                     .font(.headline)
                 Text(tr(
-                    "It is managed once in Account and is not repeated on every traveler profile.",
-                    "Он настраивается один раз в Account и не заполняется заново в каждой карточке участника.",
-                    "U Account’da bir marta sozlanadi va har bir sayohatchi profilida qayta kiritilmaydi.",
-                    "У Account’да бир марта созланади ва ҳар бир саёҳатчи профилида қайта киритилмайди."
+                    "It is managed once in Who is traveling with you and is not repeated on every traveler profile.",
+                    "Он настраивается один раз в разделе «Кто едет с Вами» и не заполняется заново в каждой карточке участника.",
+                    "U «Siz bilan kim bormoqda» bo‘limida bir marta sozlanadi va har bir sayohatchi profilida qayta kiritilmaydi.",
+                    "У «Сиз билан ким бормоқда» бўлимида бир марта созланади ва ҳар бир саёҳатчи профилида қайта киритилмайди."
                 ))
                 .font(.caption)
                 .foregroundStyle(.secondary)

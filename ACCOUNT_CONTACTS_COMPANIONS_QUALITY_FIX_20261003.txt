@@ -1,0 +1,29 @@
+iumrah Account / companions quality pass
+
+Account:
+- Keeps the primary user card black and prominent.
+- Linked phone and linked email are read-only account identifiers.
+- Changing phone requires a 6-digit SMS OTP before the account value changes.
+- Changing email requires a 6-digit email OTP before the account value changes.
+- Name remains editable; Telegram/WhatsApp are separate optional communication channels.
+
+Who is traveling with you:
+- Restores the TravelCompanionsCover hero image.
+- Uses a proper large navigation title.
+- Moves Emergency Contact into this section instead of Account home.
+- Emergency/SOS UI uses a red safety accent, never a green success identity.
+- Keeps one shared emergency contact for the whole travel party.
+- Keeps separate traveler profile pages.
+
+Backend:
+- Adds authenticated primary-device phone-change OTP endpoints:
+  POST /api/package/client/account/security/phone/start
+  POST /api/package/client/account/security/phone/confirm
+- Email change continues to use the existing authenticated OTP endpoints.
+
+Verification performed before packaging:
+- swiftc -parse on every Swift file in this patch.
+- TypeScript tsc --noEmit for Backend/PackageEngine.
+- ZIP integrity test.
+
+IMPORTANT: deploy Package Engine after applying this patch so the new phone-change OTP endpoints are live before testing phone replacement.
