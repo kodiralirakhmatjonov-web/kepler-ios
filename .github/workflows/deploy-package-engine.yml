@@ -30,12 +30,13 @@ jobs:
       - name: Verify deploy secrets
         env:
           IGNAV_API_KEY: ${{ secrets.IGNAV_API_KEY }}
+          TRAVELPAYOUTS_API_TOKEN: ${{ secrets.TRAVELPAYOUTS_API_TOKEN }}
           DEVSMS_API_TOKEN: ${{ secrets.DEVSMS_API_TOKEN }}
           WALLET_CERT_PEM: ${{ secrets.WALLET_CERT_PEM }}
           WALLET_KEY_PEM: ${{ secrets.WALLET_KEY_PEM }}
         run: |
           set -euo pipefail
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID IGNAV_API_KEY DEVSMS_API_TOKEN WALLET_CERT_PEM WALLET_KEY_PEM; do
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_ID IGNAV_API_KEY TRAVELPAYOUTS_API_TOKEN DEVSMS_API_TOKEN WALLET_CERT_PEM WALLET_KEY_PEM; do
             if [ -z "${!name:-}" ]; then
               echo "Missing GitHub secret: $name"
               exit 1
@@ -113,6 +114,13 @@ jobs:
           set -euo pipefail
           printf '%s' "$DEVSMS_API_TOKEN" | npx wrangler secret put DEVSMS_API_TOKEN --config wrangler.generated.jsonc
 
+      - name: Install Travelpayouts Worker secret
+        env:
+          TRAVELPAYOUTS_API_TOKEN: ${{ secrets.TRAVELPAYOUTS_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$TRAVELPAYOUTS_API_TOKEN" | npx wrangler secret put TRAVELPAYOUTS_API_TOKEN --config wrangler.generated.jsonc
+
       - name: Validate and install Apple Wallet Worker secrets
         env:
           WALLET_CERT_PEM: ${{ secrets.WALLET_CERT_PEM }}
@@ -168,14 +176,16 @@ jobs:
                 .hotelsDbConfigured == true and
                 .flightProvider == "ignav" and
                 .flightProviderConfigured == true and
+                .flightDiscoveryProvider == "aviasales-data" and
+                .flightDiscoveryConfigured == true and
                 .smsProvider == "devsms" and
                 .smsProviderConfigured == true
               ' >/dev/null; then
-                echo "iumrah Package Engine is online; Ignav and DevSMS are configured."
+                echo "iumrah Package Engine is online; Ignav, Aviasales Data API and DevSMS are configured."
                 exit 0
               fi
             fi
             sleep 5
           done
-          echo "Package Engine health check failed: Ignav or DevSMS is not configured."
+          echo "Package Engine health check failed: Ignav, Aviasales Data API or DevSMS is not configured."
           exit 1
