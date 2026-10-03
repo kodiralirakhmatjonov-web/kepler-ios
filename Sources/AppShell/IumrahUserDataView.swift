@@ -1,16 +1,22 @@
 import SwiftUI
 
-/// Canonical owner profile used by Account and reused before future bookings.
+/// Canonical owner profile used by Account and reused by future bookings.
 ///
-/// The visual language intentionally matches iumrah Security KYC so personal
-/// data and identity confirmation feel like one product. The booking-bound KYC
-/// flow itself remains unchanged and is opened from the Security section below
-/// when a trip is available.
+/// The screen intentionally keeps the visual language of iumrah Security while
+/// separating two concepts that users understand immediately:
+/// - booking details: passport-facing data used for travel services;
+/// - account details: the identity and contacts linked to the iumrah account.
 struct IumrahUserDataView: View {
     @EnvironmentObject private var account: IumrahAccountStore
-    @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
 
+    private enum DataSection: String, CaseIterable, Identifiable {
+        case booking
+        case account
+        var id: String { rawValue }
+    }
+
+    @State private var selectedSection: DataSection = .booking
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var phone = ""
@@ -20,12 +26,10 @@ struct IumrahUserDataView: View {
     @State private var dateOfBirth = ""
     @State private var gender = ""
     @State private var nationality = ""
-    @State private var emergencyName = ""
-    @State private var emergencyPhone = ""
-    @State private var emergencyRelation = ""
     @State private var isSaving = false
     @State private var saveMessage: String?
     @FocusState private var focusedField: Field?
+    @Namespace private var segmentNamespace
 
     private enum Field: Hashable {
         case firstName, lastName
@@ -35,19 +39,31 @@ struct IumrahUserDataView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
                 securityHero
+                sectionPicker
                 introCopy
                 warningCard
-                passportProfileCard
-                personalDetailsCard
-                contactDetailsCard
-                securityStatusCard
+
+                Group {
+                    switch selectedSection {
+                    case .booking:
+                        bookingContent
+                            .transition(.opacity.combined(with: .move(edge: .leading)))
+                    case .account:
+                        accountContent
+                            .transition(.opacity.combined(with: .move(edge: .trailing)))
+                    }
+                }
+                .animation(.spring(response: 0.36, dampingFraction: 0.90), value: selectedSection)
 
                 if let saveMessage {
-                    Label(saveMessage, systemImage: saveMessage == savedMessage ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(saveMessage == savedMessage ? Color.green : Color.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 4)
+                    Label(
+                        saveMessage,
+                        systemImage: saveMessage == savedMessage ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                    )
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(saveMessage == savedMessage ? Color.green : Color.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
                 }
 
                 saveButton
@@ -94,30 +110,99 @@ struct IumrahUserDataView: View {
         .accessibilityHidden(true)
     }
 
+    private var sectionPicker: some View {
+        HStack(spacing: 6) {
+            sectionButton(
+                .booking,
+                icon: "airplane",
+                title: tr("Booking details", "Данные бронирования", "Bron ma’lumotlari", "Брон маълумотлари")
+            )
+            sectionButton(
+                .account,
+                icon: "person.crop.circle",
+                title: tr("Account details", "Данные аккаунта", "Akkaunt ma’lumotlari", "Аккаунт маълумотлари")
+            )
+        }
+        .padding(5)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.8)
+        }
+    }
+
+    private func sectionButton(_ section: DataSection, icon: String, title: String) -> some View {
+        let selected = selectedSection == section
+        return Button {
+            guard selectedSection != section else { return }
+            IumrahHaptics.selection()
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+                selectedSection = section
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            .foregroundStyle(selected ? Color.white : Color.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 43)
+            .background {
+                if selected {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.black)
+                        .matchedGeometryEffect(id: "user-data-segment", in: segmentNamespace)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
     private var introCopy: some View {
         VStack(alignment: .leading, spacing: 9) {
             Label("iumrah Security", systemImage: "lock.shield.fill")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.secondary)
 
-            Text(tr(
-                "Your booking profile",
-                "Ваши данные для бронирования",
-                "Bron uchun ma’lumotlaringiz",
-                "Брон учун маълумотларингиз"
-            ))
-            .font(.system(size: 29, weight: .bold, design: .rounded))
-            .tracking(-0.5)
+            Text(selectedSection == .booking
+                 ? tr(
+                    "Your booking profile",
+                    "Ваш профиль для бронирований",
+                    "Bron profilingiz",
+                    "Брон профилингиз"
+                 )
+                 : tr(
+                    "Your iumrah account",
+                    "Ваш аккаунт iumrah",
+                    "iumrah akkauntingiz",
+                    "iumrah аккаунтингиз"
+                 ))
+                .font(.system(size: 29, weight: .bold, design: .rounded))
+                .tracking(-0.5)
+                .contentTransition(.opacity)
 
-            Text(tr(
-                "Keep your personal and contact details in one profile. iumrah reuses them for future flights, hotels and trips, so you do not have to enter the same information again.",
-                "Храните личные и контактные данные в одном профиле. iumrah использует их для будущих авиабилетов, отелей и поездок, чтобы Вам не приходилось вводить одно и то же заново.",
-                "Shaxsiy va aloqa ma’lumotlaringizni bitta profilda saqlang. iumrah ularni keyingi aviachiptalar, mehmonxonalar va safarlarda qayta ishlatadi.",
-                "Шахсий ва алоқа маълумотларингизни битта профилда сақланг. iumrah уларни кейинги авиачипталар, меҳмонхоналар ва сафарларда қайта ишлатади."
-            ))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+            Text(selectedSection == .booking
+                 ? tr(
+                    "These details are reused for flights, hotels and your Umrah trip. Fill them in once and keep them ready for future bookings.",
+                    "Эти данные используются для авиабилетов, отелей и поездки Umrah. Заполните их один раз — iumrah сможет использовать их в следующих бронированиях.",
+                    "Bu ma’lumotlar aviachiptalar, mehmonxonalar va Umra safari uchun qayta ishlatiladi. Ularni bir marta to‘ldiring.",
+                    "Бу маълумотлар авиачипталар, меҳмонхоналар ва Умра сафари учун қайта ишлатилади. Уларни бир марта тўлдиринг."
+                 )
+                 : tr(
+                    "This is the identity linked to your iumrah account: your name, iumrah ID, phone, email and contact channels.",
+                    "Здесь хранится именно то, что привязано к Вашему аккаунту iumrah: имя, iumrah ID, номер телефона, почта и каналы связи.",
+                    "Bu yerda iumrah akkauntingizga bog‘langan ma’lumotlar saqlanadi: ism, iumrah ID, telefon, email va aloqa kanallari.",
+                    "Бу ерда iumrah аккаунтингизга боғланган маълумотлар сақланади: исм, iumrah ID, телефон, email ва алоқа каналлари."
+                 ))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .contentTransition(.opacity)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 4)
@@ -135,15 +220,23 @@ struct IumrahUserDataView: View {
                 Text(tr("Important", "Важно", "Muhim", "Муҳим"))
                     .font(.headline)
                     .foregroundStyle(.red)
-                Text(tr(
-                    "Enter your first name, last name and personal details exactly as they appear in your passport. These values are reused when iumrah prepares travel services.",
-                    "Введите имя, фамилию и личные данные точно так, как они указаны в паспорте. Эти значения будут использоваться при оформлении услуг поездки.",
-                    "Ism, familiya va shaxsiy ma’lumotlarni pasportdagidek aniq kiriting. Bu ma’lumotlar safar xizmatlarini rasmiylashtirishda ishlatiladi.",
-                    "Исм, фамилия ва шахсий маълумотларни паспортдагидек аниқ киритинг. Бу маълумотлар сафар хизматларини расмийлаштиришда ишлатилади."
-                ))
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(selectedSection == .booking
+                     ? tr(
+                        "Enter passport-facing details exactly as they appear in the document. They are used when iumrah prepares travel services.",
+                        "Данные для бронирования указывайте точно как в паспорте. Они используются при оформлении услуг поездки.",
+                        "Bron ma’lumotlarini pasportdagidek aniq kiriting. Ular safar xizmatlarini rasmiylashtirishda ishlatiladi.",
+                        "Брон маълумотларини паспортдагидек аниқ киритинг. Улар сафар хизматларини расмийлаштиришда ишлатилади."
+                     )
+                     : tr(
+                        "The phone and email here belong to the account owner. Keep them current so access and important trip communication stay with you.",
+                        "Номер телефона и почта здесь относятся к владельцу аккаунта. Поддерживайте их актуальными для входа и важных сообщений о поездке.",
+                        "Bu telefon va email akkaunt egasiga tegishli. Kirish va muhim safar xabarlari uchun ularni yangilab boring.",
+                        "Бу телефон ва email аккаунт эгасига тегишли. Кириш ва муҳим сафар хабарлари учун уларни янгилаб боринг."
+                     ))
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .contentTransition(.opacity)
             }
         }
         .padding(17)
@@ -155,25 +248,30 @@ struct IumrahUserDataView: View {
         }
     }
 
+    private var bookingContent: some View {
+        VStack(spacing: 16) {
+            passportProfileCard
+            personalDetailsCard
+            bookingReuseCard
+        }
+    }
+
+    private var accountContent: some View {
+        VStack(spacing: 16) {
+            accountIdentityCard
+            accountNameCard
+            linkedContactsCard
+            accountSecurityCard
+        }
+    }
+
     private var passportProfileCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                Image(systemName: "person.text.rectangle.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(width: 42, height: 42)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(tr("Passport profile", "Паспортный профиль", "Pasport profili", "Паспорт профили"))
-                        .font(.headline)
-                    Text(tr("Account owner", "Владелец аккаунта", "Akkaunt egasi", "Аккаунт эгаси"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "lock.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
-            }
+            sectionHeader(
+                icon: "person.text.rectangle.fill",
+                title: tr("Passport name", "Имя по паспорту", "Pasportdagi ism", "Паспортдаги исм"),
+                subtitle: tr("Used on travel documents", "Используется в документах поездки", "Safar hujjatlarida ishlatiladi", "Сафар ҳужжатларида ишлатилади")
+            )
 
             secureField(
                 title: tr("First name", "Имя", "Ism", "Исм"),
@@ -199,7 +297,7 @@ struct IumrahUserDataView: View {
             sectionHeader(
                 icon: "person.crop.circle.badge.checkmark",
                 title: tr("Personal details", "Личные данные", "Shaxsiy ma’lumotlar", "Шахсий маълумотлар"),
-                subtitle: tr("Saved to your owner profile", "Сохраняются в Вашем профиле", "Profilingizda saqlanadi", "Профилингизда сақланади")
+                subtitle: tr("Saved for future bookings", "Сохраняются для будущих бронирований", "Keyingi bronlar uchun saqlanadi", "Кейинги бронлар учун сақланади")
             )
 
             dateField(
@@ -243,24 +341,99 @@ struct IumrahUserDataView: View {
         .iumrahCard()
     }
 
-    private var contactDetailsCard: some View {
+    private var bookingReuseCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.green)
+                .frame(width: 42, height: 42)
+                .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(tr("One profile for future trips", "Один профиль для следующих поездок", "Keyingi safarlar uchun bitta profil", "Кейинги сафарлар учун битта профил"))
+                    .font(.headline)
+                Text(tr(
+                    "Your emergency contact is stored separately in Account, so you do not need to repeat it for yourself and every companion.",
+                    "Экстренный контакт хранится отдельно в Account, поэтому его не нужно повторно заполнять для себя и каждого участника.",
+                    "Favqulodda kontakt Account bo‘limida alohida saqlanadi, shuning uchun uni o‘zingiz va har bir hamroh uchun qayta kiritmaysiz.",
+                    "Фавқулодда контакт Account бўлимида алоҳида сақланади, шунинг учун уни ўзингиз ва ҳар бир ҳамроҳ учун қайта киритмайсиз."
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(17)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+        }
+    }
+
+    private var accountIdentityCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             sectionHeader(
-                icon: "phone.badge.checkmark.fill",
-                title: tr("Contacts & emergency", "Контакты и экстренная связь", "Aloqa va favqulodda kontakt", "Алоқа ва фавқулодда контакт"),
-                subtitle: tr("Used for bookings and support", "Используются для бронирований и поддержки", "Bron va yordam uchun ishlatiladi", "Брон ва ёрдам учун ишлатилади")
+                icon: "person.badge.key.fill",
+                title: tr("Account identity", "Идентификация аккаунта", "Akkaunt identifikatsiyasi", "Аккаунт идентификацияси"),
+                subtitle: tr("Permanent iumrah identity", "Постоянная идентификация iumrah", "Doimiy iumrah identifikatori", "Доимий iumrah идентификатори")
             )
 
-            phoneField(title: tr("Phone", "Номер телефона", "Telefon", "Телефон"), text: $phone)
+            readOnlyRow(
+                icon: "number",
+                title: "iumrah ID",
+                value: account.account?.iumrahID ?? "—"
+            )
+        }
+        .iumrahCard()
+    }
+
+    private var accountNameCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(
+                icon: "person.crop.circle.fill",
+                title: tr("Account name", "Имя владельца аккаунта", "Akkaunt egasi nomi", "Аккаунт эгаси номи"),
+                subtitle: tr("Shown across iumrah", "Используется внутри iumrah", "iumrah ichida ishlatiladi", "iumrah ичида ишлатилади")
+            )
+
+            secureField(
+                title: tr("First name", "Имя", "Ism", "Исм"),
+                placeholder: tr("First name", "Имя", "Ism", "Исм"),
+                text: $firstName,
+                field: .firstName,
+                contentType: .givenName
+            )
+            secureField(
+                title: tr("Last name", "Фамилия", "Familiya", "Фамилия"),
+                placeholder: tr("Last name", "Фамилия", "Familiya", "Фамилия"),
+                text: $lastName,
+                field: .lastName,
+                contentType: .familyName
+            )
+        }
+        .iumrahCard()
+    }
+
+    private var linkedContactsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(
+                icon: "link.circle.fill",
+                title: tr("Linked contacts", "Привязанные контакты", "Bog‘langan kontaktlar", "Боғланган контактлар"),
+                subtitle: tr("Account access and communication", "Вход в аккаунт и связь", "Akkauntga kirish va aloqa", "Аккаунтга кириш ва алоқа")
+            )
+
+            phoneField(title: tr("Linked phone", "Привязанный номер", "Bog‘langan telefon", "Боғланган телефон"), text: $phone)
 
             plainField(
-                title: "Email",
+                title: tr("Linked email", "Привязанная почта", "Bog‘langan email", "Боғланган email"),
                 placeholder: "name@example.com",
                 text: $email,
                 keyboard: .emailAddress,
                 contentType: .emailAddress,
                 capitalization: .never
             )
+
+            Divider()
 
             plainField(
                 title: "Telegram",
@@ -272,108 +445,47 @@ struct IumrahUserDataView: View {
             )
 
             phoneField(title: "WhatsApp", text: $whatsapp)
-
-            Divider()
-
-            Text(tr("Emergency contact", "Экстренный контакт", "Favqulodda kontakt", "Фавқулодда контакт"))
-                .font(.subheadline.weight(.semibold))
-
-            plainField(
-                title: tr("Contact name", "Имя контакта", "Kontakt ismi", "Контакт исми"),
-                placeholder: tr("Name and surname", "Имя и фамилия", "Ism va familiya", "Исм ва фамилия"),
-                text: $emergencyName,
-                keyboard: .default,
-                contentType: .name,
-                capitalization: .words
-            )
-
-            phoneField(title: tr("Emergency phone", "Экстренный номер телефона", "Favqulodda telefon", "Фавқулодда телефон"), text: $emergencyPhone)
-
-            plainField(
-                title: tr("Relationship", "Кем приходится", "Qarindoshlik", "Қариндошлик"),
-                placeholder: tr("For example: mother", "Например: мама", "Masalan: ona", "Масалан: она"),
-                text: $emergencyRelation,
-                keyboard: .default,
-                contentType: .none,
-                capitalization: .words
-            )
         }
         .iumrahCard()
     }
 
-    @ViewBuilder
-    private var securityStatusCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
+    private var accountSecurityCard: some View {
+        NavigationLink {
+            IumrahAccountSecurityView()
+        } label: {
+            HStack(spacing: 13) {
                 Image(systemName: "lock.shield.fill")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(.cyan)
-                    .frame(width: 42, height: 42)
+                    .frame(width: 44, height: 44)
                     .background(Color.cyan.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("iumrah Security · KYC")
+                    Text(tr("Account security", "Безопасность аккаунта", "Akkaunt xavfsizligi", "Аккаунт хавфсизлиги"))
                         .font(.headline)
+                        .foregroundStyle(.primary)
                     Text(tr(
-                        "Identity confirmation stays connected to this profile.",
-                        "Подтверждение личности связано с этим профилем.",
-                        "Shaxsni tasdiqlash shu profilga bog‘langan.",
-                        "Шахсни тасдиқлаш шу профилга боғланган."
+                        "Password, devices and linked sign-in methods",
+                        "Пароль, устройства и способы входа",
+                        "Parol, qurilmalar va kirish usullari",
+                        "Парол, қурилмалар ва кириш усуллари"
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
             }
-
-            if let trip = kycTrip {
-                NavigationLink {
-                    IumrahSecurityConfirmationView(bookingID: trip.id)
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "person.badge.shield.checkmark.fill")
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(tr("Open identity confirmation", "Открыть подтверждение личности", "Shaxsni tasdiqlashni ochish", "Шахсни тасдиқлашни очиш"))
-                                .font(.subheadline.weight(.bold))
-                            Text(tr(
-                                "Passport number, passport photo and verification",
-                                "Номер паспорта, фото паспорта и проверка",
-                                "Pasport raqami, pasport rasmi va tekshiruv",
-                                "Паспорт рақами, паспорт расми ва текширув"
-                            ))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.horizontal, 15)
-                    .frame(minHeight: 62)
-                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-                }
-                .buttonStyle(.plain)
-            } else {
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: "lock.fill")
-                        .foregroundStyle(.secondary)
-                    Text(tr(
-                        "Passport photo and final KYC verification will become available when a booking reaches the pilgrim-details stage.",
-                        "Фото паспорта и финальная KYC-проверка станут доступны, когда бронирование перейдёт к этапу данных паломника.",
-                        "Pasport rasmi va yakuniy KYC tekshiruvi bron ziyoratchi ma’lumotlari bosqichiga o‘tganda ochiladi.",
-                        "Паспорт расми ва якуний KYC текшируви брон зиёратчи маълумотлари босқичига ўтганда очилади."
-                    ))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(17)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
             }
         }
-        .iumrahCard()
+        .buttonStyle(.plain)
     }
 
     private var saveButton: some View {
@@ -383,7 +495,9 @@ struct IumrahUserDataView: View {
             HStack(spacing: 10) {
                 if isSaving { ProgressView().tint(.white) }
                 Image(systemName: "checkmark.circle.fill")
-                Text(tr("Save your details", "Сохранить Ваши данные", "Ma’lumotlarni saqlash", "Маълумотларни сақлаш"))
+                Text(selectedSection == .booking
+                     ? tr("Save booking details", "Сохранить данные бронирования", "Bron ma’lumotlarini saqlash", "Брон маълумотларини сақлаш")
+                     : tr("Save account details", "Сохранить данные аккаунта", "Akkaunt ma’lumotlarini saqlash", "Аккаунт маълумотларини сақлаш"))
                 Spacer(minLength: 8)
             }
         }
@@ -405,6 +519,30 @@ struct IumrahUserDataView: View {
         }
     }
 
+    private func readOnlyRow(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.body.weight(.semibold))
+                    .textSelection(.enabled)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "lock.fill")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 15)
+        .frame(minHeight: 58)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
     private func secureField(
         title: String,
         placeholder: String,
@@ -419,7 +557,6 @@ struct IumrahUserDataView: View {
             TextField(placeholder, text: text)
                 .textContentType(contentType)
                 .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
                 .focused($focusedField, equals: field)
                 .padding(.horizontal, 15)
                 .frame(height: 56)
@@ -520,13 +657,6 @@ struct IumrahUserDataView: View {
         !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private var kycTrip: StoredBookingSession? {
-        bookings.sessions
-            .filter { !["COMPLETED", "CANCELLED"].contains($0.effectiveStatus.uppercased()) }
-            .sorted { $0.booking.input.startDate < $1.booking.input.startDate }
-            .first ?? bookings.sessions.first
-    }
-
     private var savedMessage: String {
         tr("Your details are saved.", "Ваши данные сохранены.", "Ma’lumotlaringiz saqlandi.", "Маълумотларингиз сақланди.")
     }
@@ -539,13 +669,10 @@ struct IumrahUserDataView: View {
         phone = Self.formatPhoneInput(nonEmpty(profile?.phone, settings.phone))
         email = nonEmpty(profile?.email, settings.email)
         telegram = nonEmpty(profile?.telegram, settings.telegram)
-        whatsapp = nonEmpty(profile?.whatsapp, settings.whatsapp)
+        whatsapp = Self.formatPhoneInput(nonEmpty(profile?.whatsapp, settings.whatsapp))
         dateOfBirth = Self.displayDate(settings.dateOfBirth)
         gender = settings.gender
         nationality = settings.nationality
-        emergencyName = settings.emergencyName
-        emergencyPhone = Self.formatPhoneInput(settings.emergencyPhone)
-        emergencyRelation = settings.emergencyRelation
     }
 
     @MainActor
@@ -571,9 +698,6 @@ struct IumrahUserDataView: View {
         settings.dateOfBirth = Self.isoDate(dateOfBirth) ?? ""
         settings.gender = gender
         settings.nationality = nationality.trimmingCharacters(in: .whitespacesAndNewlines)
-        settings.emergencyName = emergencyName.trimmingCharacters(in: .whitespacesAndNewlines)
-        settings.emergencyPhone = Self.normalizedPhone(emergencyPhone)
-        settings.emergencyRelation = emergencyRelation.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
             if account.isAuthenticated {

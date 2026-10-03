@@ -124,6 +124,7 @@ struct IumrahAccountView: View {
                         // saved people who may travel with them.
                         userDataEntryCard(profile)
                         travelCompanionsEntryCard
+                        emergencyContactEntryCard
 
                         if let active = activeTrip {
                             IumrahTripWalletEntry(session: active, profile: profile, language: settings.language)
@@ -787,29 +788,30 @@ struct IumrahAccountView: View {
         NavigationLink {
             IumrahUserDataView()
         } label: {
-            HStack(spacing: 14) {
-                IumrahIconBadge(
-                    systemName: "person.crop.circle.fill",
-                    role: .profile,
-                    size: 52,
-                    symbolSize: 22,
-                    cornerRadius: 17
-                )
+            HStack(spacing: 15) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.white.opacity(0.11))
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.system(size: 23, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 56, height: 56)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(displayName(profile))
-                        .font(.system(size: 19, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
                         .lineLimit(1)
 
                     Text(tr(
-                        "Your details for flights, hotels and bookings",
-                        "Ваши данные для билетов, отелей и бронирований",
-                        "Aviachipta, mehmonxona va bron uchun ma’lumotlaringiz",
-                        "Авиачипта, меҳмонхона ва брон учун маълумотларингиз"
+                        "Your booking and account details",
+                        "Ваши данные бронирования и аккаунта",
+                        "Bron va akkaunt ma’lumotlaringiz",
+                        "Брон ва аккаунт маълумотларингиз"
                     ))
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.68))
                     .lineLimit(2)
 
                     Label(
@@ -824,17 +826,27 @@ struct IumrahAccountView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.52))
             }
-            .padding(17)
-            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 19)
+            .background(
+                LinearGradient(
+                    colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.09)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.8)
             }
+            .shadow(color: .black.opacity(0.12), radius: 20, y: 10)
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, -4)
     }
 
     private var travelCompanionsEntryCard: some View {
@@ -888,6 +900,64 @@ struct IumrahAccountView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    private var emergencyContactEntryCard: some View {
+        NavigationLink {
+            IumrahEmergencyContactView()
+        } label: {
+            HStack(spacing: 14) {
+                IumrahIconBadge(
+                    systemName: "sos.circle.fill",
+                    role: emergencyContactReady ? .success : .profile,
+                    size: 52,
+                    symbolSize: 21,
+                    cornerRadius: 17
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tr("Emergency contact", "Экстренный контакт", "Favqulodda kontakt", "Фавқулодда контакт"))
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    Text(tr(
+                        "One trusted contact for all travelers",
+                        "Один доверенный контакт для всех участников",
+                        "Barcha sayohatchilar uchun bitta ishonchli kontakt",
+                        "Барча саёҳатчилар учун битта ишончли контакт"
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                    Label(
+                        emergencyContactReady
+                            ? tr("Contact saved", "Контакт сохранён", "Kontakt saqlandi", "Контакт сақланди")
+                            : tr("Add a contact", "Добавьте контакт", "Kontakt qo‘shing", "Контакт қўшинг"),
+                        systemImage: emergencyContactReady ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(emergencyContactReady ? Color.green : Color.orange)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(17)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var emergencyContactReady: Bool {
+        !settings.emergencyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !settings.emergencyPhone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var userDataReady: Bool {

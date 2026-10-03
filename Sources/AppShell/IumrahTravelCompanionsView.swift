@@ -18,14 +18,15 @@ struct IumrahTravelCompanionsView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
+                    pageHeader
                     introCard
 
                     if isLoading && checkouts.isEmpty {
                         loadingCard
-                    } else if travelers.isEmpty {
+                    } else if companions.isEmpty {
                         emptyCard
                     } else {
-                        ForEach(travelers) { item in
+                        ForEach(companions) { item in
                             travelerCard(item)
                         }
                     }
@@ -39,49 +40,76 @@ struct IumrahTravelCompanionsView: View {
                 }
                 .frame(width: contentWidth, alignment: .topLeading)
                 .padding(.horizontal, horizontalInset)
-                .padding(.top, 14)
-                .padding(.bottom, 42)
+                .padding(.top, 12)
+                .padding(.bottom, 46)
             }
             .frame(width: viewport.size.width)
             .clipped()
             .scrollBounceBehavior(.basedOnSize)
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
-        .navigationTitle(tr("Travelers", "Кто едет с Вами", "Sayohatchilar", "Саёҳатчилар"))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .refreshable { await loadTravelers() }
         .task { await loadTravelers() }
     }
+
+    private var pageHeader: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(tr("Who is traveling with you", "Кто едет с Вами", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"))
+                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .tracking(-0.7)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(tr(
+                "Family, loved ones and other pilgrims are stored separately from your own account profile.",
+                "Семья, близкие и другие паломники хранятся отдельно от Вашего собственного профиля.",
+                "Oila, yaqinlar va boshqa ziyoratchilar Sizning akkaunt profilingizdan alohida saqlanadi.",
+                "Оила, яқинлар ва бошқа зиёратчилар Сизнинг аккаунт профилингиздан алоҳида сақланади."
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 4)
+    }
+
     private var introCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Image("TravelCompanionsCover")
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity)
-                .frame(height: 136)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-
             HStack(alignment: .top, spacing: 13) {
                 IumrahIconBadge(systemName: "person.2.fill", role: .profile, size: 52, symbolSize: 21, cornerRadius: 17)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(tr("Your family and loved ones", "Ваша семья и близкие", "Oilangiz va yaqinlaringiz", "Оилангиз ва яқинларингиз"))
                         .font(.system(size: 22, weight: .bold, design: .rounded))
-                    Text(tr("Each traveler has a separate card with only the details needed for the flight and hotel.", "У каждого участника — отдельная карточка только с данными, необходимыми для авиабилета и отеля.", "Har bir sayohatchi uchun aviachipta va mehmonxonaga kerakli ma’lumotlar alohida kartada saqlanadi.", "Ҳар бир саёҳатчи учун авиачипта ва меҳмонхонага керакли маълумотлар алоҳида картада сақланади."))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(tr(
+                        "Every companion has a separate card and a separate page with only the details needed for tickets and hotels.",
+                        "У каждого участника — отдельная карточка и отдельная страница только с данными для авиабилета и отеля.",
+                        "Har bir hamroh uchun chipta va mehmonxonaga kerakli ma’lumotlar bilan alohida karta va sahifa mavjud.",
+                        "Ҳар бир ҳамроҳ учун чипта ва меҳмонхонага керакли маълумотлар билан алоҳида карта ва саҳифа мавжуд."
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 .layoutPriority(1)
             }
+
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "lightbulb.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .frame(width: 18, height: 20, alignment: .top)
 
-                Text(tr("You can fill in passport details while availability is being checked.", "Паспортные данные можно заполнить заранее, пока мы проверяем наличие.", "Mavjudlik tekshirilayotganda pasport ma’lumotlarini oldindan to‘ldirishingiz mumkin.", "Мавжудлик текширилаётганда паспорт маълумотларини олдиндан тўлдиришингиз мумкин."))
-                    .font(.footnote.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .layoutPriority(1)
+                Text(tr(
+                    "Passport details can be prepared in advance. The emergency contact is shared from Account and is not repeated here.",
+                    "Паспортные данные можно заполнить заранее. Экстренный контакт берётся из Account и здесь повторно не заполняется.",
+                    "Pasport ma’lumotlarini oldindan to‘ldirish mumkin. Favqulodda kontakt Account’dan olinadi va bu yerda qayta kiritilmaydi.",
+                    "Паспорт маълумотларини олдиндан тўлдириш мумкин. Фавқулодда контакт Account’дан олинади ва бу ерда қайта киритилмайди."
+                ))
+                .font(.footnote.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
             }
             .foregroundStyle(.primary)
             .padding(14)
@@ -106,71 +134,93 @@ struct IumrahTravelCompanionsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
     }
+
     private var emptyCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             IumrahIconBadge(systemName: "person.crop.circle.badge.plus", role: .profile, size: 52, symbolSize: 22, cornerRadius: 17)
-            Text(tr("No travelers yet", "Участники пока не добавлены", "Hozircha sayohatchilar yo‘q", "Ҳозирча саёҳатчилар йўқ"))
+            Text(tr("No companions yet", "Попутчики пока не добавлены", "Hozircha hamrohlar yo‘q", "Ҳозирча ҳамроҳлар йўқ"))
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-            Text(tr("Create or link a booking. Everyone included in it will appear here automatically.", "Создайте или привяжите бронирование — все указанные в нём участники появятся здесь автоматически.", "Bron yarating yoki ulang — undagi barcha sayohatchilar bu yerda avtomatik ko‘rinadi.", "Брон яратинг ёки уланг — ундаги барча саёҳатчилар бу ерда автоматик кўринади."))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(tr(
+                "When a booking includes family or friends, each of them will appear here as a separate traveler profile.",
+                "Когда в бронировании появятся родственники или друзья, каждый из них появится здесь отдельной карточкой.",
+                "Broningizga oila yoki do‘stlar qo‘shilganda, ularning har biri bu yerda alohida profil sifatida ko‘rinadi.",
+                "Бронингизга оила ёки дўстлар қўшилганда, уларнинг ҳар бири бу ерда алоҳида профил сифатида кўринади."
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
     }
+
     private func travelerCard(_ item: TravelerItem) -> some View {
         let traveler = item.traveler
         let title = travelerName(traveler)
         let complete = traveler.completed && traveler.hasPassport
-        return VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 13) {
-                    IumrahIconBadge(
-                        systemName: relationshipIcon(traveler.relationship),
-                        role: complete ? .success : .profile,
-                        size: 52,
-                        symbolSize: 21,
-                        cornerRadius: 17
-                    )
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(relationshipTitle(traveler.relationship, position: traveler.position))
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        Text(title)
-                            .font(.system(size: 21, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                        Text(item.tripTitle)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
+
+        return NavigationLink {
+            IumrahTravelerProfileView(
+                bookingID: item.bookingID,
+                traveler: traveler,
+                onSaved: {
+                    Task { await loadTravelers() }
+                }
+            )
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top, spacing: 13) {
+                        IumrahIconBadge(
+                            systemName: relationshipIcon(traveler.relationship),
+                            role: complete ? .success : .profile,
+                            size: 52,
+                            symbolSize: 21,
+                            cornerRadius: 17
+                        )
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(relationshipTitle(traveler.relationship))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            Text(title)
+                                .font(.system(size: 21, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+                            Text(item.tripTitle)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 6)
+                        Image(systemName: complete ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(complete ? .green : .orange)
                     }
-                    Spacer(minLength: 6)
-                    Image(systemName: complete ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(complete ? .green : .orange)
+
+                    VStack(spacing: 10) {
+                        factRow(
+                            icon: "person.text.rectangle.fill",
+                            title: tr("Personal details", "Личные данные", "Shaxsiy ma’lumotlar", "Шахсий маълумотлар"),
+                            value: traveler.firstName.isEmpty || traveler.lastName.isEmpty
+                                ? tr("Fill in", "Нужно заполнить", "To‘ldirish kerak", "Тўлдириш керак")
+                                : tr("Ready", "Заполнены", "Tayyor", "Тайёр")
+                        )
+                        factRow(
+                            icon: "passport.fill",
+                            title: tr("Passport", "Загранпаспорт", "Pasport", "Паспорт"),
+                            value: traveler.hasPassport
+                                ? maskedPassport(traveler.passportNumber)
+                                : tr("Add a photo", "Добавьте фото", "Rasm qo‘shing", "Расм қўшинг")
+                        )
+                    }
                 }
-                VStack(spacing: 10) {
-                    factRow(
-                        icon: "person.text.rectangle.fill",
-                        title: tr("Personal details", "Личные данные", "Shaxsiy ma’lumotlar", "Шахсий маълумотлар"),
-                        value: traveler.firstName.isEmpty || traveler.lastName.isEmpty ? tr("Fill in", "Нужно заполнить", "To‘ldirish kerak", "Тўлдириш керак") : tr("Ready", "Заполнены", "Tayyor", "Тайёр")
-                    )
-                    factRow(
-                        icon: "passport.fill",
-                        title: tr("Passport", "Загранпаспорт", "Pasport", "Паспорт"),
-                        value: traveler.hasPassport ? maskedPassport(traveler.passportNumber) : tr("Add a photo", "Добавьте фото", "Rasm qo‘shing", "Расм қўшинг")
-                    )
-                }
-            }
-            .padding(20)
-            NavigationLink {
-                PilgrimCheckoutView(bookingID: item.bookingID)
-            } label: {
+                .padding(20)
+
                 HStack(spacing: 9) {
-                    Text(complete ? tr("View traveler details", "Посмотреть данные", "Ma’lumotlarni ko‘rish", "Маълумотларни кўриш") : tr("Fill in traveler details", "Заполнить данные участника", "Sayohatchi ma’lumotlarini to‘ldirish", "Саёҳатчи маълумотларини тўлдириш"))
+                    Text(complete
+                         ? tr("Open traveler profile", "Открыть профиль участника", "Sayohatchi profilini ochish", "Саёҳатчи профилини очиш")
+                         : tr("Fill in traveler details", "Заполнить данные участника", "Sayohatchi ma’lumotlarini to‘ldirish", "Саёҳатчи маълумотларини тўлдириш"))
                     Spacer()
                     Image(systemName: "arrow.right")
                 }
@@ -180,16 +230,17 @@ struct IumrahTravelCompanionsView: View {
                 .frame(height: 54)
                 .background(Color.black)
             }
-            .buttonStyle(.plain)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.075), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.045), radius: 18, y: 8)
         }
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.075), lineWidth: 0.7)
-        }
-        .shadow(color: .black.opacity(0.045), radius: 18, y: 8)
+        .buttonStyle(.plain)
     }
+
     private func factRow(icon: String, title: String, value: String) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 11) {
@@ -225,13 +276,19 @@ struct IumrahTravelCompanionsView: View {
             }
         }
     }
-    private var travelers: [TravelerItem] {
+
+    private var companions: [TravelerItem] {
         bookings.sessions.flatMap { session in
             let checkout = checkouts[session.id]
-            return (checkout?.travelers ?? []).map {
-                // BookingInput has no `hotelName`; the normalized booking model stores
-                // the selected Makkah hotel in `hotelNames`.
-                TravelerItem(bookingID: session.id, tripTitle: companionTripTitle(session), traveler: $0)
+            return (checkout?.travelers ?? []).compactMap { traveler in
+                let relationship = traveler.relationship?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+                let isOwner = relationship == "self" || (relationship.isEmpty && traveler.position == 1)
+                guard !isOwner else { return nil }
+                return TravelerItem(
+                    bookingID: session.id,
+                    tripTitle: companionTripTitle(session),
+                    traveler: traveler
+                )
             }
         }
         .sorted {
@@ -239,6 +296,7 @@ struct IumrahTravelCompanionsView: View {
             return $0.tripTitle < $1.tripTitle
         }
     }
+
     private func companionTripTitle(_ session: StoredBookingSession) -> String {
         let hotelName = session.booking.hotelNames.makkah.trimmingCharacters(in: .whitespacesAndNewlines)
         if !hotelName.isEmpty { return hotelName }
@@ -257,6 +315,7 @@ struct IumrahTravelCompanionsView: View {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
+
         var loaded: [String: IumrahCheckoutResponse] = [:]
         for session in bookings.sessions {
             do {
@@ -271,19 +330,27 @@ struct IumrahTravelCompanionsView: View {
         }
         checkouts = loaded
         if loaded.isEmpty && !bookings.sessions.isEmpty {
-            errorMessage = tr("Travelers could not be loaded. Pull down to try again.", "Не удалось загрузить участников. Потяните экран вниз, чтобы повторить.", "Sayohatchilarni yuklab bo‘lmadi. Qayta urinish uchun pastga torting.", "Саёҳатчиларни юклаб бўлмади. Қайта уриниш учун пастга тортинг.")
+            errorMessage = tr(
+                "Travelers could not be loaded. Pull down to try again.",
+                "Не удалось загрузить участников. Потяните экран вниз, чтобы повторить.",
+                "Sayohatchilarni yuklab bo‘lmadi. Qayta urinish uchun pastga torting.",
+                "Саёҳатчиларни юклаб бўлмади. Қайта уриниш учун пастга тортинг."
+            )
         }
     }
+
     private func travelerName(_ traveler: IumrahTravelerForm) -> String {
         let value = [traveler.firstName, traveler.middleName, traveler.lastName]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-        return value.isEmpty ? tr("Traveler \(traveler.position)", "Участник \(traveler.position)", "Sayohatchi \(traveler.position)", "Саёҳатчи \(traveler.position)") : value
+        return value.isEmpty
+            ? tr("Traveler \(traveler.position)", "Участник \(traveler.position)", "Sayohatchi \(traveler.position)", "Саёҳатчи \(traveler.position)")
+            : value
     }
-    private func relationshipTitle(_ value: String?, position: Int) -> String {
+
+    private func relationshipTitle(_ value: String?) -> String {
         switch value?.lowercased() {
-        case "self": return tr("You", "Вы", "Siz", "Сиз")
         case "spouse": return tr("Spouse", "Муж или жена", "Turmush o‘rtog‘i", "Турмуш ўртоғи")
         case "mother": return tr("Mother", "Мама", "Ona", "Она")
         case "father": return tr("Father", "Папа", "Ota", "Ота")
@@ -292,12 +359,12 @@ struct IumrahTravelCompanionsView: View {
         case "child": return tr("Child", "Ребёнок", "Farzand", "Фарзанд")
         case "relative": return tr("Relative", "Родственник", "Qarindosh", "Қариндош")
         case "friend": return tr("Friend", "Друг или подруга", "Do‘st", "Дўст")
-        default: return position == 1 ? tr("You", "Вы", "Siz", "Сиз") : tr("Traveler", "Участник поездки", "Sayohatchi", "Саёҳатчи")
+        default: return tr("Traveler", "Участник поездки", "Sayohatchi", "Саёҳатчи")
         }
     }
+
     private func relationshipIcon(_ value: String?) -> String {
         switch value?.lowercased() {
-        case "self": return "person.fill"
         case "spouse": return "heart.fill"
         case "mother", "father": return "person.2.fill"
         case "child": return "figure.child"
@@ -306,11 +373,15 @@ struct IumrahTravelCompanionsView: View {
         default: return "person.crop.circle.fill"
         }
     }
+
     private func maskedPassport(_ value: String) -> String {
         let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard cleaned.count > 4 else { return cleaned.isEmpty ? tr("Added", "Добавлен", "Qo‘shilgan", "Қўшилган") : cleaned }
+        guard cleaned.count > 4 else {
+            return cleaned.isEmpty ? tr("Added", "Добавлен", "Qo‘shilgan", "Қўшилган") : cleaned
+        }
         return "•••• \(cleaned.suffix(4))"
     }
+
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .russian: return ru

@@ -69,12 +69,10 @@ struct CareChatMessageRow: View {
             .background {
                 if isMine {
                     shape.fill(outgoingBubbleColor.opacity(wallpaperActive ? 0.96 : 1))
-                } else if wallpaperActive {
-                    // iMessage-like solid incoming bubble. Avoid the translucent
-                    // glass blob that made text and tails look muddy on photo wallpapers.
-                    shape.fill(Color.white.opacity(0.92))
                 } else {
-                    shape.fill(Color(uiColor: .systemGray5))
+                    // Messages-style incoming bubble: always an opaque system surface.
+                    // Wallpaper never bleeds through the text, so contrast stays stable.
+                    shape.fill(Color(uiColor: .secondarySystemBackground).opacity(wallpaperActive ? 0.98 : 1))
                 }
             }
             .overlay {
@@ -98,7 +96,7 @@ struct CareChatMessageRow: View {
             if !trimmed.isEmpty {
                 Text(message.body)
                     .font(.system(size: 17, weight: .regular))
-                    .foregroundStyle(isMine ? Color.white : (wallpaperActive ? Color.black : Color.primary))
+                    .foregroundStyle(isMine ? Color.white : Color.primary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
@@ -127,9 +125,7 @@ struct CareChatMessageRow: View {
     }
 
     private var outgoingBubbleColor: Color {
-        colorScheme == .dark
-            ? Color(red: 0.04, green: 0.52, blue: 1.0)
-            : Color(red: 0.00, green: 0.48, blue: 1.0)
+        Color(uiColor: .systemBlue)
     }
 
     private var incomingStrokeColor: Color {
@@ -142,7 +138,7 @@ struct CareChatMessageRow: View {
 
     private var metadataColor: Color {
         if isMine { return .white.opacity(0.72) }
-        return wallpaperActive ? .white.opacity(0.68) : .secondary
+        return .secondary
     }
 
     private var deliveryStatus: String {

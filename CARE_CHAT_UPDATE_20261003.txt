@@ -1,0 +1,7 @@
+iumrah Care chat refinement
+- thinner iMessage-style composer (36pt base height)
+- system blue outgoing messages and stable opaque incoming bubbles
+- wallpaper readability improvements
+- Care info/background page moved to neutral system grouped palette
+- wallpaper selection no longer destroys text contrast
+- Care avatar replaced with supplied black iumrah Care mark

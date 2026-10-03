@@ -31,7 +31,7 @@ struct BookingChatView: View {
     @State private var presentationByID: [String: CareMessagePresentation] = [:]
     @FocusState private var composerFocused: Bool
     @State private var scrollViewportHeight: CGFloat = 0
-    @State private var composerPanelHeight: CGFloat = 66
+    @State private var composerPanelHeight: CGFloat = 56
     @Namespace private var sendNamespace
 
     private let bottomAnchorID = "care-chat-bottom-anchor"
@@ -63,7 +63,7 @@ struct BookingChatView: View {
                         }
                         composer(proxy: proxy)
                     }
-                    .padding(.bottom, composerFocused ? 6 : 10)
+                    .padding(.bottom, composerFocused ? 4 : 7)
                     .background {
                         GeometryReader { geometry in
                             Color.clear
@@ -190,7 +190,7 @@ struct BookingChatView: View {
                 .frame(minHeight: max(scrollViewportHeight - 24, 0), alignment: .bottom)
             }
             .scrollDismissesKeyboard(.interactively)
-            .contentMargins(.bottom, max(74, composerPanelHeight + 6), for: .scrollContent)
+            .contentMargins(.bottom, max(64, composerPanelHeight + 4), for: .scrollContent)
             .coordinateSpace(name: scrollCoordinateSpace)
             .background {
                 GeometryReader { geometry in
@@ -441,10 +441,10 @@ struct BookingChatView: View {
     // MARK: - Composer
 
     private func composer(proxy: ScrollViewProxy) -> some View {
-        // iMessage-style composer: two independent controls instead of one large
-        // GlassEffectContainer. This prevents iOS 26 from merging/stretching the
-        // input surface and keeps the bar compact when the draft is empty.
-        HStack(alignment: .bottom, spacing: 9) {
+        // Keep the composer deliberately close to Messages: compact controls,
+        // a 36pt single-line field, and no large Liquid Glass container that
+        // can inflate the input bar on iOS 26.
+        HStack(alignment: .bottom, spacing: 7) {
             PhotosPicker(selection: $selectedPhoto, matching: .images) {
                 Group {
                     if isSendingPhoto {
@@ -452,33 +452,38 @@ struct BookingChatView: View {
                             .controlSize(.mini)
                     } else {
                         Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .regular))
+                            .font(.system(size: 20, weight: .regular))
                     }
                 }
                 .foregroundStyle(composerControlColor)
-                .frame(width: 40, height: 40)
+                .frame(width: 36, height: 36)
+                .background(Color(uiColor: .secondarySystemFill), in: Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.5)
+                }
                 .contentShape(Circle())
             }
-            .careNativeGlassButton()
+            .buttonStyle(.plain)
             .disabled(isSending || isSendingPhoto)
             .accessibilityLabel(tr("Add photo", "Добавить фото", "Rasm qo‘shish", "Расм қўшиш"))
 
-            HStack(alignment: .bottom, spacing: 6) {
+            HStack(alignment: .bottom, spacing: 4) {
                 TextField(L10n.text("chat_placeholder", settings.language), text: $draft, axis: .vertical)
                     .focused($composerFocused)
-                    .font(.system(size: 16))
+                    .font(.system(size: 17))
+                    .foregroundStyle(Color.primary)
                     .textFieldStyle(.plain)
-                    .lineLimit(1...3)
+                    .lineLimit(1...4)
                     .fixedSize(horizontal: false, vertical: true)
                     .submitLabel(.send)
-                    .tint(appearance.wallpaper.isVisual ? .white : outgoingAccentColor)
+                    .tint(outgoingAccentColor)
                     .onSubmit {
                         guard canSend else { return }
                         Task { await send(proxy: proxy) }
                     }
-                    .padding(.leading, 14)
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
+                    .padding(.leading, 12)
+                    .padding(.vertical, 7)
 
                 Group {
                     if canSend || isSending {
@@ -489,19 +494,17 @@ struct BookingChatView: View {
                                 Circle()
                                     .fill(outgoingAccentColor)
 
-                                Group {
-                                    if isSending {
-                                        ProgressView()
-                                            .controlSize(.mini)
-                                            .tint(.white)
-                                    } else {
-                                        Image(systemName: "arrow.up")
-                                            .font(.system(size: 14, weight: .bold))
-                                    }
+                                if isSending {
+                                    ProgressView()
+                                        .controlSize(.mini)
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "arrow.up")
+                                        .font(.system(size: 13.5, weight: .bold))
+                                        .foregroundStyle(.white)
                                 }
-                                .foregroundStyle(.white)
                             }
-                            .frame(width: 34, height: 34)
+                            .frame(width: 30, height: 30)
                             .contentShape(Circle())
                         }
                         .buttonStyle(.plain)
@@ -510,42 +513,28 @@ struct BookingChatView: View {
                     } else {
                         Image(systemName: "waveform")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(
-                                appearance.wallpaper.isVisual
-                                    ? Color.white.opacity(0.76)
-                                    : Color.secondary
-                            )
-                            .frame(width: 34, height: 34)
+                            .foregroundStyle(Color.secondary)
+                            .frame(width: 30, height: 30)
                             .transition(.scale(scale: 0.90).combined(with: .opacity))
                     }
                 }
-                .padding(.trailing, 6)
-                .padding(.bottom, 4)
+                .padding(.trailing, 4)
+                .padding(.bottom, 3)
             }
-            .frame(minHeight: 38, maxHeight: 78, alignment: .bottom)
+            .frame(minHeight: 36, maxHeight: 92, alignment: .bottom)
             .frame(maxWidth: .infinity)
-            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .onTapGesture { composerFocused = true }
-            .careNativeGlassSurface(
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous),
-                interactive: false,
-                tint: composerGlassTint
-            )
+            .background(composerFieldBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(
-                        appearance.wallpaper.isVisual
-                            ? Color.white.opacity(0.18)
-                            : Color.primary.opacity(0.08),
-                        lineWidth: 0.65
-                    )
+                    .strokeBorder(composerFieldBorder, lineWidth: 0.55)
                     .allowsHitTesting(false)
             }
-            .shadow(color: Color.black.opacity(0.018), radius: 1.2, y: 0.5)
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .onTapGesture { composerFocused = true }
             .animation(.spring(response: 0.24, dampingFraction: 0.88), value: canSend)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 10)
         .overlay(alignment: .bottomTrailing) {
             if let launchingOutgoing {
                 Text(launchingOutgoing.body)
@@ -559,32 +548,29 @@ struct BookingChatView: View {
                             .fill(outgoingAccentColor)
                     }
                     .matchedGeometryEffect(id: "care-send-\(launchingOutgoing.id)", in: sendNamespace, isSource: true)
-                    .padding(.trailing, 14)
-                    .padding(.bottom, 2)
+                    .padding(.trailing, 12)
+                    .padding(.bottom, 1)
                     .allowsHitTesting(false)
                     .zIndex(5)
             }
         }
     }
 
-    private var composerGlassTint: Color? {
-        if appearance.wallpaper.isVisual {
-            return Color.white.opacity(composerFocused ? 0.10 : 0.045)
-        }
+    private var composerFieldBackground: Color {
         if colorScheme == .dark {
-            return composerFocused
-                ? outgoingAccentColor.opacity(0.16)
-                : Color.white.opacity(0.045)
+            return Color(uiColor: .secondarySystemBackground).opacity(0.98)
         }
-        return composerFocused
-            ? Color.iumrahCareLight.opacity(0.070)
-            : Color.primary.opacity(0.020)
+        return Color(uiColor: .systemBackground).opacity(appearance.wallpaper.isVisual ? 0.97 : 1)
+    }
+
+    private var composerFieldBorder: Color {
+        appearance.wallpaper.isVisual
+            ? Color.black.opacity(0.14)
+            : Color.secondary.opacity(0.28)
     }
 
     private var outgoingAccentColor: Color {
-        colorScheme == .dark
-            ? Color(red: 0.04, green: 0.52, blue: 1.0)
-            : Color(red: 0.00, green: 0.48, blue: 1.0)
+        Color(uiColor: .systemBlue)
     }
 
     private var canSend: Bool {
@@ -592,7 +578,7 @@ struct BookingChatView: View {
     }
 
     private var composerControlColor: Color {
-        appearance.wallpaper.isVisual ? .white : .primary
+        .primary
     }
 
     // MARK: - Error

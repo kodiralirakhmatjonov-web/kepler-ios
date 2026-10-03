@@ -1,0 +1,16 @@
+Combined update: Care Chat + Account / Traveler profiles
+
+Account:
+- Primary user card is black, slightly wider, and visually dominant after iumrah ID.
+- Owner page keeps the iumrah Security visual hero but removes a separate KYC product concept.
+- Owner page has an animated two-section switch: Booking details / Account details.
+- Account details include iumrah ID, account name, linked phone/email, Telegram/WhatsApp and Account Security.
+- Added a third Account card for one reusable Emergency Contact.
+
+Travelers:
+- "Who is traveling with you" now has a prominent in-content page title.
+- Owner is kept separate from companion profiles.
+- Every companion card opens its own dedicated traveler editor.
+- Companion editors no longer ask for a separate emergency contact; the shared Account emergency contact is reused when missing.
+
+Also includes the previous Care Chat iMessage-style update and Care logo assets.

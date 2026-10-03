@@ -22,43 +22,30 @@ struct CareContactInfoView: View {
 
     var body: some View {
         ZStack {
-            CareConversationBackground(
-                wallpaper: appearance.wallpaper,
-                customImage: appearance.customImage,
-                motionEnabled: true
-            )
-
-            if appearance.wallpaper.isVisual {
-                LinearGradient(
-                    colors: [Color.black.opacity(0.10), Color.clear, Color.black.opacity(0.08)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+            Color(uiColor: .systemGroupedBackground)
                 .ignoresSafeArea()
-                .allowsHitTesting(false)
-            }
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     profileHero
-                        .padding(.top, 10)
+                        .padding(.top, 16)
 
                     segmentControl
-                        .padding(.top, 22)
+                        .padding(.top, 24)
 
-                    ZStack(alignment: .top) {
+                    Group {
                         if section == .info {
                             informationSection
-                                .transition(.opacity.combined(with: .offset(x: -12)))
+                                .transition(.opacity.combined(with: .offset(x: -10)))
                         } else {
                             backgroundSection
-                                .transition(.opacity.combined(with: .offset(x: 12)))
+                                .transition(.opacity.combined(with: .offset(x: 10)))
                         }
                     }
                     .padding(.top, 18)
                 }
                 .padding(.horizontal, 18)
-                .padding(.bottom, 34)
+                .padding(.bottom, 38)
             }
         }
         .navigationTitle("iumrah Care")
@@ -89,24 +76,30 @@ struct CareContactInfoView: View {
         }
     }
 
+    // MARK: - Header
 
     private var profileHero: some View {
-        VStack(spacing: 12) {
-            CareProfileAvatar(profile: nil, size: 92)
-                .shadow(color: .black.opacity(appearance.wallpaper.isVisual ? 0.18 : 0.10), radius: 16, y: 7)
+        VStack(spacing: 10) {
+            CareProfileAvatar(profile: nil, size: 104)
+                .shadow(color: .black.opacity(0.10), radius: 16, y: 8)
 
             Text("iumrah Care")
                 .font(.system(size: 30, weight: .bold, design: .rounded))
                 .tracking(-0.55)
-                .foregroundStyle(primaryText)
+                .foregroundStyle(Color.primary)
                 .multilineTextAlignment(.center)
 
-            Text(tr("Support for every stage of your journey", "Поддержка на всех этапах вашей поездки", "Safaringizning barcha bosqichlarida yordam", "Сафарингизнинг барча босқичларида ёрдам"))
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(secondaryText)
-                .multilineTextAlignment(.center)
+            Text(tr(
+                "Support for every stage of your journey",
+                "Поддержка на всех этапах вашей поездки",
+                "Safaringizning barcha bosqichlarida yordam",
+                "Сафарингизнинг барча босқичларида ёрдам"
+            ))
+            .font(.system(size: 15, weight: .regular))
+            .foregroundStyle(Color.secondary)
+            .multilineTextAlignment(.center)
 
-            HStack(spacing: 24) {
+            HStack(spacing: 28) {
                 actionButton(
                     title: tr("Call", "Позвонить", "Qo‘ng‘iroq", "Қўнғироқ"),
                     icon: "phone.fill",
@@ -126,7 +119,7 @@ struct CareContactInfoView: View {
                     action: onWhatsApp
                 )
             }
-            .padding(.top, 8)
+            .padding(.top, 10)
         }
         .frame(maxWidth: .infinity)
     }
@@ -144,20 +137,22 @@ struct CareContactInfoView: View {
                 action()
             } label: {
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 30, height: 30)
-                    .contentShape(Circle())
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(enabled ? Color(uiColor: .systemBlue) : Color.secondary.opacity(0.40))
+                    .frame(width: 48, height: 48)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground), in: Circle())
+                    .overlay {
+                        Circle().strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.5)
+                    }
             }
-            .foregroundStyle(enabled ? primaryText : secondaryText.opacity(0.42))
-            .controlSize(.small)
-            .careNativeGlassButton()
+            .buttonStyle(.plain)
             .disabled(!enabled)
 
             Text(title)
-                .font(.system(size: 11.5, weight: .medium))
+                .font(.system(size: 12.5, weight: .medium))
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
-                .foregroundStyle(enabled ? primaryText : secondaryText.opacity(0.42))
+                .foregroundStyle(enabled ? Color.primary : Color.secondary.opacity(0.45))
         }
     }
 
@@ -169,24 +164,29 @@ struct CareContactInfoView: View {
                 .tag(Section.background)
         }
         .pickerStyle(.segmented)
-        .frame(maxWidth: 258)
+        .frame(maxWidth: 290)
         .onChange(of: section) { _, _ in
             if appearance.hapticsEnabled { IumrahHaptics.selection() }
         }
     }
 
+    // MARK: - Info
+
     private var informationSection: some View {
         VStack(spacing: 12) {
             founderConnectCard
 
-            glassCard {
+            card {
                 VStack(spacing: 0) {
                     settingsToggle(
                         title: tr("Chat sounds", "Звуки чата", "Chat tovushlari", "Чат товушлари"),
                         icon: "speaker.wave.2.fill",
                         isOn: $appearance.soundsEnabled
                     )
-                    Divider().opacity(0.22).padding(.leading, 52)
+
+                    Divider()
+                        .padding(.leading, 54)
+
                     settingsToggle(
                         title: tr("Haptics", "Виброотклик", "Haptika", "Ҳаптика"),
                         icon: "hand.tap.fill",
@@ -197,21 +197,19 @@ struct CareContactInfoView: View {
             }
 
             if let bookingNumber, !bookingNumber.isEmpty {
-                glassCard {
-                    HStack(spacing: 11) {
-                        Image(systemName: "suitcase.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                            .frame(width: 34, height: 34)
-                            .careNativeGlassSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                card {
+                    HStack(spacing: 12) {
+                        settingsIcon("suitcase.fill")
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tr("Booking", "Бронирование", "Bron", "Брон"))
                                 .font(.caption)
-                                .foregroundStyle(secondaryText)
+                                .foregroundStyle(Color.secondary)
                             Text(bookingNumber)
                                 .font(.system(size: 15.5, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(primaryText)
+                                .foregroundStyle(Color.primary)
                         }
+
                         Spacer(minLength: 0)
                     }
                     .padding(14)
@@ -227,21 +225,18 @@ struct CareContactInfoView: View {
             appearance.connectFounder()
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: appearance.founderConnected ? "checkmark.circle.fill" : "person.crop.circle.badge.plus")
-                    .font(.system(size: 19, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .frame(width: 36, height: 36)
-                    .careNativeGlassSurface(in: Circle(), interactive: !appearance.founderConnected)
+                settingsIcon(appearance.founderConnected ? "checkmark.circle.fill" : "person.crop.circle.badge.plus")
+                    .foregroundStyle(appearance.founderConnected ? Color.green : Color(uiColor: .systemBlue))
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(founderButtonTitle)
                         .font(.system(size: 15.5, weight: .semibold))
-                        .foregroundStyle(primaryText)
+                        .foregroundStyle(Color.primary)
                         .multilineTextAlignment(.leading)
 
                     Text(founderButtonSubtitle)
                         .font(.system(size: 13.2))
-                        .foregroundStyle(secondaryText)
+                        .foregroundStyle(Color.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
                 }
@@ -251,17 +246,21 @@ struct CareContactInfoView: View {
                 if !appearance.founderConnected {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(secondaryText)
+                        .foregroundStyle(Color.secondary)
                 }
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 13)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(
+                        appearance.founderConnected ? Color.green.opacity(0.24) : Color.primary.opacity(0.05),
+                        lineWidth: 0.6
+                    )
+            }
             .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .careNativeGlassSurface(
-                in: RoundedRectangle(cornerRadius: 22, style: .continuous),
-                interactive: !appearance.founderConnected,
-                tint: appearance.founderConnected ? Color.iumrahCareLight.opacity(0.08) : nil
-            )
         }
         .buttonStyle(.plain)
         .disabled(appearance.founderConnected)
@@ -303,26 +302,33 @@ struct CareContactInfoView: View {
         )
     }
 
+    // MARK: - Backgrounds
+
     private var backgroundSection: some View {
         VStack(alignment: .leading, spacing: 28) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 76), spacing: 14)],
-                alignment: .center,
-                spacing: 20
-            ) {
-                wallpaperCircle(.none)
-                customPhotoCircle
-                wallpaperCircle(.dawn)
-                wallpaperCircle(.sky)
-                wallpaperCircle(.water)
-                wallpaperCircle(.aurora)
+            VStack(alignment: .leading, spacing: 14) {
+                Text(tr("Chat background", "Фон чата", "Chat foni", "Чат фони"))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.primary)
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 76), spacing: 14)],
+                    alignment: .center,
+                    spacing: 20
+                ) {
+                    wallpaperCircle(.none)
+                    customPhotoCircle
+                    wallpaperCircle(.dawn)
+                    wallpaperCircle(.sky)
+                    wallpaperCircle(.water)
+                    wallpaperCircle(.aurora)
+                }
             }
 
             VStack(alignment: .leading, spacing: 15) {
                 Text(tr("Suggestions", "Предложения", "Takliflar", "Таклифлар"))
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .tracking(-0.5)
-                    .foregroundStyle(primaryText)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.primary)
 
                 LazyVGrid(
                     columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)],
@@ -349,21 +355,19 @@ struct CareContactInfoView: View {
                         .clipShape(Circle())
                         .overlay {
                             Circle().stroke(
-                                appearance.wallpaper == wallpaper ? Color.white : Color.white.opacity(0.18),
+                                appearance.wallpaper == wallpaper ? Color(uiColor: .systemBlue) : Color.primary.opacity(0.10),
                                 lineWidth: appearance.wallpaper == wallpaper ? 3 : 0.8
                             )
                         }
-                        .shadow(color: .black.opacity(0.11), radius: 9, y: 5)
 
                     if appearance.wallpaper == wallpaper {
-                        selectionBadge
-                            .offset(x: 2, y: 2)
+                        selectionBadge.offset(x: 2, y: 2)
                     }
                 }
 
                 Text(wallpaper.title(language))
                     .font(.system(size: 13.5, weight: .medium))
-                    .foregroundStyle(primaryText)
+                    .foregroundStyle(Color.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
@@ -382,14 +386,10 @@ struct CareContactInfoView: View {
                                 .scaledToFill()
                         } else {
                             ZStack {
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.88), Color.white.opacity(0.34)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+                                Color(uiColor: .secondarySystemGroupedBackground)
                                 Image(systemName: "photo.fill")
                                     .font(.system(size: 22, weight: .semibold))
-                                    .foregroundStyle(primaryText.opacity(0.66))
+                                    .foregroundStyle(Color.secondary)
                             }
                         }
                     }
@@ -397,11 +397,10 @@ struct CareContactInfoView: View {
                     .clipShape(Circle())
                     .overlay {
                         Circle().stroke(
-                            appearance.wallpaper == .photo ? Color.white : Color.white.opacity(0.18),
+                            appearance.wallpaper == .photo ? Color(uiColor: .systemBlue) : Color.primary.opacity(0.10),
                             lineWidth: appearance.wallpaper == .photo ? 3 : 0.8
                         )
                     }
-                    .shadow(color: .black.opacity(0.11), radius: 9, y: 5)
 
                     if appearance.wallpaper == .photo {
                         selectionBadge.offset(x: 2, y: 2)
@@ -410,7 +409,7 @@ struct CareContactInfoView: View {
 
                 Text(CareChatWallpaper.photo.title(language))
                     .font(.system(size: 13.5, weight: .medium))
-                    .foregroundStyle(primaryText)
+                    .foregroundStyle(Color.primary)
             }
         }
         .buttonStyle(.plain)
@@ -423,15 +422,15 @@ struct CareContactInfoView: View {
         } label: {
             ZStack(alignment: .bottomLeading) {
                 CareWallpaperPreview(wallpaper: wallpaper, customImage: appearance.customImage)
-                    .frame(height: 224)
-                    .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+                    .frame(height: 210)
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
 
                 LinearGradient(
                     colors: [Color.clear, Color.black.opacity(0.48)],
                     startPoint: .center,
                     endPoint: .bottom
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
 
                 HStack(spacing: 8) {
                     Text(wallpaper.title(language))
@@ -445,67 +444,54 @@ struct CareContactInfoView: View {
                 .padding(14)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
                     .stroke(
-                        Color.white.opacity(appearance.wallpaper == wallpaper ? 0.90 : 0.15),
-                        lineWidth: appearance.wallpaper == wallpaper ? 2 : 0.8
+                        appearance.wallpaper == wallpaper ? Color(uiColor: .systemBlue) : Color.primary.opacity(0.07),
+                        lineWidth: appearance.wallpaper == wallpaper ? 2 : 0.7
                     )
             }
-            .shadow(color: .black.opacity(0.13), radius: 14, y: 7)
         }
         .buttonStyle(.plain)
     }
 
     private var selectionBadge: some View {
-        IumrahIconBadge(
-            systemName: "checkmark",
-            role: .success,
-            size: 25,
-            symbolSize: 11,
-            shape: .circle
-        )
+        ZStack {
+            Circle()
+                .fill(Color(uiColor: .systemBlue))
+            Image(systemName: "checkmark")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white)
+        }
+        .frame(width: 25, height: 25)
     }
+
+    // MARK: - Shared controls
 
     @ViewBuilder
-    private func glassCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
-            .careNativeGlassSurface(
-                in: RoundedRectangle(cornerRadius: 29, style: .continuous),
-                interactive: false
-            )
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.045), lineWidth: 0.5)
+            }
     }
 
-    private func infoRow(label: String, value: String, icon: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 38, height: 38)
-                .careNativeGlassSurface(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(secondaryText)
-                Text(value)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(primaryText)
-                    .textSelection(.enabled)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, 11)
+    private func settingsIcon(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(Color(uiColor: .systemBlue))
+            .frame(width: 36, height: 36)
+            .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 
     private func settingsToggle(title: String, icon: String, isOn: Binding<Bool>) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 38, height: 38)
-                .careNativeGlassSurface(in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            settingsIcon(icon)
 
             Text(title)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(primaryText)
+                .foregroundStyle(Color.primary)
 
             Spacer(minLength: 0)
 
@@ -526,14 +512,6 @@ struct CareContactInfoView: View {
 
     private var hasWhatsApp: Bool {
         !(profile?.whatsapp.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty
-    }
-
-    private var primaryText: Color {
-        appearance.wallpaper.isVisual ? .white : .primary
-    }
-
-    private var secondaryText: Color {
-        appearance.wallpaper.isVisual ? .white.opacity(0.68) : .secondary
     }
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
@@ -558,8 +536,9 @@ struct CareProfileAvatar: View {
             .clipShape(Circle())
             .overlay {
                 Circle()
-                    .stroke(Color.white.opacity(0.62), lineWidth: 0.8)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
             }
+            .background(Color.white, in: Circle())
             .contentShape(Circle())
             .accessibilityLabel("iumrah Care")
     }

@@ -143,13 +143,13 @@ enum CareChatWallpaper: String, CaseIterable, Identifiable {
     var readabilityOverlayOpacity: Double {
         switch self {
         case .none: return 0
-        case .photo: return 0.18
-        case .dawn: return 0.13
-        case .sky: return 0.18
-        case .water: return 0.10
-        case .aurora: return 0.08
-        case .sand: return 0.21
-        case .makkah: return 0.16
+        case .photo: return 0.28
+        case .dawn: return 0.20
+        case .sky: return 0.24
+        case .water: return 0.18
+        case .aurora: return 0.14
+        case .sand: return 0.24
+        case .makkah: return 0.22
         }
     }
 
@@ -242,7 +242,7 @@ struct CareConversationBackground: View {
     private func staticBase(_ value: CareChatWallpaper, size: CGSize, time: TimeInterval) -> some View {
         switch value {
         case .none:
-            Color.iumrahPageBackground
+            Color(uiColor: .systemBackground)
 
         case .photo:
             if let customImage {
