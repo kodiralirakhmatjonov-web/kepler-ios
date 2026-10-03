@@ -1,0 +1,10 @@
+iumrah Flights Data API UI v2
+2026-10-03
+
+Changes:
+- Replaces the price-insight-only surface with a visible vertical ticket results list.
+- Merges exact-day + monthly Aviasales Data API cache rows and uses grouped calendar fallback for the selected date.
+- Adds full-screen individual flight detail with "Buy on Aviasales" and "Add flight to Umrah" actions.
+- Keeps price graph, direct-flight schedule, nearby-date deals and existing ready Flight First packages.
+- Fixes Aviasales Data API result URL normalization (/search/... no longer becomes /search/search/...).
+- No GitHub workflow files are included.

@@ -1,7 +1,7 @@
 import type { Env } from "./env";
 
 const API_ORIGIN = "https://api.travelpayouts.com";
-const AVIASALES_SEARCH_ORIGIN = "https://www.aviasales.com/search/";
+const AVIASALES_ORIGIN = "https://www.aviasales.com";
 
 function json(value: unknown, status = 200, cacheControl = "no-store") {
   return new Response(JSON.stringify(value), {
@@ -42,7 +42,12 @@ function intParam(raw: string | null, fallback: number, min: number, max: number
 function fullAviasalesURL(path: unknown): string | null {
   if (typeof path !== "string" || !path.startsWith("/")) return null;
   try {
-    return new URL(path.replace(/^\/+/, ""), AVIASALES_SEARCH_ORIGIN).toString();
+    // REST Data API commonly returns /search/... while some data methods return
+    // /TAS0910JED1-style codes. Support both without producing /search/search/.
+    if (path.startsWith("/search/")) {
+      return new URL(path, AVIASALES_ORIGIN).toString();
+    }
+    return new URL(`/search/${path.replace(/^\/+/, "")}`, AVIASALES_ORIGIN).toString();
   } catch {
     return null;
   }

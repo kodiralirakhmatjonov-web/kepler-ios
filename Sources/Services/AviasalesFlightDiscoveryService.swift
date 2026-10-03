@@ -207,26 +207,73 @@ final class IumrahFlightDiscoveryStore: ObservableObject {
                 self.currency = calendar.currency
                 self.generatedAt = calendar.generatedAt
 
-                do {
-                    let offers = try await service.offers(
-                        origin: origin,
-                        destination: destination,
-                        departure: departure,
-                        returnAt: returnAt,
-                        direct: directOnly,
-                        limit: 50
-                    )
-                    guard !Task.isCancelled else { return }
-                    self.offers = offers.offers
-                    self.currency = offers.currency
-                    self.generatedAt = offers.generatedAt ?? calendar.generatedAt
-                } catch {
-                    guard !Task.isCancelled else { return }
-                    // The Data API is a recent-search cache. An exact travel day can
-                    // legitimately have no row even while the monthly calendar has data.
-                    self.offers = []
-                    self.errorMessage = nil
+                var collected: [FlightDiscoveryOffer] = []
+
+                // 1) Ask for the exact travel day. This is the most relevant cache slice.
+                if let exact = try? await service.offers(
+                    origin: origin,
+                    destination: destination,
+                    departure: departure,
+                    returnAt: returnAt,
+                    direct: directOnly,
+                    limit: 100
+                ) {
+                    collected.append(contentsOf: exact.offers)
+                    self.currency = exact.currency
+                    self.generatedAt = exact.generatedAt ?? calendar.generatedAt
                 }
+
+                guard !Task.isCancelled else { return }
+
+                // 2) prices_for_dates can contain several cached fares for the month even
+                // when the exact-day request returns only one row. Merge matching rows so
+                // the client receives a real ticket list rather than only a price insight.
+                if collected.count < 6,
+                   let monthly = try? await service.offers(
+                    origin: origin,
+                    destination: destination,
+                    departure: month,
+                    returnAt: returnAt,
+                    direct: directOnly,
+                    limit: 100
+                   ) {
+                    let matching = monthly.offers.filter {
+                        String($0.departureAt.prefix(10)) == departure
+                    }
+                    collected.append(contentsOf: matching)
+                    self.currency = monthly.currency
+                    self.generatedAt = monthly.generatedAt ?? self.generatedAt
+                }
+
+                guard !Task.isCancelled else { return }
+
+                // 3) grouped_prices always gives us the cheapest cached row for a day when
+                // one exists. Use it as a final selected-day fallback so the UI never hides
+                // a fare that is already visible in the calendar/price graph.
+                if let fallback = calendar.days.first(where: { $0.date == departure })?.offer {
+                    collected.append(fallback)
+                }
+
+                var seen = Set<String>()
+                self.offers = collected
+                    .filter { $0.price > 0 && !$0.departureAt.isEmpty }
+                    .filter { offer in
+                        let signature = [
+                            offer.originAirport,
+                            offer.destinationAirport,
+                            offer.airlineCode,
+                            offer.flightNumber,
+                            offer.departureAt,
+                            String(Int(offer.price.rounded()))
+                        ].joined(separator: "|")
+                        return seen.insert(signature).inserted
+                    }
+                    .sorted { lhs, rhs in
+                        if lhs.price != rhs.price { return lhs.price < rhs.price }
+                        return lhs.departureAt < rhs.departureAt
+                    }
+
+                self.errorMessage = nil
                 self.isLoading = false
             } catch {
                 guard !Task.isCancelled else { return }

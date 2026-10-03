@@ -12,11 +12,14 @@ assert.match(index, /GET.*\/api\/package\/flights\/data|request\.method === "GET
 assert.match(backend, /\/aviasales\/v3\/prices_for_dates/);
 assert.match(backend, /\/aviasales\/v3\/grouped_prices/);
 assert.match(backend, /"X-Access-Token": token/);
-assert.match(backend, /AVIASALES_SEARCH_ORIGIN = "https:\/\/www\.aviasales\.com\/search\/"/);
+assert.match(backend, /AVIASALES_ORIGIN = "https:\/\/www\.aviasales\.com"/);
+assert.match(backend, /path\.startsWith\("\/search\/"\)/);
 assert.ok(!iosService.includes('TRAVELPAYOUTS_API_TOKEN'), 'iOS client must never contain the Travelpayouts token');
 assert.match(iosService, /\/api\/package\/flights\/data/);
 assert.match(flightsView, /IumrahFlightDiscoveryStore/);
-assert.match(flightsView, /Самые дешёвые билеты/);
+assert.match(flightsView, /Авиабилеты/);
+assert.match(flightsView, /Купить самому на Aviasales/);
+assert.match(flightsView, /FlightDiscoveryTicketCard/);
 assert.match(flightsView, /График цен/);
 assert.match(flightsView, /Прямые рейсы/);
 
