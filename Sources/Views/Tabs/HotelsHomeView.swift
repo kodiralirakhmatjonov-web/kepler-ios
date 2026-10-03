@@ -15,15 +15,15 @@ struct HotelsHomeView: View {
     @State private var carePresented = false
     @State private var packageShareArtifacts: IumrahPackageShareArtifacts?
     @State private var packageShareError: String?
-    @State private var flightOriginFilter: String? = nil
-    @State private var flightDestinationFilter: String? = nil
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 22) {
                 IumrahRootPageTitle(title: pageTitle)
 
-                AirportSelectorButton(airport: $journey.trip.originAirport, fallbackCode: $journey.trip.origin)
+                if board != .flights {
+                    AirportSelectorButton(airport: $journey.trip.originAirport, fallbackCode: $journey.trip.origin)
+                }
 
                 Picker(L10n.text("hotel_storefront_section", settings.language), selection: $board) {
                     Text(L10n.text("tab_hotels", settings.language)).tag(HotelsShowcaseBoard.hotels)
@@ -188,205 +188,87 @@ struct HotelsHomeView: View {
         storefront.flightBoard?.options ?? []
     }
 
-    private var flightOrigins: [String] {
-        var values = Set(flightOptions.map { $0.outbound.origin.uppercased() })
-        for option in flightOptions {
-            if let inbound = option.inbound { values.insert(inbound.origin.uppercased()) }
-        }
-        return values.sorted()
-    }
-
-    private var flightDestinations: [String] {
-        var values = Set(flightOptions.map { $0.outbound.destination.uppercased() })
-        for option in flightOptions {
-            if let inbound = option.inbound { values.insert(inbound.destination.uppercased()) }
-        }
-        return values.sorted()
-    }
-
-    private var filteredFlightOptions: [StorefrontFlightOption] {
-        flightOptions.filter { option in
-            var legs = [option.outbound]
-            if let inbound = option.inbound { legs.append(inbound) }
-            return legs.contains { leg in
-                let originMatches = flightOriginFilter.map { leg.origin.caseInsensitiveCompare($0) == .orderedSame } ?? true
-                let destinationMatches = flightDestinationFilter.map { leg.destination.caseInsensitiveCompare($0) == .orderedSame } ?? true
-                return originMatches && destinationMatches
-            }
-        }
+    private var readyFlightOptions: [StorefrontFlightOption] {
+        flightOptions.filter { storefront.packagePreview(for: $0) != nil }
     }
 
     private var flightsBoard: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            ShowcaseHero(
-                asset: "IumrahFlightsShowcaseHero",
-                title: "iumrah Flights",
-                description: L10n.text("hotel_storefront_flights_hero_body", settings.language),
-                note: L10n.text("hotel_storefront_flights_hero_note", settings.language)
-            )
+        VStack(alignment: .leading, spacing: 28) {
+            IumrahFlightDiscoveryView()
+                .environmentObject(settings)
+                .environmentObject(journey)
+                .environmentObject(chrome)
 
-            if !flightOptions.isEmpty {
-                SectionHeader(
-                    L10n.text("hotel_storefront_published_flights", settings.language),
-                    eyebrow: L10n.text("hotel_storefront_current", settings.language),
-                    subtitle: nil
-                )
+            if !readyFlightOptions.isEmpty {
+                VStack(alignment: .leading, spacing: 14) {
+                    SectionHeader(
+                        readyPackagesTitle,
+                        eyebrow: readyPackagesEyebrow,
+                        subtitle: readyPackagesSubtitle
+                    )
 
-                flightAirportFilters
-
-                if filteredFlightOptions.isEmpty {
-                    VStack(spacing: 10) {
-                        Image(systemName: "airplane.circle")
-                            .font(.system(size: 28, weight: .medium))
-                            .foregroundStyle(.secondary)
-                        Text(noFlightsForFilterText)
-                            .font(.subheadline.weight(.semibold))
-                            .multilineTextAlignment(.center)
-                        Text(changeAirportFilterText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 130)
-                    .iumrahCard()
-                } else {
                     LazyVStack(spacing: 12) {
-                        ForEach(filteredFlightOptions) { option in
-                            let preview = storefront.packagePreview(for: option)
-                            StorefrontFlightOptionCard(
-                                option: option,
-                                packagePreview: preview,
-                                isCalculating: storefront.isLoading,
-                                language: settings.language,
-                                onOpen: {
-                                    guard let preview else { return }
-                                    IumrahHaptics.selection()
-                                    selectedFlightPackage = preview
-                                }
-                            )
+                        ForEach(readyFlightOptions) { option in
+                            if let preview = storefront.packagePreview(for: option) {
+                                StorefrontFlightOptionCard(
+                                    option: option,
+                                    packagePreview: preview,
+                                    isCalculating: false,
+                                    language: settings.language,
+                                    onOpen: {
+                                        IumrahHaptics.selection()
+                                        selectedFlightPackage = preview
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             } else if storefront.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, minHeight: 120)
-            }
-        }
-    }
-
-    private var flightAirportFilters: some View {
-        HStack(spacing: 10) {
-            airportFilterMenu(
-                title: fromAirportText,
-                selection: flightOriginFilter,
-                values: flightOrigins
-            ) { value in
-                flightOriginFilter = value
-                IumrahHaptics.selection()
-            }
-
-            airportFilterMenu(
-                title: toAirportText,
-                selection: flightDestinationFilter,
-                values: flightDestinations
-            ) { value in
-                flightDestinationFilter = value
-                IumrahHaptics.selection()
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func airportFilterMenu(
-        title: String,
-        selection: String?,
-        values: [String],
-        onSelect: @escaping (String?) -> Void
-    ) -> some View {
-        Menu {
-            Button(allAirportsText) { onSelect(nil) }
-            Divider()
-            ForEach(values, id: \.self) { value in
-                Button {
-                    onSelect(value)
-                } label: {
-                    if selection == value {
-                        Label(value, systemImage: "checkmark")
-                    } else {
-                        Text(value)
-                    }
-                }
-            }
-        } label: {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title.uppercased())
-                        .font(.caption2.weight(.bold))
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text(readyPackagesLoadingText)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text(selection ?? allAirportsText)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
                 }
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: 58)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+                .frame(maxWidth: .infinity, minHeight: 96)
             }
         }
-        .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
     }
 
-    private var fromAirportText: String {
+    private var readyPackagesTitle: String {
         switch settings.language {
-        case .russian: return "Откуда"
-        case .english: return "From"
-        case .uzbek: return "Qayerdan"
-        case .uzbekCyrillic: return "Қаердан"
+        case .russian: return "Готовые пакеты"
+        case .english: return "Ready packages"
+        case .uzbek: return "Tayyor paketlar"
+        case .uzbekCyrillic: return "Тайёр пакетлар"
         }
     }
 
-    private var toAirportText: String {
+    private var readyPackagesEyebrow: String {
         switch settings.language {
-        case .russian: return "Куда"
-        case .english: return "To"
-        case .uzbek: return "Qayerga"
-        case .uzbekCyrillic: return "Қаерга"
+        case .russian: return "FLIGHT FIRST"
+        case .english: return "FLIGHT FIRST"
+        case .uzbek: return "FLIGHT FIRST"
+        case .uzbekCyrillic: return "FLIGHT FIRST"
         }
     }
 
-    private var allAirportsText: String {
+    private var readyPackagesSubtitle: String {
         switch settings.language {
-        case .russian: return "Все"
-        case .english: return "All"
-        case .uzbek: return "Barchasi"
-        case .uzbekCyrillic: return "Барчаси"
+        case .russian: return "Только полностью собранные пакеты iumrah с рейсами, отелями и сервисами."
+        case .english: return "Only fully assembled iumrah packages with flights, hotels and services."
+        case .uzbek: return "Faqat reyslar, mehmonxonalar va xizmatlar bilan to‘liq yig‘ilgan iumrah paketlari."
+        case .uzbekCyrillic: return "Фақат рейслар, меҳмонхоналар ва хизматлар билан тўлиқ йиғилган iumrah пакетлари."
         }
     }
 
-    private var noFlightsForFilterText: String {
+    private var readyPackagesLoadingText: String {
         switch settings.language {
-        case .russian: return "iumrah Flights Scanner не нашёл рейсов по этому маршруту"
-        case .english: return "iumrah Flights Scanner found no flights for this route"
-        case .uzbek: return "iumrah Flights Scanner bu yo‘nalishda reys topmadi"
-        case .uzbekCyrillic: return "iumrah Flights Scanner бу йўналишда рейс топмади"
-        }
-    }
-
-    private var changeAirportFilterText: String {
-        switch settings.language {
-        case .russian: return "Измените аэропорт отправления или прибытия."
-        case .english: return "Change the departure or arrival airport."
-        case .uzbek: return "Jo‘nash yoki yetib borish aeroportini o‘zgartiring."
-        case .uzbekCyrillic: return "Жўнаш ёки етиб бориш аэропортини ўзгартиринг."
+        case .russian: return "Обновляем готовые пакеты…"
+        case .english: return "Refreshing ready packages…"
+        case .uzbek: return "Tayyor paketlar yangilanmoqda…"
+        case .uzbekCyrillic: return "Тайёр пакетлар янгиланмоқда…"
         }
     }
 

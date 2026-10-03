@@ -1,0 +1,229 @@
+import type { Env } from "./env";
+
+const API_ORIGIN = "https://api.travelpayouts.com";
+const AVIASALES_SEARCH_ORIGIN = "https://www.aviasales.com/search/";
+
+function json(value: unknown, status = 200, cacheControl = "no-store") {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": cacheControl,
+    },
+  });
+}
+
+function normalizedIata(raw: string | null): string | null {
+  const value = (raw ?? "").trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(value) ? value : null;
+}
+
+function normalizedDate(raw: string | null): string | null {
+  const value = (raw ?? "").trim();
+  return /^\d{4}-\d{2}(?:-\d{2})?$/.test(value) ? value : null;
+}
+
+function normalizedCurrency(raw: string | null): string {
+  const value = (raw ?? "usd").trim().toLowerCase();
+  return /^[a-z]{3}$/.test(value) ? value : "usd";
+}
+
+function boolParam(raw: string | null, fallback = false): boolean {
+  if (raw == null) return fallback;
+  return raw === "true" || raw === "1";
+}
+
+function intParam(raw: string | null, fallback: number, min: number, max: number): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(parsed)));
+}
+
+function fullAviasalesURL(path: unknown): string | null {
+  if (typeof path !== "string" || !path.startsWith("/")) return null;
+  try {
+    return new URL(path.replace(/^\/+/, ""), AVIASALES_SEARCH_ORIGIN).toString();
+  } catch {
+    return null;
+  }
+}
+
+type AviasalesOffer = {
+  origin?: string;
+  destination?: string;
+  origin_airport?: string;
+  destination_airport?: string;
+  price?: number;
+  airline?: string;
+  flight_number?: string | number;
+  departure_at?: string;
+  return_at?: string;
+  transfers?: number;
+  return_transfers?: number;
+  duration?: number;
+  duration_to?: number;
+  duration_back?: number;
+  link?: string;
+};
+
+type PricesEnvelope = {
+  success?: boolean;
+  data?: AviasalesOffer[];
+  currency?: string;
+  error?: string | null;
+};
+
+type GroupedEnvelope = {
+  success?: boolean;
+  data?: Record<string, AviasalesOffer>;
+  currency?: string;
+  error?: string | null;
+};
+
+function offerID(item: AviasalesOffer, index: number): string {
+  const parts = [
+    item.origin,
+    item.destination,
+    item.departure_at,
+    item.return_at,
+    item.airline,
+    item.flight_number,
+    item.price,
+    index,
+  ].map((value) => String(value ?? ""));
+  return parts.join("|");
+}
+
+function normalizeOffer(item: AviasalesOffer, index: number) {
+  const duration = Number(item.duration_to ?? item.duration ?? 0);
+  return {
+    id: offerID(item, index),
+    origin: String(item.origin ?? "").toUpperCase(),
+    destination: String(item.destination ?? "").toUpperCase(),
+    originAirport: String(item.origin_airport ?? item.origin ?? "").toUpperCase(),
+    destinationAirport: String(item.destination_airport ?? item.destination ?? "").toUpperCase(),
+    price: Number(item.price ?? 0),
+    airlineCode: String(item.airline ?? "").toUpperCase(),
+    flightNumber: item.flight_number == null ? "" : String(item.flight_number),
+    departureAt: String(item.departure_at ?? ""),
+    returnAt: typeof item.return_at === "string" && item.return_at.length > 0 ? item.return_at : null,
+    transfers: Math.max(0, Number(item.transfers ?? 0)),
+    returnTransfers: item.return_transfers == null ? null : Math.max(0, Number(item.return_transfers)),
+    durationMinutes: Math.max(0, duration),
+    returnDurationMinutes: item.duration_back == null ? null : Math.max(0, Number(item.duration_back)),
+    bookingUrl: fullAviasalesURL(item.link),
+  };
+}
+
+async function travelpayoutsJSON<T>(url: URL, token: string): Promise<T> {
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "X-Access-Token": token,
+      "User-Agent": "iumrah-package-engine/aviasales-data-v1",
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`TRAVELPAYOUTS_${response.status}${body ? `: ${body.slice(0, 220)}` : ""}`);
+  }
+  return await response.json() as T;
+}
+
+export async function publicAviasalesData(url: URL, env: Env): Promise<Response> {
+  const token = env.TRAVELPAYOUTS_API_TOKEN?.trim();
+  if (!token) {
+    return json({ ok: false, error: "TRAVELPAYOUTS_API_TOKEN is not configured" }, 503);
+  }
+
+  const origin = normalizedIata(url.searchParams.get("origin"));
+  const destination = normalizedIata(url.searchParams.get("destination"));
+  const departure = normalizedDate(url.searchParams.get("departure"));
+  const returnAt = normalizedDate(url.searchParams.get("return"));
+  const view = (url.searchParams.get("view") ?? "offers").trim().toLowerCase();
+  const currency = normalizedCurrency(url.searchParams.get("currency"));
+  const direct = boolParam(url.searchParams.get("direct"), false);
+
+  if (!origin || !destination || !departure) {
+    return json({ ok: false, error: "origin, destination and departure are required" }, 400);
+  }
+  if (origin === destination) {
+    return json({ ok: false, error: "origin and destination must differ" }, 400);
+  }
+
+  try {
+    if (view === "calendar") {
+      const upstream = new URL("/aviasales/v3/grouped_prices", API_ORIGIN);
+      upstream.searchParams.set("origin", origin);
+      upstream.searchParams.set("destination", destination);
+      upstream.searchParams.set("currency", currency);
+      upstream.searchParams.set("departure_at", departure);
+      upstream.searchParams.set("group_by", "departure_at");
+      upstream.searchParams.set("direct", direct ? "true" : "false");
+      if (returnAt) upstream.searchParams.set("return_at", returnAt);
+
+      const payload = await travelpayoutsJSON<GroupedEnvelope>(upstream, token);
+      if (payload.success === false) {
+        return json({ ok: false, error: payload.error ?? "AVIASALES_DATA_ERROR" }, 502);
+      }
+
+      const rows = Object.entries(payload.data ?? {})
+        .map(([date, item], index) => ({ date, ...normalizeOffer(item, index) }))
+        .filter((item) => item.price > 0 && item.departureAt.length > 0)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      return json({
+        ok: true,
+        source: "aviasales-data",
+        sourceFreshness: "recent-search-cache",
+        generatedAt: new Date().toISOString(),
+        currency: payload.currency ?? currency,
+        query: { origin, destination, departure, return: returnAt, direct },
+        days: rows,
+      }, 200, "public, max-age=300, s-maxage=900");
+    }
+
+    if (view !== "offers" && view !== "direct") {
+      return json({ ok: false, error: "Unsupported view" }, 400);
+    }
+
+    const upstream = new URL("/aviasales/v3/prices_for_dates", API_ORIGIN);
+    upstream.searchParams.set("origin", origin);
+    upstream.searchParams.set("destination", destination);
+    upstream.searchParams.set("departure_at", departure);
+    upstream.searchParams.set("currency", currency);
+    upstream.searchParams.set("sorting", "price");
+    upstream.searchParams.set("unique", "false");
+    upstream.searchParams.set("direct", view === "direct" || direct ? "true" : "false");
+    upstream.searchParams.set("one_way", returnAt ? "false" : "true");
+    upstream.searchParams.set("limit", String(intParam(url.searchParams.get("limit"), 30, 1, 100)));
+    upstream.searchParams.set("page", String(intParam(url.searchParams.get("page"), 1, 1, 1000)));
+    if (returnAt) upstream.searchParams.set("return_at", returnAt);
+
+    const payload = await travelpayoutsJSON<PricesEnvelope>(upstream, token);
+    if (payload.success === false) {
+      return json({ ok: false, error: payload.error ?? "AVIASALES_DATA_ERROR" }, 502);
+    }
+
+    const rows = (payload.data ?? [])
+      .map((item, index) => normalizeOffer(item, index))
+      .filter((item) => item.price > 0 && item.departureAt.length > 0)
+      .sort((a, b) => a.price - b.price);
+
+    return json({
+      ok: true,
+      source: "aviasales-data",
+      sourceFreshness: "recent-search-cache",
+      generatedAt: new Date().toISOString(),
+      currency: payload.currency ?? currency,
+      query: { origin, destination, departure, return: returnAt, direct: view === "direct" || direct },
+      offers: rows,
+    }, 200, "public, max-age=300, s-maxage=900");
+  } catch (error) {
+    return json({
+      ok: false,
+      error: error instanceof Error ? error.message : "AVIASALES_DATA_REQUEST_FAILED",
+    }, 502);
+  }
+}

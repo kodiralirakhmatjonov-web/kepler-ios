@@ -2,6 +2,7 @@ import type { D1Like, D1PreparedStatementLike } from "./d1";
 
 export type Env = {
   IGNAV_API_KEY?: string;
+  TRAVELPAYOUTS_API_TOKEN?: string;
   IGNAV_MONTHLY_REQUEST_BUDGET?: string;
   PACKAGE_QUOTE_SEAL_KEY?: string;
   APPLE_BUNDLE_ID?: string;

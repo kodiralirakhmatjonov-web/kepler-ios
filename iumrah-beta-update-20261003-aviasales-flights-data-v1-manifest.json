@@ -1,0 +1,74 @@
+{
+  "schema": "iumrah.beta.update.v1",
+  "name": "aviasales-flights-data-v1-fixed-no-workflow",
+  "date": "2026-10-03",
+  "applies_over": "kepler-ios-main 4(7).zip",
+  "requires_package_engine_deploy": true,
+  "requires_testflight_build": true,
+  "d1_migration_required": false,
+  "required_github_secrets": [],
+  "architecture": {
+    "flight_discovery_source": "Aviasales Data API via Travelpayouts",
+    "client_secret_policy": "server-only",
+    "backend_route": "GET /api/package/flights/data",
+    "ready_packages_position": "bottom of Hotels > Flights"
+  },
+  "notes": [
+    "The Flights storefront now focuses on flight discovery; unfinished package previews were removed.",
+    "Only fully assembled Flight First packages remain at the bottom via storefront.packagePreview(for:).",
+    "Data API fares are recent-search cache values and are not presented as guaranteed live availability.",
+    "The Aviasales result link is used for the final current-price check; affiliate link conversion is not enabled in this patch.",
+    "No .github/workflows file is included because the ZIP apply GitHub App cannot push workflow-file changes without workflows permission.",
+    "TRAVELPAYOUTS_API_TOKEN must be added once as a Cloudflare Worker secret before using the Aviasales route."
+  ],
+  "validation": {
+    "swift_frontend_parse": "passed for all three changed Swift source files",
+    "package_engine_typecheck": "passed",
+    "aviasales_contract_test": "passed"
+  },
+  "files": [
+    {
+      "path": "Backend/PackageEngine/src/aviasales-data.ts",
+      "sha256": "53011c5ea4b5fc1f5a4d30b509c3b1d5a7fe8a77c8fa35ea4b335c18da334bd8",
+      "bytes": 8450
+    },
+    {
+      "path": "Backend/PackageEngine/src/env.ts",
+      "sha256": "6c9db9580b58d7f19c18f245d1e111143eadb28cd36e101c0196048c24b0a600",
+      "bytes": 810
+    },
+    {
+      "path": "Backend/PackageEngine/src/index.ts",
+      "sha256": "cef826ded6f787593b0c6db3e95252d224e4851211c1ae9e608f3a6e51f830f3",
+      "bytes": 14992
+    },
+    {
+      "path": "Backend/PackageEngine/test/aviasales-data-contract.test.mjs",
+      "sha256": "34d721e0fa23415b85f46279caf31c4dc0168d408729a5415d5762f2b587995e",
+      "bytes": 1532
+    },
+    {
+      "path": "IUMRAH_AVIASALES_FLIGHTS_DATA_V1_20261003_APPLIED.txt",
+      "sha256": "2bdcbc4695e10388d99356edb78223126fa4ee1e535a2f8cc4e31e5e17619e5d",
+      "bytes": 1496
+    },
+    {
+      "path": "Sources/Services/AviasalesFlightDiscoveryService.swift",
+      "sha256": "e496dcb120f4abafca6e12c889349cd518ae9ff961a10e4e1dd6cfe232e3a18a",
+      "bytes": 10333
+    },
+    {
+      "path": "Sources/Views/Flights/IumrahFlightDiscoveryView.swift",
+      "sha256": "322143ed5313b642edab20e08072a2e4fb9767181c128e8503842fa59bb419a7",
+      "bytes": 75122
+    },
+    {
+      "path": "Sources/Views/Tabs/HotelsHomeView.swift",
+      "sha256": "1a7e1429805ffcc53c9cc77ef266d14a03d546772e86f78165ddc20d3a2c3311",
+      "bytes": 191227
+    }
+  ],
+  "required_worker_secrets": [
+    "TRAVELPAYOUTS_API_TOKEN"
+  ]
+}

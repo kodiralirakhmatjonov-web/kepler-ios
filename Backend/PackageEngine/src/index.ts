@@ -4,6 +4,7 @@ import { countActiveHotelRoomCategories, ensureBookingRoomColumns, ensureHotelRo
 import type { Env } from "./env";
 import { curatedPrimaryHotel } from "./generator-components";
 import { searchIgnavFlights, searchIgnavFlightsForCuration } from "./ignav-flights";
+import { publicAviasalesData } from "./aviasales-data";
 import { hotelPricingSources } from "./hotel-pricing-sources";
 import { handleClientAccountSecurity } from "./client-account-security";
 import { handlePublicIdentityRequest } from "./public-identity";
@@ -39,6 +40,8 @@ async function publicHealth(env: Env) {
       roomCategoriesReady: false,
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
+      flightDiscoveryProvider: "aviasales-data",
+      flightDiscoveryConfigured: Boolean(env.TRAVELPAYOUTS_API_TOKEN),
       smsProvider: "devsms",
       smsProviderConfigured: Boolean(env.DEVSMS_API_TOKEN),
       quoteSealingMode: quoteSealingMode(env),
@@ -81,6 +84,8 @@ async function publicHealth(env: Env) {
       bookingRoomColumnsReady: Boolean(env.BOOKINGS_DB),
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
+      flightDiscoveryProvider: "aviasales-data",
+      flightDiscoveryConfigured: Boolean(env.TRAVELPAYOUTS_API_TOKEN),
       smsProvider: "devsms",
       smsProviderConfigured: Boolean(env.DEVSMS_API_TOKEN),
       quoteSealingMode: quoteSealingMode(env),
@@ -97,6 +102,8 @@ async function publicHealth(env: Env) {
       roomCategoriesReady: false,
       flightProvider: "ignav",
       flightProviderConfigured: Boolean(env.IGNAV_API_KEY),
+      flightDiscoveryProvider: "aviasales-data",
+      flightDiscoveryConfigured: Boolean(env.TRAVELPAYOUTS_API_TOKEN),
       smsProvider: "devsms",
       smsProviderConfigured: Boolean(env.DEVSMS_API_TOKEN),
       quoteSealingMode: quoteSealingMode(env),
@@ -246,6 +253,10 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/api/package/flights/search") {
       return searchIgnavFlights(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/package/flights/data") {
+      return publicAviasalesData(url, env);
     }
 
     if (request.method === "GET" && url.pathname === "/api/package/flights/calendar") {

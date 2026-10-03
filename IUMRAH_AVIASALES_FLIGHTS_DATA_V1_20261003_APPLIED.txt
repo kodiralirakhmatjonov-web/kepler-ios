@@ -1,0 +1,22 @@
+IUMRAH AVIASALES FLIGHTS DATA V1 — 2026-10-03
+
+Implemented:
+- Replaced the unfinished Flight First previews at the top of Hotels > Flights with a full iumrah Flights discovery page.
+- Added route selection, one-way/round-trip, date calendar with monthly fare hints, passenger controls, direct-only filter, price chart, direct-flight discovery, cheapest recent fares, and offer details.
+- Kept only fully assembled Flight First packages at the bottom of the Flights page.
+- Added a server-side Aviasales/Travelpayouts Data API proxy at GET /api/package/flights/data.
+- Travelpayouts token is server-only via TRAVELPAYOUTS_API_TOKEN and is never embedded in the iOS app.
+- Added an Aviasales integration contract test.
+
+IMPORTANT DEPLOYMENT NOTE:
+This patch intentionally does NOT modify .github/workflows/*. The repository Apply ZIP workflow only has contents:write permission; GitHub rejects bot pushes that change workflow files without workflows permission.
+
+After this ZIP applies successfully:
+1. Add TRAVELPAYOUTS_API_TOKEN directly as a Cloudflare Worker secret for the iumrah Package Engine (one-time setup).
+2. Run the existing Deploy iumrah Package Engine workflow. Wrangler deploy preserves existing Worker secrets.
+3. Then run TestFlight.
+
+Do not commit the Travelpayouts token to this repository.
+
+Data semantics:
+Aviasales Data API is a recent-search cache, not guaranteed live availability. UI copy keeps that distinction and routes the user to Aviasales for an up-to-date check.
