@@ -1,0 +1,14 @@
+Iumrah Aviasales Flights UI v3 — 2026-10-04
+
+Changes:
+- Flight results are grouped into horizontal carousel sections: cheapest, direct, iumrah recommended, fastest.
+- Full "All flights" list remains below the carousels.
+- Removed client-facing wording about cache / recently found Data API results.
+- Empty states now use product language instead of API terminology.
+- Flight card opens a real navigation detail page instead of a modal/full-screen cover.
+- Flight detail page automatically refreshes the selected flight price on open.
+- Manual "Refresh price" remains available and forces a new backend request using a unique request nonce.
+- When the same flight is found with a changed fare, the page updates the displayed fare and strikes through the previous fare.
+- If the same flight cannot be confirmed, the old displayed fare is not silently replaced with another flight.
+- "Buy on Aviasales" uses the latest matched offer/deep link when refresh succeeds.
+- General pricing copy: airfares change quickly; refresh before purchase.
