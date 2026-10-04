@@ -8,6 +8,7 @@ enum HotelSelectionRole: String, Hashable {
 struct HotelSelectionView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @Environment(\.dismiss) private var dismiss
     @State private var initialSelectionSignature: String = ""
     @State private var didStoreInitialSelection = false
@@ -156,9 +157,7 @@ struct HotelSelectionView: View {
                                 economyHotelsTitle,
                                 subtitle: economyHotelsBody
                             )
-                            ForEach(primaryHotels) { hotel in
-                                hotelLink(hotel)
-                            }
+                            hotelCards(primaryHotels)
                         }
 
                         if !superEconomyHotels.isEmpty {
@@ -166,14 +165,10 @@ struct HotelSelectionView: View {
                                 superEconomyTitle,
                                 subtitle: superEconomyBody
                             )
-                            ForEach(superEconomyHotels) { hotel in
-                                hotelLink(hotel)
-                            }
+                            hotelCards(superEconomyHotels)
                         }
                     } else {
-                        ForEach(primaryHotels) { hotel in
-                            hotelLink(hotel)
-                        }
+                        hotelCards(primaryHotels)
                     }
                 }
             }
@@ -200,6 +195,25 @@ struct HotelSelectionView: View {
             guard !newValue.isEmpty, newValue != initialSelectionSignature else { return }
             initialSelectionSignature = newValue
             dismiss()
+        }
+    }
+
+    @ViewBuilder
+    private func hotelCards(_ hotels: [HotelSummary]) -> some View {
+        if adaptiveLayout.layoutClass == .compact {
+            ForEach(hotels) { hotel in
+                hotelLink(hotel)
+            }
+        } else {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 320, maximum: 520), spacing: 16, alignment: .top)],
+                alignment: .leading,
+                spacing: 16
+            ) {
+                ForEach(hotels) { hotel in
+                    hotelLink(hotel)
+                }
+            }
         }
     }
 

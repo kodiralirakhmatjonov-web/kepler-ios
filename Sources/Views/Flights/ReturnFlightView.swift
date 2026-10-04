@@ -4,6 +4,7 @@ struct ReturnFlightView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
 
     @State private var candidates: [LiveFlightCandidate] = []
     @State private var offers: [FlightOffer] = []
@@ -66,7 +67,14 @@ struct ReturnFlightView: View {
 
                 resultCountLabel
                 IumrahRefundPolicyCard(component: .flight, compact: true)
-                flightGroups
+
+                if adaptiveLayout.layoutClass == .compact {
+                    flightGroups
+                } else {
+                    flightGroups
+                        .frame(maxWidth: 820, alignment: .topLeading)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
 
                 FlightSearchProgressCard(
                     isSearching: isSearching,
@@ -74,6 +82,8 @@ struct ReturnFlightView: View {
                     liveStatus: searchStatus,
                     onContinue: { Task { await search(continueExisting: true) } }
                 )
+                .frame(maxWidth: adaptiveLayout.layoutClass == .compact ? .infinity : 820, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
@@ -201,24 +211,40 @@ struct ReturnFlightView: View {
     private var floatingContinueBar: some View {
         VStack(spacing: 0) {
             Divider().opacity(0.35)
-            NavigationLink {
-                TransferSelectionView()
-            } label: {
-                HStack(spacing: 10) {
-                    Text(continueToTransferTitle)
-                    Spacer(minLength: 12)
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 16, weight: .bold))
+
+            if adaptiveLayout.layoutClass == .compact {
+                continueToTransferLink
+                    .padding(.horizontal, IumrahDesign.pagePadding)
+                    .padding(.top, 10)
+                    .padding(.bottom, 8)
+            } else {
+                HStack {
+                    Spacer(minLength: 0)
+                    continueToTransferLink
+                        .frame(maxWidth: 560)
                 }
-                .padding(.horizontal, 20)
-                .frame(height: 58)
+                .padding(.horizontal, adaptiveLayout.pageHorizontalPadding)
+                .padding(.top, 10)
+                .padding(.bottom, 10)
             }
-            .buttonStyle(IumrahPrimaryButtonStyle())
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
         }
         .background(Color.iumrahCardBackground)
+    }
+
+    private var continueToTransferLink: some View {
+        NavigationLink {
+            TransferSelectionView()
+        } label: {
+            HStack(spacing: 10) {
+                Text(continueToTransferTitle)
+                Spacer(minLength: 12)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 16, weight: .bold))
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 58)
+        }
+        .buttonStyle(IumrahPrimaryButtonStyle())
     }
 
     private var continueToTransferTitle: String {

@@ -25,6 +25,7 @@ struct FinalPackageView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var chrome: AppChromeStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @ObservedObject private var push = PushNotificationManager.shared
 
     @State private var isProfileSheetPresented = false
@@ -77,30 +78,42 @@ struct FinalPackageView: View {
                                     .frame(width: 0, height: 0)
 
                                 IumrahGeneratorHeader(stage: .ready)
-                                packageHeader
-                                if journey.quote != nil, journey.hasFinalGeneratorQuote {
-                                    packageTierCarousel
-                                    packageRecommendationCard
-                                    packageDifferenceCard
-                                    packageSupportShortcutsCard
+
+                                if adaptiveLayout.isWide {
+                                    HStack(alignment: .top, spacing: 20) {
+                                        packageSelectionColumn
+                                            .frame(maxWidth: .infinity, alignment: .top)
+
+                                        packageFulfillmentColumn
+                                            .frame(maxWidth: .infinity, alignment: .top)
+                                    }
                                 } else {
-                                    pricingStatusCard
-                                }
-                                includedServicesCard
-                                IumrahRefundPolicyCard(component: .package, compact: false)
-                                IumrahManualPaymentNotice()
-                                careReassuranceCard
-                                notificationCard
+                                    // Preserve the original compact hierarchy exactly.
+                                    packageHeader
+                                    if journey.quote != nil, journey.hasFinalGeneratorQuote {
+                                        packageTierCarousel
+                                        packageRecommendationCard
+                                        packageDifferenceCard
+                                        packageSupportShortcutsCard
+                                    } else {
+                                        pricingStatusCard
+                                    }
+                                    includedServicesCard
+                                    IumrahRefundPolicyCard(component: .package, compact: false)
+                                    IumrahManualPaymentNotice()
+                                    careReassuranceCard
+                                    notificationCard
 
-                                if let errorMessage {
-                                    Text(errorMessage)
-                                        .font(.footnote)
-                                        .foregroundStyle(.red)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.horizontal, 4)
-                                }
+                                    if let errorMessage {
+                                        Text(errorMessage)
+                                            .font(.footnote)
+                                            .foregroundStyle(.red)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 4)
+                                    }
 
-                                packagePrimaryActionButton
+                                    packagePrimaryActionButton
+                                }
                             }
                             .padding(.horizontal, IumrahDesign.pagePadding)
                             .padding(.top, 10)
@@ -145,6 +158,42 @@ struct FinalPackageView: View {
             if let createdSession {
                 BookingDetailView(bookingID: createdSession.id)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var packageSelectionColumn: some View {
+        VStack(spacing: 20) {
+            packageHeader
+            if journey.quote != nil, journey.hasFinalGeneratorQuote {
+                packageTierCarousel
+                packageRecommendationCard
+                packageDifferenceCard
+                packageSupportShortcutsCard
+            } else {
+                pricingStatusCard
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var packageFulfillmentColumn: some View {
+        VStack(spacing: 20) {
+            includedServicesCard
+            IumrahRefundPolicyCard(component: .package, compact: false)
+            IumrahManualPaymentNotice()
+            careReassuranceCard
+            notificationCard
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+            }
+
+            packagePrimaryActionButton
         }
     }
 

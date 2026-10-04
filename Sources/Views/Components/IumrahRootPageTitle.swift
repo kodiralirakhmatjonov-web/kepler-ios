@@ -2,6 +2,7 @@ import SwiftUI
 
 struct IumrahRootPageTitle: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.iumrahNavigationChromeStyle) private var navigationChromeStyle
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
@@ -84,7 +85,9 @@ struct IumrahRootPageTitle: View {
         VStack(alignment: .trailing, spacing: showsMakkahTime ? 8 : 0) {
             HStack(spacing: spacing) {
                 notificationButton(size: controlSize)
-                menuButton(size: controlSize)
+                if navigationChromeStyle == .drawer {
+                    menuButton(size: controlSize)
+                }
             }
 
             if showsMakkahTime {

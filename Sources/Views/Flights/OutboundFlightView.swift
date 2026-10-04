@@ -19,6 +19,7 @@ struct OutboundFlightView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
 
     @State private var candidates: [LiveFlightCandidate] = []
     @State private var offers: [FlightOffer] = []
@@ -82,17 +83,37 @@ struct OutboundFlightView: View {
                     subtitle: L10n.text("flight_out_body", settings.language)
                 )
 
-                resultCountLabel
-                IumrahRefundPolicyCard(component: .flight, compact: true)
-                resultFilters
-                flightGroups
+                if adaptiveLayout.isWide {
+                    HStack(alignment: .top, spacing: 20) {
+                        VStack(spacing: 14) {
+                            resultCountLabel
+                            IumrahRefundPolicyCard(component: .flight, compact: true)
+                            resultFilters
+                            FlightSearchProgressCard(
+                                isSearching: isSearching,
+                                hasResults: !offers.isEmpty,
+                                liveStatus: searchStatus,
+                                onContinue: { Task { await search(continueExisting: true) } }
+                            )
+                        }
+                        .frame(width: 320, alignment: .top)
 
-                FlightSearchProgressCard(
-                    isSearching: isSearching,
-                    hasResults: !offers.isEmpty,
-                    liveStatus: searchStatus,
-                    onContinue: { Task { await search(continueExisting: true) } }
-                )
+                        flightGroups
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                } else {
+                    resultCountLabel
+                    IumrahRefundPolicyCard(component: .flight, compact: true)
+                    resultFilters
+                    flightGroups
+
+                    FlightSearchProgressCard(
+                        isSearching: isSearching,
+                        hasResults: !offers.isEmpty,
+                        liveStatus: searchStatus,
+                        onContinue: { Task { await search(continueExisting: true) } }
+                    )
+                }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 12)
@@ -285,28 +306,44 @@ struct OutboundFlightView: View {
     private var floatingContinueBar: some View {
         VStack(spacing: 0) {
             Divider().opacity(0.35)
-            NavigationLink {
-                if journey.trip.isRoundTripFlight {
-                    ReturnFlightView()
-                } else {
-                    TransferSelectionView()
+
+            if adaptiveLayout.layoutClass == .compact {
+                continuePackageLink
+                    .padding(.horizontal, IumrahDesign.pagePadding)
+                    .padding(.top, 10)
+                    .padding(.bottom, 8)
+            } else {
+                HStack {
+                    Spacer(minLength: 0)
+                    continuePackageLink
+                        .frame(maxWidth: 560)
                 }
-            } label: {
-                HStack(spacing: 10) {
-                    Text(continuePackageTitle)
-                    Spacer(minLength: 12)
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 16, weight: .bold))
-                }
-                .padding(.horizontal, 20)
-                .frame(height: 58)
+                .padding(.horizontal, adaptiveLayout.pageHorizontalPadding)
+                .padding(.top, 10)
+                .padding(.bottom, 10)
             }
-            .buttonStyle(IumrahPrimaryButtonStyle())
-            .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
         }
         .background(Color.iumrahCardBackground)
+    }
+
+    private var continuePackageLink: some View {
+        NavigationLink {
+            if journey.trip.isRoundTripFlight {
+                ReturnFlightView()
+            } else {
+                TransferSelectionView()
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Text(continuePackageTitle)
+                Spacer(minLength: 12)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 16, weight: .bold))
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 58)
+        }
+        .buttonStyle(IumrahPrimaryButtonStyle())
     }
 
     private func search(continueExisting: Bool) async {

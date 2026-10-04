@@ -3,6 +3,7 @@ import UIKit
 
 struct HomeVideoCarousel: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @EnvironmentObject private var settings: AppSettingsStore
 
     private let stories = HomeEmotionalStory.all
@@ -13,12 +14,35 @@ struct HomeVideoCarousel: View {
     @State private var presentedStory: HomeEmotionalStory?
 
     private var carouselHeight: CGFloat {
-        min(max(UIScreen.main.bounds.height * 0.36, 250), 340)
+        switch adaptiveLayout.layoutClass {
+        case .compact:
+            // Preserve the existing iPhone geometry exactly.
+            return min(max(UIScreen.main.bounds.height * 0.36, 250), 340)
+        case .regular:
+            return 320
+        case .wide:
+            return 350
+        case .desktop:
+            return 370
+        }
+    }
+
+    private func cardWidth(in containerWidth: CGFloat) -> CGFloat {
+        switch adaptiveLayout.layoutClass {
+        case .compact:
+            return min(max(containerWidth * 0.91, 278), containerWidth)
+        case .regular:
+            return min(max(containerWidth * 0.78, 420), min(620, containerWidth))
+        case .wide:
+            return min(max(containerWidth * 0.62, 520), min(720, containerWidth))
+        case .desktop:
+            return min(max(containerWidth * 0.58, 560), min(760, containerWidth))
+        }
     }
 
     var body: some View {
         GeometryReader { proxy in
-            let cardWidth = min(max(proxy.size.width * 0.91, 278), proxy.size.width)
+            let cardWidth = cardWidth(in: proxy.size.width)
 
             VStack(spacing: 10) {
                 ScrollView(.horizontal, showsIndicators: false) {

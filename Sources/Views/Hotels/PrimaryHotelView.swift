@@ -4,6 +4,7 @@ import SwiftUI
 struct PrimaryHotelView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @State private var showTransfer = false
     @State private var isPreparingPublishedPackage = false
     @State private var publishedPackageError: String?
@@ -149,32 +150,41 @@ struct PrimaryHotelView: View {
 
     @ViewBuilder
     private var hotelContent: some View {
-        if journey.isLoadingHotels && journey.selectedHotel == nil {
+        if adaptiveLayout.isWide && requiresMadinah {
+            HStack(alignment: .top, spacing: 20) {
+                cityHotelContent(role: .makkah)
+                    .frame(maxWidth: .infinity, alignment: .top)
+                cityHotelContent(role: .madinah)
+                    .frame(maxWidth: .infinity, alignment: .top)
+            }
+        } else {
+            cityHotelContent(role: .makkah)
+            if requiresMadinah {
+                cityHotelContent(role: .madinah)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func cityHotelContent(role: HotelSelectionRole) -> some View {
+        let isMakkah = role == .makkah
+        let isLoading = isMakkah ? journey.isLoadingHotels : journey.isLoadingMadinahHotels
+        let selectedHotel = isMakkah ? journey.selectedHotel : journey.selectedMadinahHotel
+        let roomName = isMakkah
+            ? (journey.selectedRoom?.name ?? journey.selectedRoomCategory?.displayName)
+            : (journey.selectedMadinahRoom?.name ?? journey.selectedMadinahRoomCategory?.displayName)
+
+        if isLoading && selectedHotel == nil {
             loadingCard
-        } else if let hotel = journey.selectedHotel {
+        } else if let hotel = selectedHotel {
             stayCard(
                 hotel: hotel,
-                role: .makkah,
-                title: recommendedTitle(role: .makkah),
-                roomName: journey.selectedRoom?.name ?? journey.selectedRoomCategory?.displayName
+                role: role,
+                title: recommendedTitle(role: role),
+                roomName: roomName
             )
         } else {
-            missingHotelCard(role: .makkah)
-        }
-
-        if requiresMadinah {
-            if journey.isLoadingMadinahHotels && journey.selectedMadinahHotel == nil {
-                loadingCard
-            } else if let hotel = journey.selectedMadinahHotel {
-                stayCard(
-                    hotel: hotel,
-                    role: .madinah,
-                    title: recommendedTitle(role: .madinah),
-                    roomName: journey.selectedMadinahRoom?.name ?? journey.selectedMadinahRoomCategory?.displayName
-                )
-            } else {
-                missingHotelCard(role: .madinah)
-            }
+            missingHotelCard(role: role)
         }
     }
 

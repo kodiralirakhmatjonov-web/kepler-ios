@@ -3,6 +3,7 @@ import SwiftUI
 struct TripBuilderView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     private enum CuratedDisplayMode: String, CaseIterable, Identifiable {
         case separate
         case roundTrip
@@ -27,26 +28,42 @@ struct TripBuilderView: View {
                 VStack(spacing: 22) {
                     IumrahGeneratorHeader(stage: .trip)
 
-                    intro
-                    routeCard
-                    datesCard
-                    if journey.packageFlightPath == .publishedDirect && !journey.trip.isWeekendUmrah {
-                        curatedFlightsSection
-                    }
-                    travelersCard
-                    if journey.packageFlightPath != .publishedDirect {
-                        FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
-                    }
-                    packageCard
+                    if adaptiveLayout.isWide {
+                        HStack(alignment: .top, spacing: 20) {
+                            VStack(spacing: 18) {
+                                intro
+                                routeCard
+                                datesCard
+                                if journey.packageFlightPath == .publishedDirect && !journey.trip.isWeekendUmrah {
+                                    curatedFlightsSection
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
 
-                    NavigationLink {
-                        PrimaryHotelView()
-                    } label: {
-                        Text(L10n.text("trip_continue_hotel", settings.language))
+                            VStack(spacing: 18) {
+                                travelersCard
+                                if journey.packageFlightPath != .publishedDirect {
+                                    FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
+                                }
+                                packageCard
+                                continueButton
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
+                        }
+                    } else {
+                        intro
+                        routeCard
+                        datesCard
+                        if journey.packageFlightPath == .publishedDirect && !journey.trip.isWeekendUmrah {
+                            curatedFlightsSection
+                        }
+                        travelersCard
+                        if journey.packageFlightPath != .publishedDirect {
+                            FlightSearchFiltersCard(filters: flightFiltersBinding, infantCount: journey.trip.infants)
+                        }
+                        packageCard
+                        continueButton
                     }
-                    .buttonStyle(IumrahPrimaryButtonStyle())
-                    .disabled(!canContinueFromBuilder)
-                    .opacity(canContinueFromBuilder ? 1 : 0.45)
                 }
                 .frame(width: contentWidth, alignment: .top)
                 .padding(.horizontal, IumrahDesign.pagePadding)
@@ -92,6 +109,18 @@ struct TripBuilderView: View {
                 journey.trip.applyWeekendWindow(around: journey.trip.departureDate)
             }
         }
+    }
+
+
+    private var continueButton: some View {
+        NavigationLink {
+            PrimaryHotelView()
+        } label: {
+            Text(L10n.text("trip_continue_hotel", settings.language))
+        }
+        .buttonStyle(IumrahPrimaryButtonStyle())
+        .disabled(!canContinueFromBuilder)
+        .opacity(canContinueFromBuilder ? 1 : 0.45)
     }
 
     private var canContinueFromBuilder: Bool {

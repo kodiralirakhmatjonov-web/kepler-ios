@@ -7,6 +7,7 @@ struct HomeDashboardView: View {
     @EnvironmentObject private var account: IumrahAccountStore
     @EnvironmentObject private var storefront: HotelStorefrontStore
     @EnvironmentObject private var journey: JourneyStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
     @State private var showZiyarats = false
     @State private var showCareRequestBuilder = false
@@ -133,8 +134,19 @@ struct HomeDashboardView: View {
                 }
 
                 confidenceStrip
-                philosophyCard
-                connectedTripCard
+
+                if adaptiveLayout.isWide {
+                    HStack(alignment: .top, spacing: 18) {
+                        philosophyCard
+                            .frame(maxWidth: .infinity, alignment: .top)
+                        connectedTripCard
+                            .frame(maxWidth: .infinity, alignment: .top)
+                    }
+                } else {
+                    philosophyCard
+                    connectedTripCard
+                }
+
                 personalUmrahFAQ
                 homeAboutFooter
             }

@@ -4,6 +4,7 @@ import UIKit
 
 struct OnboardingFlowView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var settings: AppSettingsStore
@@ -210,6 +211,8 @@ struct OnboardingFlowView: View {
             .tint(.black)
         }
         .padding(.horizontal, 26)
+        .frame(maxWidth: adaptiveLayout.layoutClass == .compact ? .infinity : 560)
+        .frame(maxWidth: .infinity)
         .padding(.bottom, max(bottomInset, 20) + 8)
         .frame(maxHeight: .infinity, alignment: .bottom)
     }
@@ -740,6 +743,8 @@ private struct OnboardingIntroLineField: View {
 }
 
 private struct OnboardingCinematicPage<Scene: View>: View {
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
+
     let kicker: String
     let title: String
     let bodyText: String
@@ -827,7 +832,8 @@ private struct OnboardingCinematicPage<Scene: View>: View {
                             .minimumScaleFactor(0.88)
                             .padding(.top, 1)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: adaptiveLayout.layoutClass == .compact ? .infinity : 720, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.horizontal, 22)
                     .padding(.top, compact ? 16 : 20)
 

@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct IumrahApp: App {
     @UIApplicationDelegateAdaptor(IumrahAppDelegate.self) private var appDelegate
+    @StateObject private var chrome = AppChromeStore()
 
     init() {
         // Keychain may survive an uninstall. Establish the installation boundary
@@ -14,8 +15,12 @@ struct IumrahApp: App {
     var body: some Scene {
         WindowGroup {
             IumrahLaunchExperience {
-                RootView()
+                RootView(chrome: chrome)
+                    .background { IumrahPlatformWindowConfiguration() }
             }
+        }
+        .commands {
+            IumrahNavigationCommands(chrome: chrome)
         }
     }
 }

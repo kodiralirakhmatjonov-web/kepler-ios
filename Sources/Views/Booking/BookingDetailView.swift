@@ -5,6 +5,7 @@ struct BookingDetailView: View {
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var account: IumrahAccountStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @Environment(\.dismiss) private var dismiss
 
     let bookingID: String
@@ -54,56 +55,7 @@ struct BookingDetailView: View {
                             )
 
                             if selectedPrimaryPage == .booking {
-                                bookingIdentityStrip(session)
-
-                                IumrahBookingDomeCard(
-                                    bookingNumber: session.displayBookingNumber,
-                                    travelerName: bookingTravelerName(session),
-                                    language: settings.language,
-                                    isFlipped: $bookingCardFlipped
-                                )
-                                statusHero(session)
-                                if shouldShowCheckoutEntry(for: session) {
-                                    IumrahManualPaymentNotice()
-                                    IumrahRefundPolicyCard(component: .package, compact: true)
-                                    IumrahInvoiceShareCard(session: session, compact: true)
-                                }
-                                bookingMetaCard(session.booking)
-                                if session.booking.perPilgrimUsd >= 1800 {
-                                    bookingCareBalanceCard
-                                }
-                                BookingItineraryCalendarView(
-                                    bookingID: session.id,
-                                    startDate: session.booking.input.startDate,
-                                    endDate: session.booking.input.endDate,
-                                    booking: session.booking,
-                                    presentation: .preview,
-                                    onOpenFullSchedule: {
-                                        withAnimation(.snappy(duration: 0.24)) { selectedPrimaryPage = .schedule }
-                                    }
-                                )
-
-                                BookingFlightFirstComponentsView(
-                                    session: session,
-                                    onChangeMakkahHotel: { showMakkahHotelChange = true },
-                                    onChangeMadinahHotel: { showMadinahHotelChange = true }
-                                )
-
-                                contactCard(session)
-
-                                if session.pendingChangeConfirmation == true || confirmationSent {
-                                    confirmationCard(session)
-                                }
-
-                                careAction
-                                destructiveActions
-
-                                IumrahTelegramConnectCard(
-                                    session: session,
-                                    accountToken: account.bearerToken,
-                                    style: .compact
-                                )
-                                .padding(.top, 8)
+                                bookingPageContent(session)
                             } else if selectedPrimaryPage == .status {
                                 PilgrimCheckoutView(bookingID: bookingID, presentation: .bookingStatus)
                                     .transition(.opacity)
@@ -183,6 +135,128 @@ struct BookingDetailView: View {
         } message: {
             Text(L10n.text("booking_delete_confirm_body", settings.language))
         }
+    }
+
+    @ViewBuilder
+    private func bookingPageContent(_ session: StoredBookingSession) -> some View {
+        bookingIdentityStrip(session)
+
+        if adaptiveLayout.isWide {
+            HStack(alignment: .top, spacing: 20) {
+                VStack(spacing: 16) {
+                    bookingOverviewColumn(session)
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+
+                VStack(spacing: 16) {
+                    bookingOperationsColumn(session)
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        } else {
+            // Keep the iPhone hierarchy intentionally identical to the pre-iPad/Mac
+            // implementation. Large-screen composition must never perturb compact
+            // stack spacing or card sizing.
+            IumrahBookingDomeCard(
+                bookingNumber: session.displayBookingNumber,
+                travelerName: bookingTravelerName(session),
+                language: settings.language,
+                isFlipped: $bookingCardFlipped
+            )
+            statusHero(session)
+            if shouldShowCheckoutEntry(for: session) {
+                IumrahManualPaymentNotice()
+                IumrahRefundPolicyCard(component: .package, compact: true)
+                IumrahInvoiceShareCard(session: session, compact: true)
+            }
+            bookingMetaCard(session.booking)
+            if session.booking.perPilgrimUsd >= 1800 {
+                bookingCareBalanceCard
+            }
+            BookingItineraryCalendarView(
+                bookingID: session.id,
+                startDate: session.booking.input.startDate,
+                endDate: session.booking.input.endDate,
+                booking: session.booking,
+                presentation: .preview,
+                onOpenFullSchedule: {
+                    withAnimation(.snappy(duration: 0.24)) { selectedPrimaryPage = .schedule }
+                }
+            )
+
+            BookingFlightFirstComponentsView(
+                session: session,
+                onChangeMakkahHotel: { showMakkahHotelChange = true },
+                onChangeMadinahHotel: { showMadinahHotelChange = true }
+            )
+            contactCard(session)
+            if session.pendingChangeConfirmation == true || confirmationSent {
+                confirmationCard(session)
+            }
+            careAction
+            destructiveActions
+            IumrahTelegramConnectCard(
+                session: session,
+                accountToken: account.bearerToken,
+                style: .compact
+            )
+            .padding(.top, 8)
+        }
+    }
+
+    @ViewBuilder
+    private func bookingOverviewColumn(_ session: StoredBookingSession) -> some View {
+        IumrahBookingDomeCard(
+            bookingNumber: session.displayBookingNumber,
+            travelerName: bookingTravelerName(session),
+            language: settings.language,
+            isFlipped: $bookingCardFlipped
+        )
+        statusHero(session)
+        if shouldShowCheckoutEntry(for: session) {
+            IumrahManualPaymentNotice()
+            IumrahRefundPolicyCard(component: .package, compact: true)
+            IumrahInvoiceShareCard(session: session, compact: true)
+        }
+        bookingMetaCard(session.booking)
+        if session.booking.perPilgrimUsd >= 1800 {
+            bookingCareBalanceCard
+        }
+        BookingItineraryCalendarView(
+            bookingID: session.id,
+            startDate: session.booking.input.startDate,
+            endDate: session.booking.input.endDate,
+            booking: session.booking,
+            presentation: .preview,
+            onOpenFullSchedule: {
+                withAnimation(.snappy(duration: 0.24)) { selectedPrimaryPage = .schedule }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func bookingOperationsColumn(_ session: StoredBookingSession) -> some View {
+        BookingFlightFirstComponentsView(
+            session: session,
+            onChangeMakkahHotel: { showMakkahHotelChange = true },
+            onChangeMadinahHotel: { showMadinahHotelChange = true }
+        )
+
+        contactCard(session)
+
+        if session.pendingChangeConfirmation == true || confirmationSent {
+            confirmationCard(session)
+        }
+
+        careAction
+        destructiveActions
+
+        IumrahTelegramConnectCard(
+            session: session,
+            accountToken: account.bearerToken,
+            style: .compact
+        )
+        .padding(.top, 8)
     }
 
     private func bookingTravelerName(_ session: StoredBookingSession) -> String {

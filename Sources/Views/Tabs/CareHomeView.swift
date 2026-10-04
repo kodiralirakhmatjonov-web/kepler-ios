@@ -3,6 +3,7 @@ import SwiftUI
 struct CareHomeView: View {
     private let directCarePhone = "+998508898845"
     @Environment(\.openURL) private var openURL
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
 
@@ -27,14 +28,30 @@ struct CareHomeView: View {
                 intro
                     .padding(.bottom, 24)
 
-                careHero
-                    .padding(.bottom, 28)
+                if adaptiveLayout.isWide {
+                    HStack(alignment: .top, spacing: 22) {
+                        careHero
+                            .frame(maxWidth: 470)
 
-                helpTopics
-                    .padding(.bottom, 30)
+                        VStack(alignment: .leading, spacing: 0) {
+                            helpTopics
+                                .padding(.bottom, 30)
 
-                quickAnswers
-                    .padding(.bottom, 14)
+                            quickAnswers
+                                .padding(.bottom, 14)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                } else {
+                    careHero
+                        .padding(.bottom, 28)
+
+                    helpTopics
+                        .padding(.bottom, 30)
+
+                    quickAnswers
+                        .padding(.bottom, 14)
+                }
             }
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)

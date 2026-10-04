@@ -5,6 +5,7 @@ struct HotelsHomeView: View {
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var storefront: HotelStorefrontStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
 
     @State private var board: HotelsShowcaseBoard = .hotels
     @State private var selectedHotel: HotelSummary?
@@ -161,25 +162,42 @@ struct HotelsHomeView: View {
         VStack(alignment: .leading, spacing: 14) {
             if !hotels.isEmpty {
                 SectionHeader(title, eyebrow: L10n.text("hotels_selected_badge", settings.language), subtitle: nil)
-                ForEach(hotels) { hotel in
-                    HotelStorefrontCard(
-                        hotel: hotel,
-                        images: storefront.previewImages(for: hotel),
-                        quote: storefront.automaticQuote(for: hotel),
-                        language: settings.language,
-                        isFavorite: storefront.isFavorite(hotel),
-                        onOpen: {
-                            selectedHotelPackageID = nil
-                            autoOpenConfiguratorHotelID = nil
-                            autoOpenConfiguratorDeepLink = nil
-                            selectedHotel = hotel
-                        },
-                        onFavorite: { storefront.toggleFavorite(hotel) },
-                        onShare: { shareDefaultHotelPackage(hotel) }
-                    )
+
+                if adaptiveLayout.isWide {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 360, maximum: 520), spacing: 16, alignment: .top)],
+                        alignment: .leading,
+                        spacing: 16
+                    ) {
+                        ForEach(hotels) { hotel in
+                            hotelCard(hotel)
+                        }
+                    }
+                } else {
+                    ForEach(hotels) { hotel in
+                        hotelCard(hotel)
+                    }
                 }
             }
         }
+    }
+
+    private func hotelCard(_ hotel: HotelSummary) -> some View {
+        HotelStorefrontCard(
+            hotel: hotel,
+            images: storefront.previewImages(for: hotel),
+            quote: storefront.automaticQuote(for: hotel),
+            language: settings.language,
+            isFavorite: storefront.isFavorite(hotel),
+            onOpen: {
+                selectedHotelPackageID = nil
+                autoOpenConfiguratorHotelID = nil
+                autoOpenConfiguratorDeepLink = nil
+                selectedHotel = hotel
+            },
+            onFavorite: { storefront.toggleFavorite(hotel) },
+            onShare: { shareDefaultHotelPackage(hotel) }
+        )
     }
 
     // MARK: - Flights
@@ -207,20 +225,17 @@ struct HotelsHomeView: View {
                         subtitle: readyPackagesSubtitle
                     )
 
-                    LazyVStack(spacing: 12) {
-                        ForEach(readyFlightOptions) { option in
-                            if let preview = storefront.packagePreview(for: option) {
-                                StorefrontFlightOptionCard(
-                                    option: option,
-                                    packagePreview: preview,
-                                    isCalculating: false,
-                                    language: settings.language,
-                                    onOpen: {
-                                        IumrahHaptics.selection()
-                                        selectedFlightPackage = preview
-                                    }
-                                )
-                            }
+                    if adaptiveLayout.isWide {
+                        LazyVGrid(
+                            columns: [GridItem(.adaptive(minimum: 380, maximum: 560), spacing: 14, alignment: .top)],
+                            alignment: .leading,
+                            spacing: 14
+                        ) {
+                            readyPackageCards
+                        }
+                    } else {
+                        LazyVStack(spacing: 12) {
+                            readyPackageCards
                         }
                     }
                 }
@@ -232,6 +247,24 @@ struct HotelsHomeView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 96)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var readyPackageCards: some View {
+        ForEach(readyFlightOptions) { option in
+            if let preview = storefront.packagePreview(for: option) {
+                StorefrontFlightOptionCard(
+                    option: option,
+                    packagePreview: preview,
+                    isCalculating: false,
+                    language: settings.language,
+                    onOpen: {
+                        IumrahHaptics.selection()
+                        selectedFlightPackage = preview
+                    }
+                )
             }
         }
     }
@@ -979,6 +1012,7 @@ private enum StorefrontFlightPickerSheetKind: String, Identifiable {
 struct StorefrontUmrahPackageDetailView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var storefront: HotelStorefrontStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var bookings: BookingStore
     @ObservedObject private var push = PushNotificationManager.shared
@@ -2821,6 +2855,7 @@ private struct PackageFlightPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var storefront: HotelStorefrontStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @EnvironmentObject private var journey: JourneyStore
 
     let direction: FlightDirection

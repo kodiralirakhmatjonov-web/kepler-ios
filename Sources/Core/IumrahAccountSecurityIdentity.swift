@@ -1,5 +1,6 @@
 import AuthenticationServices
 import CryptoKit
+import Darwin
 import Foundation
 import Security
 import UIKit
@@ -28,7 +29,13 @@ enum IumrahAccountDeviceIdentity {
     static func current(locale: String = Locale.current.identifier) -> IumrahClientDevice {
         let credentials = load() ?? create()
         let hardware = hardwareIdentifier
+        #if targetEnvironment(macCatalyst)
+        let modelName = macDisplayName(for: hardware)
+        let platformName = "macos"
+        #else
         let modelName = friendlyModelName(for: hardware)
+        let platformName = "ios"
+        #endif
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
 
         return IumrahClientDevice(
@@ -41,7 +48,7 @@ enum IumrahAccountDeviceIdentity {
             // yet been added to the marketing-name map.
             model: hardware,
             hardwareIdentifier: hardware,
-            platform: "ios",
+            platform: platformName,
             osVersion: UIDevice.current.systemVersion,
             appVersion: version,
             locale: locale
@@ -105,6 +112,30 @@ enum IumrahAccountDeviceIdentity {
         return UIDevice.current.localizedModel
     }
 
+
+    #if targetEnvironment(macCatalyst)
+    private static func macDisplayName(for identifier: String) -> String {
+        let hostname = ProcessInfo.processInfo.hostName
+            .replacingOccurrences(of: ".local", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Prefer the Mac's user-visible host name when it is meaningful. It lets
+        // Active Sessions distinguish multiple Macs without pretending Catalyst
+        // is an iPhone simulator. The raw Apple model identifier is still sent
+        // separately in `model` / `hardwareIdentifier` for exact diagnostics.
+        if !hostname.isEmpty && hostname.lowercased() != "localhost" {
+            return hostname.replacingOccurrences(of: "-", with: " ")
+        }
+        if identifier.hasPrefix("MacBookPro") { return "MacBook Pro" }
+        if identifier.hasPrefix("MacBookAir") { return "MacBook Air" }
+        if identifier.hasPrefix("MacBook") { return "MacBook" }
+        if identifier.hasPrefix("Macmini") { return "Mac mini" }
+        if identifier.hasPrefix("MacPro") { return "Mac Pro" }
+        if identifier.hasPrefix("iMac") { return "iMac" }
+        return "Mac"
+    }
+    #endif
+
     static func securityHeaders(token: String) -> [String: String] {
         let device = current()
         return [
@@ -115,6 +146,11 @@ enum IumrahAccountDeviceIdentity {
     }
 
     private static var hardwareIdentifier: String {
+#if targetEnvironment(macCatalyst)
+        if let model = sysctlString("hw.model"), !model.isEmpty {
+            return model
+        }
+#endif
 #if targetEnvironment(simulator)
         if let simulated = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"],
            !simulated.isEmpty {
@@ -127,6 +163,14 @@ enum IumrahAccountDeviceIdentity {
             let bytes = buffer.prefix { $0 != 0 }
             return String(bytes: bytes, encoding: .utf8) ?? UIDevice.current.localizedModel
         }
+    }
+
+    private static func sysctlString(_ key: String) -> String? {
+        var size: size_t = 0
+        guard sysctlbyname(key, nil, &size, nil, 0) == 0, size > 1 else { return nil }
+        var buffer = [CChar](repeating: 0, count: size)
+        guard sysctlbyname(key, &buffer, &size, nil, 0) == 0 else { return nil }
+        return String(cString: buffer)
     }
 
     private static func create() -> Credentials {

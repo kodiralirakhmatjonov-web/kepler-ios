@@ -12,6 +12,7 @@ struct TransferSelectionView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var inheritedColorScheme
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
 
     @State private var discoveryPhase: TransferDiscoveryPhase = .searching
     @State private var searchSecond = 0
@@ -132,8 +133,13 @@ struct TransferSelectionView: View {
                 Spacer()
 
                 searchBottomSheet
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 18)
+                    .frame(maxWidth: adaptiveLayout.layoutClass == .compact ? .infinity : 540)
+                    .frame(
+                        maxWidth: .infinity,
+                        alignment: adaptiveLayout.isWide ? .trailing : .center
+                    )
+                    .padding(.horizontal, adaptiveLayout.layoutClass == .compact ? 14 : 24)
+                    .padding(.bottom, adaptiveLayout.layoutClass == .compact ? 18 : 24)
             }
         }
     }
@@ -269,9 +275,23 @@ struct TransferSelectionView: View {
                     )
 
                     matchedHeader
-                    vehicleStage
-                    vehicleInformation
-                    IumrahRefundPolicyCard(component: .transfer, compact: false)
+
+                    if adaptiveLayout.isWide {
+                        HStack(alignment: .top, spacing: 20) {
+                            vehicleStage
+                                .frame(maxWidth: .infinity, alignment: .top)
+
+                            VStack(spacing: 16) {
+                                vehicleInformation
+                                IumrahRefundPolicyCard(component: .transfer, compact: false)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
+                        }
+                    } else {
+                        vehicleStage
+                        vehicleInformation
+                        IumrahRefundPolicyCard(component: .transfer, compact: false)
+                    }
 
                     if includesMadinah {
                         haramainExpandedCard

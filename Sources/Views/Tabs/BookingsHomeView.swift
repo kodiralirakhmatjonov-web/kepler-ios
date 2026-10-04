@@ -14,6 +14,7 @@ struct BookingsHomeView: View {
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var account: IumrahAccountStore
+    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
 
     @State private var pendingDeleteID: String?
     @State private var deleteError: String?
@@ -124,22 +125,48 @@ struct BookingsHomeView: View {
                     bookingProgress(session)
                         .padding(.bottom, 38)
                 } else if bookingPanel == .status {
-                    bookingTimerOverview(session)
-                        .padding(.bottom, 28)
+                    if adaptiveLayout.isWide {
+                        HStack(alignment: .top, spacing: 18) {
+                            VStack(spacing: 0) {
+                                bookingTimerOverview(session)
+                                    .padding(.bottom, 22)
 
-                    bookingFulfillmentCenter(session, checkout: activeCheckout)
-                        .padding(.bottom, 34)
+                                bookingFulfillmentCenter(session, checkout: activeCheckout)
+                                    .padding(.bottom, 26)
 
-                    if shouldShowTravelReadyFlights(session) {
-                        bookingStatusFlights(session)
-                            .padding(.bottom, 34)
-                    }
+                                if shouldShowTravelReadyFlights(session) {
+                                    bookingStatusFlights(session)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
 
-                    tripPlanPreview(session)
-                        .padding(.bottom, 34)
+                            VStack(spacing: 0) {
+                                tripPlanPreview(session)
+                                    .padding(.bottom, 26)
 
-                    tripManagement(session)
+                                tripManagement(session)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
+                        }
                         .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
+                    } else {
+                        bookingTimerOverview(session)
+                            .padding(.bottom, 28)
+
+                        bookingFulfillmentCenter(session, checkout: activeCheckout)
+                            .padding(.bottom, 34)
+
+                        if shouldShowTravelReadyFlights(session) {
+                            bookingStatusFlights(session)
+                                .padding(.bottom, 34)
+                        }
+
+                        tripPlanPreview(session)
+                            .padding(.bottom, 34)
+
+                        tripManagement(session)
+                            .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
+                    }
                 } else {
                     BookingItineraryCalendarView(
                         bookingID: session.id,
