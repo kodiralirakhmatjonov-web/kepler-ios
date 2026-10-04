@@ -1,0 +1,4 @@
+Widget signing pipeline support.
+The widget App Store provisioning profile is stored under Resources/Provisioning so the existing ZIP updater does not skip it.
+Also applies the Swift 6 CoreLocation @preconcurrency conformance fix.
+Requires the accompanying testflight.yml to be manually replaced once because the current ZIP updater intentionally protects .github/workflows/testflight.yml.

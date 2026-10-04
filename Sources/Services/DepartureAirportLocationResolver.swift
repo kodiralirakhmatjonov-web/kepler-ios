@@ -3,7 +3,7 @@ import CoreLocation
 import Combine
 
 @MainActor
-final class DepartureAirportLocationResolver: NSObject, ObservableObject, CLLocationManagerDelegate {
+final class DepartureAirportLocationResolver: NSObject, ObservableObject, @preconcurrency CLLocationManagerDelegate {
     @Published private(set) var isLocating = false
     @Published private(set) var errorMessage: String?
 
