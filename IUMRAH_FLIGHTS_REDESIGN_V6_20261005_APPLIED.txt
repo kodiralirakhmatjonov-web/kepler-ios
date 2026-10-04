@@ -1,0 +1,11 @@
+Flights production redesign:
+- default search is 1 passenger and round trip
+- single ranked flight list; nearby-date carousel remains at the end
+- green iumrah recommendation badge for direct flights, orange cheapest badge, purple fastest badge
+- price chart redesigned around outbound/return date bars and direct-flight toggle
+- direct flights are an inline filter; airline filter added next to Price Chart and Direct Flights
+- duplicate internal Flights heading removed
+- flight detail clearly shows one-way vs round-trip, fare conditions, outbound/return timelines
+- favorite/save and native share added
+- saved flights persist locally and price changes generate local notifications when fresh flight data is checked
+- favorites screen added from the flight result header

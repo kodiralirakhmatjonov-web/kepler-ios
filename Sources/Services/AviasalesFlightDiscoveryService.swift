@@ -25,6 +25,26 @@ struct FlightDiscoveryOffer: Codable, Hashable, Identifiable {
     var routeTitle: String {
         "\(originAirport.isEmpty ? origin : originAirport) → \(destinationAirport.isEmpty ? destination : destinationAirport)"
     }
+
+    var isRoundTrip: Bool {
+        guard let returnAt else { return false }
+        return !returnAt.isEmpty
+    }
+
+    var isDirect: Bool {
+        transfers == 0 && (returnTransfers ?? 0) == 0
+    }
+
+    var monitorKey: String {
+        [
+            origin.uppercased(),
+            destination.uppercased(),
+            airlineCode.uppercased(),
+            flightNumber.uppercased(),
+            String(departureAt.prefix(16)),
+            String(returnAt?.prefix(16) ?? "")
+        ].joined(separator: "|")
+    }
 }
 
 struct FlightDiscoveryCalendarDay: Codable, Hashable, Identifiable {
@@ -102,8 +122,7 @@ struct AviasalesFlightDiscoveryService {
         returnAt: String? = nil,
         direct: Bool = false,
         limit: Int = 50,
-        currency: String = "usd",
-        cacheBuster: String? = nil
+        currency: String = "usd"
     ) async throws -> (offers: [FlightDiscoveryOffer], currency: String, generatedAt: String?) {
         var query = [
             URLQueryItem(name: "view", value: direct ? "direct" : "offers"),
@@ -116,9 +135,6 @@ struct AviasalesFlightDiscoveryService {
         if let returnAt, !returnAt.isEmpty {
             query.append(URLQueryItem(name: "return", value: returnAt))
         }
-        if let cacheBuster, !cacheBuster.isEmpty {
-            query.append(URLQueryItem(name: "refresh", value: cacheBuster))
-        }
 
         let response: FlightDiscoveryOffersEnvelope = try await api.get(
             "/api/package/flights/data",
@@ -127,46 +143,6 @@ struct AviasalesFlightDiscoveryService {
         )
         guard response.ok else { throw APIError.invalidResponse }
         return (response.offers, response.currency ?? currency, response.generatedAt)
-    }
-
-    func refreshOffer(
-        _ offer: FlightDiscoveryOffer,
-        returnDate: Date?,
-        currency: String = "usd"
-    ) async throws -> (offer: FlightDiscoveryOffer?, currency: String, generatedAt: String?) {
-        let departure = String(offer.departureAt.prefix(10))
-        guard departure.count == 10 else {
-            return (nil, currency, nil)
-        }
-        let returnAt = returnDate.map { IumrahFlightDiscoveryStore.dayFormatter.string(from: $0) }
-        let result = try await offers(
-            origin: offer.origin,
-            destination: offer.destination,
-            departure: departure,
-            returnAt: returnAt,
-            direct: offer.transfers == 0,
-            limit: 100,
-            currency: currency,
-            cacheBuster: UUID().uuidString
-        )
-
-        let sameDay = result.offers.filter { String($0.departureAt.prefix(10)) == departure }
-        let exactFlight = sameDay.first { candidate in
-            !offer.airlineCode.isEmpty &&
-            !offer.flightNumber.isEmpty &&
-            candidate.airlineCode.caseInsensitiveCompare(offer.airlineCode) == .orderedSame &&
-            candidate.flightNumber.caseInsensitiveCompare(offer.flightNumber) == .orderedSame
-        }
-        if let exactFlight {
-            return (exactFlight, result.currency, result.generatedAt)
-        }
-
-        let sameAirlineAndTime = sameDay.first { candidate in
-            !offer.airlineCode.isEmpty &&
-            candidate.airlineCode.caseInsensitiveCompare(offer.airlineCode) == .orderedSame &&
-            String(candidate.departureAt.prefix(16)) == String(offer.departureAt.prefix(16))
-        }
-        return (sameAirlineAndTime, result.currency, result.generatedAt)
     }
 
     func calendar(
