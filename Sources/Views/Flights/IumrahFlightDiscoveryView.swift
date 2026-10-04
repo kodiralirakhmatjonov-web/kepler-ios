@@ -510,7 +510,7 @@ struct IumrahFlightDiscoveryView: View {
                                     }
                                 }
                                 .padding(14)
-                                .frame(width: 142, minHeight: 112, alignment: .leading)
+                                .frame(minWidth: 142, maxWidth: 142, minHeight: 112, alignment: .leading)
                                 .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -1000,7 +1000,7 @@ private struct FlightDiscoveryCarouselTicketCard: View {
                 .background(Color.iumrahRaisedBackground, in: Capsule())
             }
             .padding(16)
-            .frame(width: 286, minHeight: 176, alignment: .leading)
+            .frame(minWidth: 286, maxWidth: 286, minHeight: 176, alignment: .leading)
             .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
