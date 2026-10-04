@@ -1,0 +1,1 @@
+Fixes Xcode 26.6 build error in AirportMapKitCanvas.Coordinator by making annotationsByID private because AirportAnnotation is file-private to this source file.

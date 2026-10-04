@@ -48,7 +48,7 @@ struct AirportMapKitCanvas: UIViewRepresentable {
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: AirportMapKitCanvas
         weak var mapView: MKMapView?
-        var annotationsByID: [String: AirportAnnotation] = [:]
+        private var annotationsByID: [String: AirportAnnotation] = [:]
         var lastResetGeneration: Int
         private var routeKey: String?
         private var didApplyInitialCamera = false
