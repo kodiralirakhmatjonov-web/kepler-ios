@@ -5,7 +5,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("iumrah.hasCompletedOnboarding.cinematic.v4") private var hasCompletedOnboarding = false
     @StateObject private var settings = AppSettingsStore()
-    @ObservedObject var chrome: AppChromeStore
+    @StateObject private var chrome = AppChromeStore()
     @StateObject private var journey = JourneyStore()
     @StateObject private var bookings = BookingStore()
     @StateObject private var account = IumrahAccountStore()
@@ -15,9 +15,7 @@ struct RootView: View {
     @State private var hasBootstrappedAfterOnboarding = false
 
     var body: some View {
-        IumrahAdaptiveLayoutHost {
-            rootContent
-        }
+        rootContent
             .preferredColorScheme(settings.appearance.colorScheme)
             .environmentObject(settings)
             .environmentObject(chrome)
@@ -347,12 +345,8 @@ struct RootView: View {
     private var rootContent: some View {
         Group {
             if hasCompletedOnboarding {
-                IumrahAdaptiveAppShell {
-                    tabs
-                } detail: { tab in
-                    selectedTabScreen(for: tab)
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                SidebarDrawerHost { tabs }
+                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
             } else {
                 OnboardingFlowView {
                     withAnimation(.easeInOut(duration: 0.34)) {
@@ -391,22 +385,6 @@ struct RootView: View {
         // the richer semantic palette. This keeps the native tab bar adult and legible.
         .tint(IumrahIconRole.umrah.color)
         .toolbar((chrome.isImmersiveMode || chrome.isInternalNavigationActive) ? .hidden : .visible, for: .tabBar)
-    }
-
-    @ViewBuilder
-    private func selectedTabScreen(for tab: AppTab) -> some View {
-        switch tab {
-        case .home:
-            tabScreen(for: .home) { HomeDashboardView() }
-        case .hotels:
-            tabScreen(for: .hotels) { HotelsHomeView() }
-        case .booking:
-            tabScreen(for: .booking) { BookingsHomeView() }
-        case .care:
-            tabScreen(for: .care) { CareHomeView() }
-        case .account:
-            tabScreen(for: .account) { IumrahAccountView() }
-        }
     }
 
     private func tabScreen<Content: View>(for tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
