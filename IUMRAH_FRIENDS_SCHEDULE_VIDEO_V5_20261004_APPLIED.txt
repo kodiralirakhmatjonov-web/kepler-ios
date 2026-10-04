@@ -1,0 +1,7 @@
+Update summary:
+- booking itinerary server items are normalized into all four app locales (RU/EN/UZ Latin/UZ Cyrillic)
+- iumrah Hotels hero removes the redundant second note paragraph
+- adds iumrah Friends group calculator using Primary Hotels + published direct-flight package previews + existing Package Engine checkout quote
+- group calculator supports 1-5 star hotels, adults/children up to 16 total, automatic room count (max 4 guests/room), live recalculation spinner and an Everything Included modal
+- Build my Umrah section moved directly after Who Iumrah is for
+- home promo-video carousel uses SwiftUI hit testing for reliable horizontal swipes and pauses the inline player before opening the same story fullscreen to prevent double playback/audio

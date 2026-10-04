@@ -45,7 +45,7 @@ struct BookingItineraryCalendarView: View {
     }
 
     private var serverItems: [BookingItineraryItem] {
-        bookings.itineraries[bookingID] ?? []
+        (bookings.itineraries[bookingID] ?? []).map(localizedServerItem)
     }
 
     /// A legacy operational itinerary can contain every event on a single day.
@@ -554,6 +554,114 @@ struct BookingItineraryCalendarView: View {
         case (.upcoming, .uzbekCyrillic): return "Кейин"
         case (.completed, .uzbekCyrillic): return "Бажарилди"
         case (.neutral, .uzbekCyrillic): return ""
+        }
+    }
+
+    private func localizedServerItem(_ item: BookingItineraryItem) -> BookingItineraryItem {
+        let kind = (item.kind ?? "").lowercased()
+        let title = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = "\(kind) \(title.lowercased())"
+
+        let localizedTitle: String = {
+            if containsAny(normalized, ["passport", "immigration", "baggage", "паспорт", "багаж", "nazorat", "назорат"]) {
+                return tr("Passport control and baggage", "Паспортный контроль и багаж", "Pasport nazorati va bagaj", "Паспорт назорати ва багаж")
+            }
+            if containsAny(normalized, ["hotel_check", "checkin", "check-in", "засел", "joylash", "жойлаш"]) {
+                return tr("Hotel check-in", "Заселение в отель", "Mehmonxonaga joylashish", "Меҳмонхонага жойлашиш")
+            }
+            if containsAny(normalized, ["hotel_transfer", "transfer_to_hotel", "трансфер в отель", "mehmonxonaga transfer", "меҳмонхонага трансфер"]) {
+                return tr("Transfer to hotel", "Трансфер в отель", "Mehmonxonaga transfer", "Меҳмонхонага трансфер")
+            }
+            if containsAny(normalized, ["airport_transfer", "transfer_to_airport", "трансфер в аэропорт", "aeroportga transfer", "аэропортга трансфер"]) {
+                return tr("Transfer to airport", "Трансфер в аэропорт", "Aeroportga transfer", "Аэропортга трансфер")
+            }
+            if containsAny(normalized, ["arrival", "прилёт", "прибыт", "saud", "yetib kel", "келиш"]) && !normalized.contains("departure") {
+                return tr("Arrival in Saudi Arabia", "Прилёт в Саудовскую Аравию", "Saudiya Arabistoniga yetib kelish", "Саудия Арабистонига етиб келиш")
+            }
+            if containsAny(normalized, ["makkah_ziyar", "зияраты мек", "makka ziyor", "макка зиёрат"]) {
+                return tr("Makkah ziyarat", "Зияраты Мекки", "Makka ziyoratlari", "Макка зиёратлари")
+            }
+            if containsAny(normalized, ["madinah_ziyar", "зияраты мед", "madina ziyor", "мадина зиёрат"]) {
+                return tr("Madinah ziyarat", "Зияраты Медины", "Madina ziyoratlari", "Мадина зиёратлари")
+            }
+            if containsAny(normalized, ["to_makkah", "переезд в мек", "makkaga", "маккага"]) {
+                return tr("Transfer to Makkah", "Переезд в Мекку", "Makkaga yo‘l", "Маккага йўл")
+            }
+            if containsAny(normalized, ["to_madinah", "переезд в мед", "madinaga", "мадинага"]) {
+                return tr("Transfer to Madinah", "Переезд в Медину", "Madinaga yo‘l", "Мадинага йўл")
+            }
+            if containsAny(normalized, ["flight_home", "departure", "вылет домой", "уйга парвоз", "uyga parvoz"]) {
+                return tr("Flight home", "Вылет домой", "Uyga parvoz", "Уйга парвоз")
+            }
+            if containsAny(normalized, ["free_day", "свободный день", "erkin kun", "эркин кун"]) {
+                return tr("Free day", "Свободный день", "Erkin kun", "Эркин кун")
+            }
+            if containsAny(normalized, ["umrah", "умра", "umra", "умра"]) {
+                return tr("Umrah", "Умра", "Umra", "Умра")
+            }
+            return title
+        }()
+
+        return BookingItineraryItem(
+            id: item.id,
+            bookingID: item.bookingID,
+            dateLocal: item.dateLocal,
+            sortOrder: item.sortOrder,
+            title: localizedTitle,
+            subtitle: localizedServerSubtitle(item.subtitle),
+            icon: item.icon,
+            location: localizedServerLocation(item.location),
+            notes: item.notes,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            timeLocal: item.timeLocal,
+            endTimeLocal: item.endTimeLocal,
+            kind: item.kind
+        )
+    }
+
+    private func localizedServerSubtitle(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let minutes = numericMinutes(from: trimmed) {
+            switch settings.language {
+            case .russian: return "\(minutes) мин"
+            case .english: return "\(minutes) min"
+            case .uzbek: return "\(minutes) daq"
+            case .uzbekCyrillic: return "\(minutes) дақ"
+            }
+        }
+        return trimmed
+    }
+
+    private func localizedServerLocation(_ value: String) -> String {
+        switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "медина", "madinah", "madina", "мадина": return tr("Madinah", "Медина", "Madina", "Мадина")
+        case "мекка", "makkah", "makka", "макка": return tr("Makkah", "Мекка", "Makka", "Макка")
+        case "джидда", "jeddah", "jidda", "жидда": return tr("Jeddah", "Джидда", "Jidda", "Жидда")
+        default: return value
+        }
+    }
+
+    private func numericMinutes(from value: String) -> Int? {
+        let normalized = value.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffixes = [" min", " мин", " daq", " дақ"]
+        for suffix in suffixes where normalized.hasSuffix(suffix) {
+            let number = normalized.dropLast(suffix.count).trimmingCharacters(in: .whitespacesAndNewlines)
+            return Int(number)
+        }
+        return nil
+    }
+
+    private func containsAny(_ value: String, _ needles: [String]) -> Bool {
+        needles.contains { value.contains($0) }
+    }
+
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch settings.language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
         }
     }
 

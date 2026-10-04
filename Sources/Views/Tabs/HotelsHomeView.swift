@@ -15,6 +15,7 @@ struct HotelsHomeView: View {
     @State private var carePresented = false
     @State private var packageShareArtifacts: IumrahPackageShareArtifacts?
     @State private var packageShareError: String?
+    @State private var friendsCalculatorPresented = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -90,6 +91,11 @@ struct HotelsHomeView: View {
         .sheet(item: $packageShareArtifacts) { artifacts in
             IumrahPackageActivitySheet(artifacts: artifacts)
         }
+        .sheet(isPresented: $friendsCalculatorPresented) {
+            IumrahFriendsCalculatorSheet()
+                .environmentObject(settings)
+                .environmentObject(storefront)
+        }
         .alert(packageShareErrorTitle, isPresented: Binding(
             get: { packageShareError != nil },
             set: { if !$0 { packageShareError = nil } }
@@ -122,8 +128,13 @@ struct HotelsHomeView: View {
                 asset: "IumrahHotelsShowcaseHero",
                 title: "iumrah Hotels",
                 description: L10n.text("hotel_storefront_hero_body", settings.language),
-                note: L10n.text("hotel_storefront_hero_note", settings.language)
+                note: nil
             )
+
+            IumrahFriendsShowcaseCard(language: settings.language) {
+                IumrahHaptics.soft()
+                friendsCalculatorPresented = true
+            }
 
             hotelCitySection(
                 title: L10n.text("hotels_makkah", settings.language),
@@ -459,7 +470,7 @@ private struct ShowcaseHero: View {
     let asset: String
     let title: String
     let description: String
-    let note: String
+    let note: String?
     var imageBackground: Color = .black
 
     var bodyContent: some View {
@@ -479,12 +490,14 @@ private struct ShowcaseHero: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                HStack(alignment: .top, spacing: 9) {
-                    IumrahInlineIcon(systemName: "checkmark.seal.fill", role: .umrah, size: 15)
-                    Text(note)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                if let note, !note.isEmpty {
+                    HStack(alignment: .top, spacing: 9) {
+                        IumrahInlineIcon(systemName: "checkmark.seal.fill", role: .umrah, size: 15)
+                        Text(note)
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
             .padding(20)
@@ -500,6 +513,532 @@ private struct ShowcaseHero: View {
                     .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
             }
             .shadow(color: .black.opacity(0.055), radius: 20, y: 8)
+    }
+}
+
+private struct IumrahFriendsShowcaseCard: View {
+    let language: AppSettingsStore.Language
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                Image("IumrahFriendsHotelsCover")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.white)
+                    .clipped()
+
+                VStack(alignment: .leading, spacing: 11) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("iumrah Friends")
+                            .font(.system(size: 29, weight: .bold, design: .rounded))
+                            .tracking(-0.5)
+                        Spacer(minLength: 8)
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text(bodyText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 8) {
+                        Label(groupText, systemImage: "person.3.fill")
+                        Spacer(minLength: 8)
+                        Text(calculateText)
+                            .foregroundStyle(.green)
+                    }
+                    .font(.caption.weight(.bold))
+                }
+                .padding(20)
+            }
+            .background(Color.iumrahCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.05), radius: 18, y: 7)
+            .contentShape(RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var bodyText: String {
+        switch language {
+        case .russian: return "Соберите друзей или близких и сразу посмотрите итоговую стоимость Umrah-пакета для всей группы — от 1 до 16 человек."
+        case .english: return "Bring friends or family together and instantly see the total Umrah package price for a group of 1 to 16 travelers."
+        case .uzbek: return "Do‘stlar yoki yaqinlaringizni yig‘ing va 1 dan 16 kishigacha bo‘lgan guruh uchun Umra paketining umumiy narxini darhol ko‘ring."
+        case .uzbekCyrillic: return "Дўстлар ёки яқинларингизни йиғинг ва 1 дан 16 кишигача бўлган гуруҳ учун Умра пакетининг умумий нархини дарҳол кўринг."
+        }
+    }
+
+    private var groupText: String {
+        switch language {
+        case .russian: return "1–16 человек"
+        case .english: return "1–16 travelers"
+        case .uzbek: return "1–16 kishi"
+        case .uzbekCyrillic: return "1–16 киши"
+        }
+    }
+
+    private var calculateText: String {
+        switch language {
+        case .russian: return "Рассчитать"
+        case .english: return "Calculate"
+        case .uzbek: return "Hisoblash"
+        case .uzbekCyrillic: return "Ҳисоблаш"
+        }
+    }
+}
+
+private struct IumrahFriendsCalculatorSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var settings: AppSettingsStore
+    @EnvironmentObject private var storefront: HotelStorefrontStore
+
+    @State private var stars = 3
+    @State private var adults = 2
+    @State private var children = 0
+    @State private var quote: PackageQuote?
+    @State private var usedPreview: StorefrontFlightPackagePreview?
+    @State private var usedMakkahHotel: HotelSummary?
+    @State private var usedMadinahHotel: HotelSummary?
+    @State private var isCalculating = false
+    @State private var errorText: String?
+    @State private var includesPresented = false
+
+    private var totalTravelers: Int { adults + children }
+    private var rooms: Int { min(4, max(1, Int(ceil(Double(max(1, totalTravelers)) / 4.0)))) }
+    private var calculationKey: String { "\(stars)|\(adults)|\(children)|\(storefront.flightPackagePreviews.count)|\(storefront.allHotels.count)" }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 18) {
+                    headerCard
+                    starPicker
+                    travelersCard
+                    resultCard
+                    includedRow
+                }
+                .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.top, 12)
+                .padding(.bottom, 34)
+            }
+            .background(Color.iumrahPageBackground)
+            .navigationTitle("iumrah Friends")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                    }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .sheet(isPresented: $includesPresented) {
+            IumrahFriendsIncludedSheet(language: settings.language)
+        }
+        .task {
+            await storefront.prepareIfNeeded()
+        }
+        .task(id: calculationKey) {
+            try? await Task.sleep(for: .milliseconds(420))
+            guard !Task.isCancelled else { return }
+            await calculate()
+        }
+    }
+
+    private var headerCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(targetTitle, systemImage: "person.3.fill")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+            Text(titleText)
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .tracking(-0.6)
+            Text(bodyText)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(20)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+    }
+
+    private var starPicker: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(hotelClassTitle)
+                .font(.headline)
+            Picker(hotelClassTitle, selection: $stars) {
+                ForEach(1...5, id: \.self) { value in
+                    Text("\(value)★").tag(value)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+        .padding(18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private var travelersCard: some View {
+        VStack(spacing: 0) {
+            counterRow(title: adultsTitle, subtitle: adultsSubtitle, value: adults, canMinus: adults > 1, canPlus: totalTravelers < 16) {
+                adults = max(1, adults - 1)
+            } plus: {
+                if totalTravelers < 16 { adults += 1 }
+            }
+            Divider().padding(.leading, 4)
+            counterRow(title: childrenTitle, subtitle: childrenSubtitle, value: children, canMinus: children > 0, canPlus: totalTravelers < 16) {
+                children = max(0, children - 1)
+            } plus: {
+                if totalTravelers < 16 { children += 1 }
+            }
+            Divider().padding(.leading, 4)
+            HStack {
+                Label(roomsTitle, systemImage: "bed.double.fill")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("\(rooms)")
+                    .font(.headline.monospacedDigit())
+            }
+            .padding(.vertical, 15)
+        }
+        .padding(.horizontal, 18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func counterRow(title: String, subtitle: String, value: Int, canMinus: Bool, canPlus: Bool, minus: @escaping () -> Void, plus: @escaping () -> Void) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button(action: minus) {
+                Image(systemName: "minus")
+                    .frame(width: 34, height: 34)
+                    .background(Color.primary.opacity(canMinus ? 0.07 : 0.03), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canMinus)
+            Text("\(value)")
+                .font(.headline.monospacedDigit())
+                .frame(minWidth: 24)
+            Button(action: plus) {
+                Image(systemName: "plus")
+                    .frame(width: 34, height: 34)
+                    .background(Color.primary.opacity(canPlus ? 0.07 : 0.03), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canPlus)
+        }
+        .padding(.vertical, 13)
+    }
+
+    @ViewBuilder
+    private var resultCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if isCalculating {
+                HStack(spacing: 12) {
+                    ProgressView()
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(calculatingTitle).font(.headline)
+                        Text(calculatingBody).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+            } else if let quote {
+                HStack(alignment: .lastTextBaseline) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(totalTitle).font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                        Text(money(quote.totalPackagePrice))
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .tracking(-0.8)
+                    }
+                    Spacer()
+                    Text(perPersonText(quote.pricePerPerson))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                if let preview = usedPreview {
+                    Label(durationText(preview.durationDays), systemImage: "airplane")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                if let hotel = usedMakkahHotel {
+                    Label("\(hotel.name) · \(stars)★", systemImage: "building.2.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                if let hotel = usedMadinahHotel {
+                    Label(hotel.name, systemImage: "moon.stars.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            } else {
+                Text(errorText ?? unavailableText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+            }
+        }
+        .padding(18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+    }
+
+    private var includedRow: some View {
+        Button {
+            IumrahHaptics.selection()
+            includesPresented = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(Color.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(includedTitle).font(.headline)
+                    Text(includedSubtitle).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+            }
+            .padding(17)
+            .background(Color.green.opacity(0.09), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    @MainActor
+    private func calculate() async {
+        guard totalTravelers >= 1 && totalTravelers <= 16 else { return }
+        isCalculating = true
+        errorText = nil
+        quote = nil
+        defer { isCalculating = false }
+
+        let direct = storefront.flightPackagePreviews.values
+            .filter { $0.outbound.stops == 0 && $0.inbound.stops == 0 && $0.madinahNights > 0 }
+            .sorted {
+                let l = abs($0.durationDays - 10)
+                let r = abs($1.durationDays - 10)
+                if l != r { return l < r }
+                return $0.outbound.departureAt < $1.outbound.departureAt
+            }
+
+        guard let preview = direct.first else {
+            errorText = noDirectFlightText
+            return
+        }
+        guard let makkah = storefront.makkahHotels.first(where: { ($0.stars ?? 0) == stars }) else {
+            errorText = noHotelText
+            return
+        }
+        guard let madinah = storefront.madinahHotels.first(where: { ($0.stars ?? 0) == stars }) else {
+            errorText = noHotelText
+            return
+        }
+        guard let departure = parseISO(preview.outbound.departureAt),
+              let arrival = parseISO(preview.outbound.arrivalAt),
+              let inbound = parseISO(preview.inbound.departureAt) else {
+            errorText = unavailableText
+            return
+        }
+
+        var trip = TripDraft()
+        trip.origin = preview.outbound.origin.uppercased()
+        trip.originAirport = nil
+        trip.arrivalAirport = preview.outbound.destination.uppercased() == "MED" ? .madinah : .jeddah
+        trip.departureDate = Calendar.current.startOfDay(for: departure)
+        trip.saudiArrivalDate = Calendar.current.startOfDay(for: arrival)
+        trip.returnDate = Calendar.current.startOfDay(for: inbound)
+        trip.flexibility = .exact
+        trip.adults = adults
+        trip.children = children
+        trip.infants = 0
+        trip.rooms = rooms
+        trip.hotelStars = stars
+        trip.packageTier = tier(for: stars)
+        trip.scope = .makkahAndMadinah
+        trip.flightTripType = .roundTrip
+        trip.mealSelection = .defaultSelection
+
+        guard let freshQuote = await storefront.checkoutQuote(
+            for: preview,
+            trip: trip,
+            makkahHotel: makkah,
+            madinahHotel: madinah,
+            makkahRoomID: nil,
+            madinahRoomID: nil,
+            transferVehicle: .carnival,
+            includeHaramainTrain: false,
+            haramainFareClass: .economy,
+            haramainTicketCount: 0
+        ) else {
+            errorText = unavailableText
+            return
+        }
+
+        usedPreview = preview
+        usedMakkahHotel = makkah
+        usedMadinahHotel = madinah
+        quote = freshQuote
+    }
+
+    private func tier(for stars: Int) -> PackageTier {
+        switch stars {
+        case 1, 2: return .economy
+        case 3: return .standard
+        case 4: return .comfort
+        default: return .luxury
+        }
+    }
+
+    private func parseISO(_ value: String) -> Date? {
+        if let date = ISO8601DateFormatter().date(from: value) { return date }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return formatter.date(from: String(value.prefix(19)))
+    }
+
+    private func money(_ value: Decimal) -> String {
+        let number = NSDecimalNumber(decimal: value).doubleValue
+        return String(format: "%.0f $", number)
+    }
+
+    private func perPersonText(_ value: Decimal) -> String {
+        let formatted = money(value)
+        switch settings.language {
+        case .russian: return "\(formatted) / чел."
+        case .english: return "\(formatted) / person"
+        case .uzbek: return "\(formatted) / kishi"
+        case .uzbekCyrillic: return "\(formatted) / киши"
+        }
+    }
+
+    private func durationText(_ days: Int) -> String {
+        switch settings.language {
+        case .russian: return "Прямые опубликованные рейсы · \(days) дней"
+        case .english: return "Published direct flights · \(days) days"
+        case .uzbek: return "E’lon qilingan to‘g‘ridan-to‘g‘ri reyslar · \(days) kun"
+        case .uzbekCyrillic: return "Эълон қилинган тўғридан-тўғри рейслар · \(days) кун"
+        }
+    }
+
+    private var targetTitle: String { tr("GROUP CALCULATOR", "КАЛЬКУЛЯТОР ГРУППЫ", "GURUH KALKULYATORI", "ГУРУҲ КАЛЬКУЛЯТОРИ") }
+    private var titleText: String { tr("See how traveling together changes the package", "Посмотрите выгоду поездки вместе", "Birga safar narxini ko‘ring", "Бирга сафар нархини кўринг") }
+    private var bodyText: String { tr("Choose hotel stars and your group. iumrah uses current Primary Hotels and a published direct flight pair, then asks the same Package Engine used by the configurator for a live total.", "Выберите звёздность и состав группы. iumrah возьмёт актуальные Primary Hotels и опубликованную пару прямых рейсов, затем рассчитает итог через тот же Package Engine, что используется в конфигураторе.", "Yulduzlar va guruh tarkibini tanlang. iumrah amaldagi Primary Hotels va e’lon qilingan to‘g‘ridan-to‘g‘ri reyslarni olib, konfigurator ishlatadigan Package Engine orqali yakuniy narxni hisoblaydi.", "Юлдузлар ва гуруҳ таркибини танланг. iumrah амалдаги Primary Hotels ва эълон қилинган тўғридан-тўғри рейсларни олиб, конфигуратор ишлатадиган Package Engine орқали якуний нархни ҳисоблайди.") }
+    private var hotelClassTitle: String { tr("Hotel class", "Класс отеля", "Mehmonxona klassi", "Меҳмонхона класси") }
+    private var adultsTitle: String { tr("Adults", "Взрослые", "Kattalar", "Катталар") }
+    private var adultsSubtitle: String { tr("1–16 people total", "До 16 человек всего", "Jami 16 kishigacha", "Жами 16 кишигача") }
+    private var childrenTitle: String { tr("Children", "Дети", "Bolalar", "Болалар") }
+    private var childrenSubtitle: String { tr("Included in the same group", "Входят в общий состав группы", "Umumiy guruh tarkibida", "Умумий гуруҳ таркибида") }
+    private var roomsTitle: String { tr("Rooms · up to 4 guests each", "Комнаты · до 4 гостей в каждой", "Xonalar · har birida 4 kishigacha", "Хоналар · ҳар бирида 4 кишигача") }
+    private var calculatingTitle: String { tr("One second, calculating", "Секундочку, считаем", "Bir soniya, hisoblayapmiz", "Бир сония, ҳисоблаяпмиз") }
+    private var calculatingBody: String { tr("Checking published flights, hotels and package services.", "Проверяем рейсы, отели и все сервисы пакета.", "Reyslar, mehmonxonalar va paket servislarini tekshiryapmiz.", "Рейслар, меҳмонхоналар ва пакет сервисларини текширяпмиз.") }
+    private var totalTitle: String { tr("TOTAL FOR YOUR GROUP", "ИТОГО ДЛЯ ВАШЕЙ ГРУППЫ", "GURUH UCHUN JAMI", "ГУРУҲ УЧУН ЖАМИ") }
+    private var includedTitle: String { tr("Everything included", "Всё включено", "Hammasi kiritilgan", "Ҳаммаси киритилган") }
+    private var includedSubtitle: String { tr("See the services inside the package", "Посмотреть, что входит в пакет", "Paket ichidagilarni ko‘rish", "Пакет ичидагиларни кўриш") }
+    private var noDirectFlightText: String { tr("No published direct flight pair is available right now. Try again after the flight feed refreshes.", "Сейчас нет опубликованной пары прямых рейсов. Попробуйте после обновления ленты рейсов.", "Hozir e’lon qilingan to‘g‘ridan-to‘g‘ri reys juftligi yo‘q. Reyslar yangilangach qayta urinib ko‘ring.", "Ҳозир эълон қилинган тўғридан-тўғри рейс жуфтлиги йўқ. Рейслар янгилангандан кейин қайта уриниб кўринг.") }
+    private var noHotelText: String { tr("No current Primary Hotel is published for this star level.", "Для этой звёздности сейчас не опубликован Primary Hotel.", "Bu yulduz darajasi uchun hozir Primary Hotel e’lon qilinmagan.", "Бу юлдуз даражаси учун ҳозир Primary Hotel эълон қилинмаган.") }
+    private var unavailableText: String { tr("The live package price could not be calculated right now. No estimated supplier price is shown.", "Сейчас не удалось получить актуальную цену пакета. Приблизительную себестоимость мы не показываем.", "Hozir paketning amaldagi narxini hisoblab bo‘lmadi. Taxminiy tannarx ko‘rsatilmaydi.", "Ҳозир пакетнинг амалдаги нархини ҳисоблаб бўлмади. Тахминий таннарх кўрсатилмайди.") }
+
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch settings.language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
+        }
+    }
+}
+
+private struct IumrahFriendsIncludedSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let language: AppSettingsStore.Language
+
+    private struct IncludedItem: Identifiable {
+        let id: String
+        let icon: String
+        let title: String
+        let body: String
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 12) {
+                    ForEach(items) { item in
+                        HStack(alignment: .top, spacing: 14) {
+                            Image(systemName: item.icon)
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.green)
+                                .frame(width: 46, height: 46)
+                                .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(item.title).font(.headline)
+                                Text(item.body).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(17)
+                        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    }
+                }
+                .padding(IumrahDesign.pagePadding)
+            }
+            .background(Color.iumrahPageBackground)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(done) { dismiss() } } }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var items: [IncludedItem] {
+        [
+            IncludedItem(id: "flights", icon: "airplane", title: tr("Direct flights", "Прямые авиабилеты", "To‘g‘ridan-to‘g‘ri aviachiptalar", "Тўғридан-тўғри авиачипталар"), body: tr("A published outbound and return pair is included in the package calculation.", "В расчёт входит опубликованная пара рейсов туда и обратно.", "Hisobga e’lon qilingan borish va qaytish reyslari kiradi.", "Ҳисобга эълон қилинган бориш ва қайтиш рейслари киради.")),
+            IncludedItem(id: "hotels", icon: "building.2.fill", title: tr("Primary Hotels", "Primary Hotels", "Primary Hotels", "Primary Hotels"), body: tr("Makkah and Madinah hotels are selected from the current iumrah hotel catalog for your star level.", "Отели Мекки и Медины берутся из актуального каталога iumrah для выбранной звёздности.", "Makka va Madina mehmonxonalari tanlangan yulduz darajasi bo‘yicha amaldagi iumrah katalogidan olinadi.", "Макка ва Мадина меҳмонхоналари танланган юлдуз даражаси бўйича амалдаги iumrah каталогидан олинади.")),
+            IncludedItem(id: "transfer", icon: "car.fill", title: tr("Full transfer", "Полный трансфер", "To‘liq transfer", "Тўлиқ трансфер"), body: tr("Airport pickup and transfers between the key points of the journey are included.", "Включены встреча в аэропорту и переезды между ключевыми точками поездки.", "Aeroportda kutib olish va asosiy nuqtalar orasidagi transferlar kiritilgan.", "Аэропортда кутиб олиш ва асосий нуқталар орасидаги трансферлар киритилган.")),
+            IncludedItem(id: "guide", icon: "person.badge.shield.checkmark", title: tr("iumrah Guide", "iumrah Guide", "iumrah Guide", "iumrah Guide"), body: tr("Your Saudi team supports the group from arrival through Umrah and return departure.", "Команда в Саудовской Аравии сопровождает группу от прилёта до Умры и обратного вылета.", "Saudiya jamoasi guruhni kelishdan Umra va qaytishgacha kuzatadi.", "Саудия жамоаси гуруҳни келишдан Умра ва қайтишгача кузатади.")),
+            IncludedItem(id: "ziyarat", icon: "map.fill", title: tr("Ziyarat routes", "Маршруты зияратов", "Ziyorat yo‘nalishlari", "Зиёрат йўналишлари"), body: tr("Key Makkah and Madinah sites are part of the connected journey plan.", "Ключевые места Мекки и Медины входят в связанный маршрут поездки.", "Makka va Madinadagi asosiy joylar safar yo‘nalishiga kiritilgan.", "Макка ва Мадинадаги асосий жойлар сафар йўналишига киритилган.")),
+            IncludedItem(id: "care", icon: "heart.fill", title: "iumrah Care", body: tr("Support stays linked to the booking before and during the journey.", "Поддержка остаётся привязана к бронированию до и во время поездки.", "Yordam bron bilan safardan oldin va safar davomida bog‘langan bo‘ladi.", "Ёрдам брон билан сафардан олдин ва сафар давомида боғланган бўлади.")),
+            IncludedItem(id: "esim", icon: "simcard.fill", title: "iumrah eSIM", body: tr("Connectivity can be prepared as part of the travel package.", "Связь в Саудовской Аравии подготавливается внутри пакета поездки.", "Saudiya Arabistonidagi aloqa safar paketi ichida tayyorlanadi.", "Саудия Арабистонидаги алоқа сафар пакети ичида тайёрланади."))
+        ]
+    }
+
+    private var title: String { tr("Included", "Что включено", "Nimalar kiritilgan", "Нималар киритилган") }
+    private var done: String { tr("Done", "Готово", "Tayyor", "Тайёр") }
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
+        }
     }
 }
 

@@ -3,7 +3,6 @@ import UIKit
 
 struct HomeVideoCarousel: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @EnvironmentObject private var settings: AppSettingsStore
 
     private let stories = HomeEmotionalStory.all
@@ -14,39 +13,16 @@ struct HomeVideoCarousel: View {
     @State private var presentedStory: HomeEmotionalStory?
 
     private var carouselHeight: CGFloat {
-        switch adaptiveLayout.layoutClass {
-        case .compact:
-            // Preserve the existing iPhone geometry exactly.
-            return min(max(UIScreen.main.bounds.height * 0.36, 250), 340)
-        case .regular:
-            return 320
-        case .wide:
-            return 350
-        case .desktop:
-            return 370
-        }
-    }
-
-    private func cardWidth(in containerWidth: CGFloat) -> CGFloat {
-        switch adaptiveLayout.layoutClass {
-        case .compact:
-            return min(max(containerWidth * 0.91, 278), containerWidth)
-        case .regular:
-            return min(max(containerWidth * 0.78, 420), min(620, containerWidth))
-        case .wide:
-            return min(max(containerWidth * 0.62, 520), min(720, containerWidth))
-        case .desktop:
-            return min(max(containerWidth * 0.58, 560), min(760, containerWidth))
-        }
+        min(max(UIScreen.main.bounds.height * 0.36, 250), 340)
     }
 
     var body: some View {
         GeometryReader { proxy in
-            let cardWidth = cardWidth(in: proxy.size.width)
+            let cardWidth = min(max(proxy.size.width * 0.91, 278), proxy.size.width)
 
             VStack(spacing: 10) {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 12) {
+                    HStack(spacing: 12) {
                         ForEach(stories) { story in
                             videoCard(story)
                                 .frame(width: cardWidth, height: carouselHeight)
@@ -63,6 +39,7 @@ struct HomeVideoCarousel: View {
                 .frame(height: carouselHeight)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                 .scrollPosition(id: $activeStoryID, anchor: .center)
                 .scrollClipDisabled()
 
@@ -90,14 +67,13 @@ struct HomeVideoCarousel: View {
         ZStack {
             LoopingVideoView(
                 resource: story.resource,
-                isPlaying: isVisible && scenePhase == .active && activeStoryID == story.id,
+                isPlaying: isVisible && presentedStory == nil && scenePhase == .active && activeStoryID == story.id,
                 isMuted: isMuted
             )
-            .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-            .onTapGesture {
-                openStory(story)
-            }
+            .allowsHitTesting(false)
         }
+        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .onTapGesture { openStory(story) }
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay(alignment: .topTrailing) {
             IumrahGlassIconButton(

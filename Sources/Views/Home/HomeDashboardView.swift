@@ -7,7 +7,6 @@ struct HomeDashboardView: View {
     @EnvironmentObject private var account: IumrahAccountStore
     @EnvironmentObject private var storefront: HotelStorefrontStore
     @EnvironmentObject private var journey: JourneyStore
-    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
     @State private var showZiyarats = false
     @State private var showCareRequestBuilder = false
@@ -112,6 +111,7 @@ struct HomeDashboardView: View {
                 HomeVideoCarousel()
 
                 IumrahHomeAudienceSection(language: settings.language)
+                buildMyUmrahSection
 
                 IumrahHomeServicesSection(
                     language: settings.language,
@@ -123,7 +123,6 @@ struct HomeDashboardView: View {
                 )
 
                 readyPackagesSection
-                buildMyUmrahSection
                 hotelFirstPackagesSection
                 homeIntegrationsSection
 
@@ -134,19 +133,8 @@ struct HomeDashboardView: View {
                 }
 
                 confidenceStrip
-
-                if adaptiveLayout.isWide {
-                    HStack(alignment: .top, spacing: 18) {
-                        philosophyCard
-                            .frame(maxWidth: .infinity, alignment: .top)
-                        connectedTripCard
-                            .frame(maxWidth: .infinity, alignment: .top)
-                    }
-                } else {
-                    philosophyCard
-                    connectedTripCard
-                }
-
+                philosophyCard
+                connectedTripCard
                 personalUmrahFAQ
                 homeAboutFooter
             }
