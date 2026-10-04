@@ -1,0 +1,3 @@
+Primary iumrah app icon replaced with the user-provided iumrah PROJECT world-map artwork.
+Includes all current iPhone app-icon sizes, 1024 App Store marketing icon, and WidgetAppIcon.
+iPad/Mac icon sizes continue to be generated from AppIcon-1024.png by the existing deployment workflows.
