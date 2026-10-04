@@ -67,7 +67,7 @@ final class AirportMapDiscoveryStore: ObservableObject {
         let request = MKLocalPointsOfInterestRequest(coordinateRegion: sanitized(region))
         request.pointOfInterestFilter = MKPointOfInterestFilter(including: [.airport])
 
-        let search = MKLocalSearch(pointsOfInterestRequest: request)
+        let search = MKLocalSearch(request: request)
         self.search = search
 
         do {

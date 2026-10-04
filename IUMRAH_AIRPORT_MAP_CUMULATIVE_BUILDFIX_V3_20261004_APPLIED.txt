@@ -1,0 +1,3 @@
+Cumulative Xcode 26.6 airport-map build fixes:
+1. MKLocalSearch(pointsOfInterestRequest:) -> MKLocalSearch(request:)
+2. AirportMapKitCanvas.Coordinator.annotationsByID made private to match private AirportAnnotation type.
