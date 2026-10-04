@@ -1,0 +1,6 @@
+Cumulative compatibility/build fix after Widget + iPad/Mac + Airport Map patches.
+- Restores matching IumrahApp/RootView adaptive architecture.
+- Preserves widget sync/deep links and iOS-only Widget Extension dependency.
+- Preserves Mac Catalyst project settings, icon generation and CI validation.
+- Preserves production widget provisioning/signing/archive verification.
+- Includes both prior Airport Map Xcode 26.6 compiler fixes.
