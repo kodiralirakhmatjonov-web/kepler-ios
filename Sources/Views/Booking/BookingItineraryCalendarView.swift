@@ -134,7 +134,7 @@ struct BookingItineraryCalendarView: View {
                 .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
         }
         .shadow(color: .black.opacity(0.045), radius: 18, y: 8)
-        .task(id: bookingID) {
+        .task(id: "\(bookingID)|\(settings.language.rawValue)") {
             if selectedDay == nil { selectedDay = preferredInitialDay(in: days) }
             loading = true
             do {

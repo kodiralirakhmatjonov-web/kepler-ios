@@ -341,6 +341,7 @@ struct StoredBookingSession: Codable, Identifiable, Hashable {
     var hotelSelection: BookingHotelSelectionSnapshot?
     var madinahHotelSelection: BookingHotelSelectionSnapshot? = nil
     var guide: BookingGuideSnapshot? = nil
+    var transferVehicle: TransferVehicleKind? = nil
     var ziyaratMakkahOverride: Bool? = nil
     var ziyaratMadinahOverride: Bool? = nil
     var esimOverride: Bool? = nil

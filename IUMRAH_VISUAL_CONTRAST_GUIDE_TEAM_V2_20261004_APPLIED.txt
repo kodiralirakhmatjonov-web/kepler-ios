@@ -1,0 +1,8 @@
+iumrah client UI refinement:
+- light page background separated from white cards
+- stronger Apple-like card borders/shadows
+- dedicated verified lead-guide card in Booking
+- Guide & Transfer page with verified guide + founder contacts
+- selected transfer vehicle image/model and flight-based airport meeting time
+- transfer vehicle persisted for newly created bookings
+- itinerary refetches and requests content for the selected app language

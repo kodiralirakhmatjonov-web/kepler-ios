@@ -255,6 +255,11 @@ private struct PrayerTimesCard: View {
             .padding(19)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(prayerBackground, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.085), lineWidth: 0.75)
+            }
+            .shadow(color: .black.opacity(0.035), radius: 14, y: 6)
         }
     }
 
@@ -443,6 +448,11 @@ private struct WeatherForecastCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(weatherBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.085), lineWidth: 0.75)
+        }
+        .shadow(color: .black.opacity(0.035), radius: 14, y: 6)
     }
 
     private var weatherBackground: some ShapeStyle {
@@ -519,6 +529,11 @@ private struct DualWorldClockCard: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(clockBackground)
             .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.085), lineWidth: 0.75)
+            }
+            .shadow(color: .black.opacity(0.035), radius: 14, y: 6)
         }
     }
 

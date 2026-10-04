@@ -13,12 +13,16 @@ enum IumrahDesign {
 }
 
 private extension UIColor {
-    static let iumrahPage = UIColor { _ in
-        .systemBackground
+    static let iumrahPage = UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? .systemBackground
+            : .systemGroupedBackground
     }
 
-    static let iumrahCard = UIColor { _ in
-        .secondarySystemGroupedBackground
+    static let iumrahCard = UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? .secondarySystemBackground
+            : .secondarySystemGroupedBackground
     }
 
     static let iumrahRaised = UIColor { _ in
@@ -296,7 +300,7 @@ struct IumrahCardModifier: ViewModifier {
             .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: IumrahDesign.cardRadius, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.075), lineWidth: 0.7)
+                    .strokeBorder(Color.primary.opacity(0.095), lineWidth: 0.75)
             }
             .shadow(color: .black.opacity(0.045), radius: 18, y: 8)
     }

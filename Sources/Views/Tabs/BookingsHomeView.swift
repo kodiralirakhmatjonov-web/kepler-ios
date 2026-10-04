@@ -21,8 +21,10 @@ struct BookingsHomeView: View {
     @State private var showCareRequestBuilder = false
     @State private var bookingPanel: BookingPanel = .booking
     @State private var activeCheckout: IumrahCheckoutResponse?
+    @State private var activeGuideProfile: IumrahPublicProfile?
 
     private let accountService = IumrahAccountService()
+    private let chatService = ChatService()
 
     private var activeSessions: [StoredBookingSession] {
         bookings.sessions.filter { session in
@@ -61,6 +63,9 @@ struct BookingsHomeView: View {
                 await bookings.refreshAll()
                 await loadActiveCheckout()
             }
+        }
+        .task(id: activeSession?.guide?.id) {
+            await loadActiveGuideProfile()
         }
         .confirmationDialog(
             L10n.text("booking_delete_confirm_title", settings.language),
@@ -333,6 +338,9 @@ struct BookingsHomeView: View {
 
             paymentReceiptStatusCard(session, checkout: checkout)
             documentReadinessCard(session, checkout: checkout)
+            if let guide = session.guide {
+                assignedGuideCard(session, guide: guide)
+            }
             guideTransferStatusCard(session, checkout: checkout)
 
             NavigationLink {
@@ -399,6 +407,82 @@ struct BookingsHomeView: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
+    }
+
+    private func assignedGuideCard(_ session: StoredBookingSession, guide: BookingGuideSnapshot) -> some View {
+        NavigationLink {
+            IumrahGuideTransferView(bookingID: session.id)
+        } label: {
+            VStack(alignment: .leading, spacing: 15) {
+                HStack(alignment: .center, spacing: 14) {
+                    guidePreviewAvatar
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 6) {
+                            Text(guide.displayName.isEmpty ? localized("Ваш гид", "Your guide", "Gidingiz", "Гидингиз") : guide.displayName)
+                                .font(.system(size: 21, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color(uiColor: .systemBlue))
+                                .accessibilityLabel(localized("Подтверждённый профиль", "Verified profile", "Tasdiqlangan profil", "Тасдиқланган профиль"))
+                        }
+
+                        Text(localized("Главный гид iumrah · стаж 4 года", "Lead iumrah guide · 4 years experience", "iumrah bosh gidi · 4 yil tajriba", "iumrah бош гиди · 4 йил тажриба"))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
+
+                HStack(spacing: 8) {
+                    Label(localized("Контакты", "Contacts", "Kontaktlar", "Контактлар"), systemImage: "phone.fill")
+                    Spacer()
+                    Text(localized("Гид и трансфер", "Guide & transfer", "Gid va transfer", "Гид ва трансфер"))
+                    Image(systemName: "arrow.right")
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 14)
+                .frame(height: 42)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            }
+            .padding(17)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.095), lineWidth: 0.75)
+            }
+            .shadow(color: .black.opacity(0.035), radius: 12, y: 5)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var guidePreviewAvatar: some View {
+        if let url = AppConfig.absoluteURL(activeGuideProfile?.photoURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    Image(systemName: "person.crop.circle.fill")
+                        .resizable().scaledToFit().padding(12).foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 60, height: 60)
+            .background(Color.iumrahRaisedBackground)
+            .clipShape(Circle())
+        } else {
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 29, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 60, height: 60)
+                .background(Color.iumrahRaisedBackground, in: Circle())
+        }
     }
 
     private func guideTransferStatusCard(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
@@ -473,7 +557,12 @@ struct BookingsHomeView: View {
         }
         .padding(17)
         .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .opacity(enabled ? 1 : 0.72)
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(Color.primary.opacity(enabled ? 0.095 : 0.055), lineWidth: 0.75)
+        }
+        .shadow(color: enabled ? .black.opacity(0.032) : .clear, radius: 11, y: 5)
+        .opacity(enabled ? 1 : 0.66)
     }
 
     // MARK: - Booking progress
@@ -1220,6 +1309,15 @@ struct BookingsHomeView: View {
 
     private func progressCounter(current: Int, total: Int) -> String {
         localized("\(current + 1) из \(total)", "\(current + 1) of \(total)", "\(current + 1) / \(total)", "\(current + 1) / \(total)")
+    }
+
+    @MainActor
+    private func loadActiveGuideProfile() async {
+        guard let guideID = activeSession?.guide?.id, !guideID.isEmpty else {
+            activeGuideProfile = nil
+            return
+        }
+        activeGuideProfile = try? await chatService.loadTeamProfile(id: guideID)
     }
 
     private func activeNodeForeground(for status: String) -> Color {

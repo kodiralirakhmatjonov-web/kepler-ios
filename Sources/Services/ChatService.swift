@@ -82,13 +82,18 @@ private struct IumrahPublicProfilesResponse: Decodable {
 }
 
 extension ChatService {
-    func loadCareProfile() async throws -> IumrahPublicProfile? {
+    func loadTeamProfiles() async throws -> [IumrahPublicProfile] {
         let value: IumrahPublicProfilesResponse = try await api.get("/api/catalog/hotels/team")
-        return value.members.first(where: { $0.isOwner }) ?? value.members.first
+        return value.members.filter { $0.active && $0.publicVisible }
+    }
+
+    func loadCareProfile() async throws -> IumrahPublicProfile? {
+        let members = try await loadTeamProfiles()
+        return members.first(where: { $0.isOwner }) ?? members.first
     }
 
     func loadTeamProfile(id: String) async throws -> IumrahPublicProfile? {
-        let value: IumrahPublicProfilesResponse = try await api.get("/api/catalog/hotels/team")
-        return value.members.first(where: { $0.id == id })
+        let members = try await loadTeamProfiles()
+        return members.first(where: { $0.id == id })
     }
 }

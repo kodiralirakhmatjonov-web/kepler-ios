@@ -83,6 +83,7 @@ struct BookingService {
 
         let response: BookingItineraryResponse = try await api.get(
             "/api/catalog/hotels/client/trips/\(id)/itinerary",
+            query: [URLQueryItem(name: "lang", value: language.rawValue)],
             headers: headers
         )
         return response.items.sorted { lhs, rhs in

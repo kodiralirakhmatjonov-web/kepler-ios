@@ -184,6 +184,7 @@ struct BookingCheckoutView: View {
                 roomCategory: journey.selectedRoomCategory,
                 madinahRoom: journey.selectedMadinahRoom,
                 madinahRoomCategory: journey.selectedMadinahRoomCategory,
+                transferVehicle: journey.selectedTransferVehicle ?? journey.recommendedTransferVehicle(),
                 outbound: outbound,
                 inbound: inbound,
                 quote: quote,

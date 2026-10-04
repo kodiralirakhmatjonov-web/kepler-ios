@@ -47,6 +47,7 @@ final class BookingStore: ObservableObject {
         authoritativeMakkahRoomId: String? = nil,
         authoritativeMadinahRoomId: String? = nil,
         intercityTransport: ServerIntercityTransport? = nil,
+        transferVehicle: TransferVehicleKind? = nil,
         outbound: FlightOffer,
         inbound: FlightOffer?,
         quote: PackageQuote,
@@ -94,6 +95,7 @@ final class BookingStore: ObservableObject {
             hotelSelection: BookingHotelSelectionSnapshot(hotel: hotel, room: room, roomCategory: roomCategory, authoritativeRoomId: authoritativeMakkahRoomId),
             madinahHotelSelection: madinahHotel.map { BookingHotelSelectionSnapshot(hotel: $0, room: madinahRoom, roomCategory: madinahRoomCategory, authoritativeRoomId: authoritativeMadinahRoomId) }
         )
+        session.transferVehicle = transferVehicle ?? .carnival
         // Keep only the opaque proof until PackageEngine accepts responsibility for
         // the server-owned cost report. Persist immediately after the canonical booking
         // response so an app termination during Business/profile synchronization cannot
