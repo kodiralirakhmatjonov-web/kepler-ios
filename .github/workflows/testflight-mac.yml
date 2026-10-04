@@ -1,0 +1,432 @@
+name: TestFlight Mac
+
+on:
+  workflow_dispatch:
+    inputs:
+      what_to_test:
+        description: What to test
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iumrah-testflight-mac
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-26
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      SCHEME: iUmra
+      PROJECT: iUmra.xcodeproj
+      BUNDLE_ID: com.iumrah.app
+      ARCHIVE_PATH: build/iUmra-Mac.xcarchive
+      MAC_PROFILE_PATH: Resources/Provisioning/iumrah_Mac_App_Store.provisionprofile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Mac Catalyst production configuration
+        run: |
+          set -euo pipefail
+
+          for path in \
+            project.yml \
+            Resources/Info.plist \
+            Resources/iUmraMacCatalyst.entitlements \
+            Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png; do
+            test -e "$path" || { echo "STOP: missing required Mac file: $path"; exit 1; }
+          done
+
+          grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
+            echo "STOP: Mac Catalyst must keep bundle ID com.iumrah.app"; exit 1;
+          }
+          grep -F 'SUPPORTS_MACCATALYST: YES' project.yml >/dev/null || {
+            echo "STOP: Mac Catalyst support is disabled"; exit 1;
+          }
+          grep -F '"TARGETED_DEVICE_FAMILY[sdk=macosx*]": "6"' project.yml >/dev/null || {
+            echo "STOP: Mac Catalyst must use Optimize Interface for Mac"; exit 1;
+          }
+          grep -A3 -F -- '- target: iUmraWidgets' project.yml | grep -F 'platformFilter: iOS' >/dev/null || {
+            echo "STOP: iOS Widget Extension must stay excluded from the Mac Catalyst graph"; exit 1;
+          }
+
+          MARKETING_VERSION=$(python3 -c 'import re; from pathlib import Path; t=Path("project.yml").read_text(); m=re.search(r"(?m)^\s*MARKETING_VERSION:\s*\"?([0-9]+(?:\.[0-9]+){1,2})\"?\s*$", t); print(m.group(1) if m else "")')
+          test -n "$MARKETING_VERSION" || { echo "STOP: MARKETING_VERSION could not be resolved"; exit 1; }
+          echo "MARKETING_VERSION=$MARKETING_VERSION" >> "$GITHUB_ENV"
+
+          MAC_SANDBOX=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' Resources/iUmraMacCatalyst.entitlements 2>/dev/null || true)
+          test "$MAC_SANDBOX" = "true" || { echo "STOP: Mac App Sandbox entitlement is missing"; exit 1; }
+
+          MAC_NETWORK=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.network.client' Resources/iUmraMacCatalyst.entitlements 2>/dev/null || true)
+          test "$MAC_NETWORK" = "true" || { echo "STOP: Mac outgoing network entitlement is missing"; exit 1; }
+
+          test -f "$MAC_PROFILE_PATH" || {
+            echo "STOP: Mac App Store Connect provisioning profile is missing:"
+            echo "  $MAC_PROFILE_PATH"
+            echo "Create a 'Mac App Store Connect' profile for com.iumrah.app once, then add it at this path."
+            exit 1
+          }
+
+      - name: Prepare Mac Catalyst app icon catalog
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          sets=(Resources/Assets.xcassets/AppIcon*.appiconset)
+          test ${#sets[@]} -gt 0 || { echo "STOP: no AppIcon*.appiconset folders found"; exit 1; }
+
+          for set_dir in "${sets[@]}"; do
+            source="$set_dir/AppIcon-1024.png"
+            contents="$set_dir/Contents.json"
+            test -f "$source" || { echo "STOP: missing $source"; exit 1; }
+            test -f "$contents" || { echo "STOP: missing $contents"; exit 1; }
+
+            sips -z 16 16     "$source" --out "$set_dir/AppIcon-Mac-16@1x.png" >/dev/null
+            sips -z 32 32     "$source" --out "$set_dir/AppIcon-Mac-16@2x.png" >/dev/null
+            sips -z 32 32     "$source" --out "$set_dir/AppIcon-Mac-32@1x.png" >/dev/null
+            sips -z 64 64     "$source" --out "$set_dir/AppIcon-Mac-32@2x.png" >/dev/null
+            sips -z 128 128   "$source" --out "$set_dir/AppIcon-Mac-128@1x.png" >/dev/null
+            sips -z 256 256   "$source" --out "$set_dir/AppIcon-Mac-128@2x.png" >/dev/null
+            sips -z 256 256   "$source" --out "$set_dir/AppIcon-Mac-256@1x.png" >/dev/null
+            sips -z 512 512   "$source" --out "$set_dir/AppIcon-Mac-256@2x.png" >/dev/null
+            sips -z 512 512   "$source" --out "$set_dir/AppIcon-Mac-512@1x.png" >/dev/null
+            sips -z 1024 1024 "$source" --out "$set_dir/AppIcon-Mac-512@2x.png" >/dev/null
+
+            CONTENTS="$contents" python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+
+          p = Path(os.environ['CONTENTS'])
+          data = json.loads(p.read_text())
+          images = [x for x in data.get('images', []) if x.get('idiom') != 'mac']
+          images += [
+              {'filename':'AppIcon-Mac-16@1x.png','idiom':'mac','scale':'1x','size':'16x16'},
+              {'filename':'AppIcon-Mac-16@2x.png','idiom':'mac','scale':'2x','size':'16x16'},
+              {'filename':'AppIcon-Mac-32@1x.png','idiom':'mac','scale':'1x','size':'32x32'},
+              {'filename':'AppIcon-Mac-32@2x.png','idiom':'mac','scale':'2x','size':'32x32'},
+              {'filename':'AppIcon-Mac-128@1x.png','idiom':'mac','scale':'1x','size':'128x128'},
+              {'filename':'AppIcon-Mac-128@2x.png','idiom':'mac','scale':'2x','size':'128x128'},
+              {'filename':'AppIcon-Mac-256@1x.png','idiom':'mac','scale':'1x','size':'256x256'},
+              {'filename':'AppIcon-Mac-256@2x.png','idiom':'mac','scale':'2x','size':'256x256'},
+              {'filename':'AppIcon-Mac-512@1x.png','idiom':'mac','scale':'1x','size':'512x512'},
+              {'filename':'AppIcon-Mac-512@2x.png','idiom':'mac','scale':'2x','size':'512x512'},
+          ]
+          data['images'] = images
+          data.setdefault('info', {'author':'xcode','version':1})
+          p.write_text(json.dumps(data, indent=2) + '\n')
+          PYCODE
+          done
+
+      - name: Xcode environment
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Validate generated scheme
+        run: |
+          set -euo pipefail
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings >/dev/null
+
+      - name: Validate Mac Catalyst build
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Validate Mac App Store Connect profile
+        run: |
+          set -euo pipefail
+
+          test -n "${APPLE_TEAM_ID:-}" || { echo "Missing APPLE_TEAM_ID secret"; exit 1; }
+
+          security cms -D -i "$MAC_PROFILE_PATH" > "$RUNNER_TEMP/mac-profile.plist"
+
+          MAC_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/mac-profile.plist")
+          MAC_PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/mac-profile.plist")
+          MAC_PROFILE_TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$RUNNER_TEMP/mac-profile.plist")
+          MAC_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/mac-profile.plist")
+          MAC_GET_TASK_ALLOW=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:get-task-allow' "$RUNNER_TEMP/mac-profile.plist" 2>/dev/null || true)
+
+          test "$MAC_PROFILE_TEAM" = "$APPLE_TEAM_ID" || { echo "Mac profile Team ID mismatch"; exit 1; }
+          test "$MAC_APP_ID" = "${APPLE_TEAM_ID}.${BUNDLE_ID}" || { echo "Mac profile App ID mismatch: $MAC_APP_ID"; exit 1; }
+          test "$MAC_GET_TASK_ALLOW" = "false" || { echo "Mac profile is not a distribution profile"; exit 1; }
+
+          echo "MAC_PROFILE_NAME=$MAC_PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "MAC_PROFILE_UUID=$MAC_PROFILE_UUID" >> "$GITHUB_ENV"
+
+      - name: Import existing Mac signing identities on runner
+        env:
+          IOS_SIGNING_KEY_PASSWORD: ${{ secrets.IOS_SIGNING_KEY_PASSWORD }}
+          MAC_INSTALLER_CERT_P12_BASE64: ${{ secrets.MAC_INSTALLER_CERT_P12_BASE64 }}
+          MAC_INSTALLER_CERT_PASSWORD: ${{ secrets.MAC_INSTALLER_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          for name in IOS_SIGNING_KEY_PASSWORD MAC_INSTALLER_CERT_P12_BASE64 MAC_INSTALLER_CERT_PASSWORD; do
+            test -n "${!name:-}" || { echo "Missing GitHub secret: $name"; exit 1; }
+          done
+
+          PRIVATE_KEY="$RUNNER_TEMP/apple-distribution-private-key.pem"
+          APP_CERT_PEM="$RUNNER_TEMP/apple-distribution-certificate.pem"
+          APP_P12="$RUNNER_TEMP/apple-distribution.p12"
+          INSTALLER_P12="$RUNNER_TEMP/mac-installer-distribution.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/iumrah-mac-signing.keychain-db"
+          APP_P12_PASSWORD="iumrah-mac-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          openssl enc \
+            -d \
+            -aes-256-cbc \
+            -pbkdf2 \
+            -iter 200000 \
+            -in Signing/distribution-private-key.enc \
+            -out "$PRIVATE_KEY" \
+            -pass env:IOS_SIGNING_KEY_PASSWORD
+
+          MAC_PROFILE_PLIST="$RUNNER_TEMP/mac-profile.plist" \
+          CERT_DER="$RUNNER_TEMP/apple-distribution-certificate.der" \
+          python3 - <<'PYCODE'
+          import os, plistlib
+          from pathlib import Path
+
+          with Path(os.environ["MAC_PROFILE_PLIST"]).open("rb") as f:
+              profile = plistlib.load(f)
+          certs = profile.get("DeveloperCertificates") or []
+          if not certs:
+              raise SystemExit("Mac provisioning profile contains no distribution certificate")
+          Path(os.environ["CERT_DER"]).write_bytes(certs[0])
+          PYCODE
+
+          openssl x509 \
+            -inform DER \
+            -in "$RUNNER_TEMP/apple-distribution-certificate.der" \
+            -out "$APP_CERT_PEM"
+
+          KEY_FP=$(openssl pkey -in "$PRIVATE_KEY" -pubout 2>/dev/null | openssl sha256)
+          CERT_FP=$(openssl x509 -in "$APP_CERT_PEM" -pubkey -noout 2>/dev/null | openssl sha256)
+          test "$KEY_FP" = "$CERT_FP" || {
+            echo "Existing distribution private key does not match the Mac profile certificate."
+            exit 1
+          }
+
+          openssl pkcs12 \
+            -export \
+            -inkey "$PRIVATE_KEY" \
+            -in "$APP_CERT_PEM" \
+            -out "$APP_P12" \
+            -name "Apple Distribution" \
+            -passout pass:"$APP_P12_PASSWORD"
+
+          printf '%s' "$MAC_INSTALLER_CERT_P12_BASE64" | base64 --decode > "$INSTALLER_P12"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$APP_P12" -P "$APP_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security import "$INSTALLER_P12" -P "$MAC_INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F 'Apple Distribution:' >/dev/null || {
+            echo "Apple Distribution identity is unavailable"
+            exit 1
+          }
+
+          security find-identity -v "$KEYCHAIN_PATH" | grep -E 'Mac Installer Distribution:|3rd Party Mac Developer Installer:' >/dev/null || {
+            echo "Mac Installer Distribution identity is unavailable"
+            exit 1
+          }
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$MAC_PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/${MAC_PROFILE_UUID}.provisionprofile"
+
+      - name: Archive Mac Catalyst app
+        run: |
+          set -euo pipefail
+
+          mkdir -p build
+          BUILD_NUMBER=$((40000 + GITHUB_RUN_NUMBER))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            -archivePath "$PWD/$ARCHIVE_PATH" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            MARKETING_VERSION="$MARKETING_VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            'CODE_SIGN_STYLE[sdk=macosx*]=Manual' \
+            'CODE_SIGN_IDENTITY[sdk=macosx*]=Apple Distribution' \
+            "PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]=$MAC_PROFILE_NAME" \
+            archive
+
+      - name: Verify Mac archive
+        run: |
+          set -euo pipefail
+
+          APP_PATH=$(find "$PWD/$ARCHIVE_PATH/Products/Applications" -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$APP_PATH" || { echo "Archived Mac app not found"; exit 1; }
+
+          INFO="$APP_PATH/Contents/Info.plist"
+          test -f "$INFO" || { echo "Mac Info.plist missing"; exit 1; }
+          test -f "$APP_PATH/Contents/embedded.provisionprofile" || { echo "Mac TestFlight provisioning profile is not embedded"; exit 1; }
+
+          FINAL_BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO")
+          FINAL_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO")
+          FINAL_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO")
+
+          test "$FINAL_BUNDLE" = "$BUNDLE_ID"
+          test "$FINAL_VERSION" = "$MARKETING_VERSION"
+          test "$FINAL_BUILD" = "$BUILD_NUMBER"
+
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/mac-final-entitlements.plist" 2>/dev/null
+
+          SANDBOX=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$RUNNER_TEMP/mac-final-entitlements.plist" 2>/dev/null || true)
+          test "$SANDBOX" = "true" || { echo "Final Mac archive is missing App Sandbox"; exit 1; }
+
+          KEYCHAIN=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' "$RUNNER_TEMP/mac-final-entitlements.plist" 2>/dev/null || true)
+          test "$KEYCHAIN" = "${APPLE_TEAM_ID}.com.iumrah.shared" || { echo "Final Mac archive is missing shared keychain entitlement"; exit 1; }
+
+      - name: Export Mac App Store package
+        run: |
+          set -euo pipefail
+
+          cat > "$RUNNER_TEMP/ExportOptions-Mac.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>installerSigningCertificate</key><string>Mac Installer Distribution</string>
+            <key>provisioningProfiles</key><dict>
+              <key>${BUNDLE_ID}</key><string>${MAC_PROFILE_NAME}</string>
+            </dict>
+          </dict></plist>
+          PLIST
+
+          rm -rf build/mac-export
+          mkdir -p build/mac-export
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$PWD/$ARCHIVE_PATH" \
+            -exportPath "$PWD/build/mac-export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions-Mac.plist"
+
+          PKG_PATH=$(find "$PWD/build/mac-export" -maxdepth 1 -name '*.pkg' -print -quit)
+          test -n "$PKG_PATH" || { echo "Exported Mac .pkg not found"; find build/mac-export -maxdepth 2 -print; exit 1; }
+
+          pkgutil --check-signature "$PKG_PATH"
+          echo "PKG_PATH=$PKG_PATH" >> "$GITHUB_ENV"
+
+      - name: Set up Ruby for fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install fastlane
+        run: gem install fastlane --no-document
+
+      - name: Prepare App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8; do
+            test -n "${!name:-}" || { echo "Missing GitHub secret: $name"; exit 1; }
+          done
+
+          P8_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          JSON_PATH="$RUNNER_TEMP/app-store-connect-api-key.json"
+          printf '%s' "$ASC_API_KEY_P8" > "$P8_PATH"
+          chmod 600 "$P8_PATH"
+
+          ASC_P8_PATH="$P8_PATH" ASC_JSON_PATH="$JSON_PATH" python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+
+          p8 = Path(os.environ["ASC_P8_PATH"]).read_text()
+          payload = {
+              "key_id": os.environ["ASC_KEY_ID"],
+              "issuer_id": os.environ["ASC_ISSUER_ID"],
+              "key": p8,
+              "duration": 1200,
+              "in_house": False,
+          }
+          Path(os.environ["ASC_JSON_PATH"]).write_text(json.dumps(payload))
+          PYCODE
+
+          echo "ASC_API_KEY_PATH=$JSON_PATH" >> "$GITHUB_ENV"
+
+      - name: Upload Mac package to TestFlight
+        env:
+          TESTFLIGHT_CHANGELOG: ${{ inputs.what_to_test }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          test -n "${PKG_PATH:-}" || { echo "PKG_PATH is missing"; exit 1; }
+
+          args=(
+            pilot upload
+            --pkg "$PKG_PATH"
+            --api_key_path "$ASC_API_KEY_PATH"
+            --app_identifier "$BUNDLE_ID"
+            --skip_submission true
+            --skip_waiting_for_build_processing true
+          )
+
+          if [ -n "${TESTFLIGHT_CHANGELOG:-}" ]; then
+            args+=(--changelog "$TESTFLIGHT_CHANGELOG")
+          fi
+
+          fastlane "${args[@]}"
+
+      - name: TestFlight Mac summary
+        run: |
+          {
+            echo "## Iumrah TestFlight Mac upload"
+            echo "- Platform: Mac Catalyst"
+            echo "- Bundle ID: \`$BUNDLE_ID\`"
+            echo "- Version: \`$MARKETING_VERSION\`"
+            echo "- Build: \`${BUILD_NUMBER:-unknown}\`"
+            echo "- Uploaded as a separate Mac Catalyst build."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Mac build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iumrah-testflight-mac-${{ github.run_number }}
+          path: |
+            build/iUmra-Mac.xcarchive
+            build/mac-export
+          if-no-files-found: ignore
+          retention-days: 7
