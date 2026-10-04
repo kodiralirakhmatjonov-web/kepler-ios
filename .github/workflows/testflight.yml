@@ -1,18 +1,22 @@
 name: TestFlight
-true:
+
+on:
   workflow_dispatch:
     inputs:
       what_to_test:
-        description: Optional TestFlight “What to Test” note
+        description: 'Optional TestFlight “What to Test” note'
         required: false
         type: string
         default: ''
+
 concurrency:
   group: iumrah-testflight-${{ github.ref }}
   cancel-in-progress: false
+
 permissions:
   contents: read
   actions: read
+
 jobs:
   build:
     runs-on: macos-26
@@ -23,121 +27,730 @@ jobs:
       BUNDLE_ID: com.iumrah.app
       WIDGET_BUNDLE_ID: com.iumrah.app.widgets
       ARCHIVE_PATH: build/iUmra.xcarchive
+
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Resolve release version and verify production identity
-      env:
-        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      run: "set -euo pipefail\n\nfor path in \\\n  project.yml \\\n  Sources/App/IumrahApp.swift \\\n  Sources/Core/AppIdentity.swift \\\n  Sources/Store/IumrahPlusStore.swift \\\n  Resources/Info.plist \\\n  Resources/iUmra.entitlements \\\n  WidgetExtension/IumrahWidgets.swift \\\n  WidgetExtension/Info.plist \\\n  WidgetExtension/iUmraWidgets.entitlements \\\n  Sources/WidgetShared/IumrahWidgetSnapshot.swift \\\n  Resources/Provisioning/iumrah_Widgets_App_Store.mobileprovision \\\n  Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png; do\n  test -e \"$path\" || { echo \"STOP: missing required file: $path\"; exit 1; }\ndone\n\n# The repository still had the legacy visible name iUmra in Info.plist.\n# Normalize it in CI before XcodeGen so this cannot fail just because\n# the branding patch has not yet been applied to the branch.\n/usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Iumrah' Resources/Info.plist 2>/dev/null || \\\n  /usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName\
-        \ string Iumrah' Resources/Info.plist\n\npython3 - <<'PYCODE'\nfrom pathlib import Path\np = Path('Sources/Core/AppIdentity.swift')\ntext = p.read_text()\ntext = text.replace('static let displayName = \"iUmra\"', 'static let displayName = \"Iumrah\"')\ntext = text.replace('static let displayName = \"iUmrah\"', 'static let displayName = \"Iumrah\"')\np.write_text(text)\nPYCODE\n\nMARKETING_VERSION=$(python3 -c 'import re; from pathlib import Path; text=Path(\"project.yml\").read_text(); match=re.search(r\"(?m)^\\s*MARKETING_VERSION:\\s*\\\"?([0-9]+(?:\\.[0-9]+){1,2})\\\"?\\s*$\", text); print(match.group(1) if match else \"\")')\ntest -n \"$MARKETING_VERSION\" || { echo \"STOP: MARKETING_VERSION could not be resolved\"; exit 1; }\necho \"MARKETING_VERSION=$MARKETING_VERSION\" >> \"$GITHUB_ENV\"\ngrep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {\n  echo \"STOP: Bundle ID must be the published App Store ID com.iumrah.app\"; exit 1;\n}\ngrep -F 'PRODUCT_BUNDLE_IDENTIFIER:\
-        \ com.iumrah.app.widgets' project.yml >/dev/null || {\n  echo \"STOP: Widget Extension Bundle ID must be com.iumrah.app.widgets\"; exit 1;\n}\ngrep -F 'TARGETED_DEVICE_FAMILY: \"1,2\"' project.yml >/dev/null || {\n  echo \"STOP: iPhone + iPad support must remain enabled\"; exit 1;\n}\n\nDISPLAY_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Resources/Info.plist)\ntest \"$DISPLAY_NAME\" = \"Iumrah\" || { echo \"STOP: CFBundleDisplayName=$DISPLAY_NAME\"; exit 1; }\n\nURL_SCHEME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' Resources/Info.plist 2>/dev/null || true)\ntest \"$URL_SCHEME\" = \"iumrah\" || { echo \"STOP: legacy iumrah:// URL scheme is missing\"; exit 1; }\n\nAPS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' Resources/iUmra.entitlements 2>/dev/null || true)\ntest \"$APS\" = \"production\" || { echo \"STOP: aps-environment must be production, got: ${APS:-missing}\"; exit 1; }\n\nAPPLE_SIGNIN=$(/usr/libexec/PlistBuddy\
-        \ -c 'Print :com.apple.developer.applesignin:0' Resources/iUmra.entitlements 2>/dev/null || true)\ntest \"$APPLE_SIGNIN\" = \"Default\" || { echo \"STOP: Sign in with Apple entitlement is missing\"; exit 1; }\n\nDOMAIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' Resources/iUmra.entitlements 2>/dev/null || true)\ntest \"$DOMAIN\" = \"applinks:iumrah.app\" || { echo \"STOP: applinks:iumrah.app entitlement is missing\"; exit 1; }\n\nAPP_KEYCHAIN_GROUP=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' Resources/iUmra.entitlements 2>/dev/null || true)\ntest \"$APP_KEYCHAIN_GROUP\" = \"${APPLE_TEAM_ID}.com.iumrah.shared\" || { echo \"STOP: app shared keychain entitlement is missing\"; exit 1; }\n\nWIDGET_KEYCHAIN_GROUP=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' WidgetExtension/iUmraWidgets.entitlements 2>/dev/null || true)\ntest \"$WIDGET_KEYCHAIN_GROUP\" = \"${APPLE_TEAM_ID}.com.iumrah.shared\" || { echo \"STOP: widget\
-        \ shared keychain entitlement is missing\"; exit 1; }\n\ngrep -F 'static let iumrahPlusProductID = \"iumrah.plus\"' Sources/Core/AppIdentity.swift >/dev/null || {\n  echo \"STOP: legacy iumrah.plus product identity is missing\"; exit 1;\n}\n\n! grep -R --line-number --fixed-strings 'com.iumrah.beta' project.yml Resources Sources Backend || {\n  echo \"STOP: active production files still contain com.iumrah.beta\"; exit 1;\n}\n\nGOOGLE_IOS_ID=$(/usr/libexec/PlistBuddy -c 'Print :GIDClientID' Resources/Info.plist 2>/dev/null || true)\nGOOGLE_SERVER_ID=$(/usr/libexec/PlistBuddy -c 'Print :GIDServerClientID' Resources/Info.plist 2>/dev/null || true)\ntest \"$GOOGLE_IOS_ID\" = \"863185716777-p3ugvu6llaj3np0g0p6of3cqfr1d37te.apps.googleusercontent.com\" || { echo \"STOP: production Google iOS Client ID mismatch\"; exit 1; }\ntest \"$GOOGLE_SERVER_ID\" = \"863185716777-8tec2kuch1qkra1f1coikpi20j6is65f.apps.googleusercontent.com\" || { echo \"STOP: production Google Server Client ID mismatch\"\
-        ; exit 1; }\ngrep -F 'com.googleusercontent.apps.863185716777-p3ugvu6llaj3np0g0p6of3cqfr1d37te' Resources/Info.plist >/dev/null || { echo \"STOP: Google callback URL scheme missing\"; exit 1; }\n\necho \"Production identity OK: Iumrah / com.iumrah.app / $MARKETING_VERSION / Google Sign-In\"\n"
-    - name: Prepare complete iPhone and iPad app icon catalogs
-      run: "set -euo pipefail\n\nshopt -s nullglob\nsets=(Resources/Assets.xcassets/AppIcon*.appiconset)\ntest ${#sets[@]} -gt 0 || { echo \"STOP: no AppIcon*.appiconset folders found\"; exit 1; }\n\nfor set_dir in \"${sets[@]}\"; do\n  source=\"$set_dir/AppIcon-1024.png\"\n  contents=\"$set_dir/Contents.json\"\n  test -f \"$source\" || { echo \"STOP: missing $source\"; exit 1; }\n  test -f \"$contents\" || { echo \"STOP: missing $contents\"; exit 1; }\n\n  sips -z 20 20   \"$source\" --out \"$set_dir/AppIcon-iPad-20@1x.png\" >/dev/null\n  sips -z 40 40   \"$source\" --out \"$set_dir/AppIcon-iPad-20@2x.png\" >/dev/null\n  sips -z 29 29   \"$source\" --out \"$set_dir/AppIcon-iPad-29@1x.png\" >/dev/null\n  sips -z 58 58   \"$source\" --out \"$set_dir/AppIcon-iPad-29@2x.png\" >/dev/null\n  sips -z 40 40   \"$source\" --out \"$set_dir/AppIcon-iPad-40@1x.png\" >/dev/null\n  sips -z 80 80   \"$source\" --out \"$set_dir/AppIcon-iPad-40@2x.png\" >/dev/null\n  sips -z 76 76   \"$source\" --out \"\
-        $set_dir/AppIcon-iPad-76@1x.png\" >/dev/null\n  sips -z 152 152 \"$source\" --out \"$set_dir/AppIcon-iPad-76@2x.png\" >/dev/null\n  sips -z 167 167 \"$source\" --out \"$set_dir/AppIcon-iPad-83.5@2x.png\" >/dev/null\n\n  CONTENTS=\"$contents\" python3 - <<'PYCODE'\nimport json, os\nfrom pathlib import Path\n\np = Path(os.environ['CONTENTS'])\ndata = json.loads(p.read_text())\nimages = [x for x in data.get('images', []) if x.get('idiom') != 'ipad']\nimages += [\n    {'filename':'AppIcon-iPad-20@1x.png','idiom':'ipad','scale':'1x','size':'20x20'},\n    {'filename':'AppIcon-iPad-20@2x.png','idiom':'ipad','scale':'2x','size':'20x20'},\n    {'filename':'AppIcon-iPad-29@1x.png','idiom':'ipad','scale':'1x','size':'29x29'},\n    {'filename':'AppIcon-iPad-29@2x.png','idiom':'ipad','scale':'2x','size':'29x29'},\n    {'filename':'AppIcon-iPad-40@1x.png','idiom':'ipad','scale':'1x','size':'40x40'},\n    {'filename':'AppIcon-iPad-40@2x.png','idiom':'ipad','scale':'2x','size':'40x40'},\n    {'filename':'AppIcon-iPad-76@1x.png','idiom':'ipad','scale':'1x','size':'76x76'},\n\
-        \    {'filename':'AppIcon-iPad-76@2x.png','idiom':'ipad','scale':'2x','size':'76x76'},\n    {'filename':'AppIcon-iPad-83.5@2x.png','idiom':'ipad','scale':'2x','size':'83.5x83.5'},\n]\ndata['images'] = images\ndata.setdefault('info', {'author':'xcode','version':1})\np.write_text(json.dumps(data, indent=2) + '\\n')\nPYCODE\ndone\n\necho \"Prepared ${#sets[@]} app icon catalog(s) for iPhone and iPad only.\"\n"
-    - name: Xcode environment
-      run: 'sw_vers
+      - name: Checkout
+        uses: actions/checkout@v4
 
-        xcodebuild -version
+      - name: Resolve release version and verify production identity
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
 
-        swift --version
+          for path in \
+            project.yml \
+            Sources/App/IumrahApp.swift \
+            Sources/Core/AppIdentity.swift \
+            Sources/Store/IumrahPlusStore.swift \
+            Resources/Info.plist \
+            Resources/iUmra.entitlements \
+            WidgetExtension/IumrahWidgets.swift \
+            WidgetExtension/Info.plist \
+            WidgetExtension/iUmraWidgets.entitlements \
+            Sources/WidgetShared/IumrahWidgetSnapshot.swift \
+            Resources/Provisioning/iumrah_Widgets_App_Store.mobileprovision \
+            Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png; do
+            test -e "$path" || { echo "STOP: missing required file: $path"; exit 1; }
+          done
 
-        '
-    - name: Install XcodeGen
-      run: 'brew install xcodegen
+          # The repository still had the legacy visible name iUmra in Info.plist.
+          # Normalize it in CI before XcodeGen so this cannot fail just because
+          # the branding patch has not yet been applied to the branch.
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Iumrah' Resources/Info.plist 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string Iumrah' Resources/Info.plist
 
-        xcodegen --version
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          p = Path('Sources/Core/AppIdentity.swift')
+          text = p.read_text()
+          text = text.replace('static let displayName = "iUmra"', 'static let displayName = "Iumrah"')
+          text = text.replace('static let displayName = "iUmrah"', 'static let displayName = "Iumrah"')
+          p.write_text(text)
+          PYCODE
 
-        '
-    - name: Generate Xcode project
-      run: xcodegen generate
-    - name: Validate generated scheme
-      run: 'set -euo pipefail
+          MARKETING_VERSION=$(python3 -c 'import re; from pathlib import Path; text=Path("project.yml").read_text(); match=re.search(r"(?m)^\s*MARKETING_VERSION:\s*\"?([0-9]+(?:\.[0-9]+){1,2})\"?\s*$", text); print(match.group(1) if match else "")')
+          test -n "$MARKETING_VERSION" || { echo "STOP: MARKETING_VERSION could not be resolved"; exit 1; }
+          echo "MARKETING_VERSION=$MARKETING_VERSION" >> "$GITHUB_ENV"
+          grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app' project.yml >/dev/null || {
+            echo "STOP: Bundle ID must be the published App Store ID com.iumrah.app"; exit 1;
+          }
+          grep -F 'PRODUCT_BUNDLE_IDENTIFIER: com.iumrah.app.widgets' project.yml >/dev/null || {
+            echo "STOP: Widget Extension Bundle ID must be com.iumrah.app.widgets"; exit 1;
+          }
+          grep -F 'TARGETED_DEVICE_FAMILY: "1,2"' project.yml >/dev/null || {
+            echo "STOP: iPhone + iPad support must remain enabled"; exit 1;
+          }
 
-        test -d "$PROJECT"
+          DISPLAY_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' Resources/Info.plist)
+          test "$DISPLAY_NAME" = "Iumrah" || { echo "STOP: CFBundleDisplayName=$DISPLAY_NAME"; exit 1; }
 
-        xcodebuild -project "$PROJECT" -list
+          URL_SCHEME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' Resources/Info.plist 2>/dev/null || true)
+          test "$URL_SCHEME" = "iumrah" || { echo "STOP: legacy iumrah:// URL scheme is missing"; exit 1; }
 
-        '
-    - name: Validate simulator build
-      run: "set -o pipefail\nxcodebuild \\\n  -project \"$PROJECT\" \\\n  -scheme \"$SCHEME\" \\\n  -configuration Debug \\\n  -sdk iphonesimulator \\\n  -destination 'generic/platform=iOS Simulator' \\\n  CODE_SIGNING_ALLOWED=NO \\\n  build\n"
-    - name: Download prepared signing bundle
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: "set -euo pipefail\n\nSIGNING_RUN_ID=$(gh run list \\\n  --workflow testflight-signing.yml \\\n  --branch \"${GITHUB_REF_NAME}\" \\\n  --status success \\\n  --limit 1 \\\n  --json databaseId \\\n  --jq '.[0].databaseId // empty')\n\ntest -n \"$SIGNING_RUN_ID\" || {\n  echo \"No successful 'Iumrah — Prepare iOS Signing' run was found.\"\n  echo \"Run testflight-signing.yml once, then rerun TestFlight.\"\n  exit 1\n}\n\nSIGNING_DIR=\"$RUNNER_TEMP/prepared-signing\"\nrm -rf \"$SIGNING_DIR\"\nmkdir -p \"$SIGNING_DIR\"\n\ngh run download \"$SIGNING_RUN_ID\" \\\n  --name iumrah-ios-signing-bundle \\\n  --dir \"$SIGNING_DIR\"\n\ntest -f \"$SIGNING_DIR/app.mobileprovision\" || { echo \"Prepared app profile is missing.\"; exit 1; }\ntest -f \"$SIGNING_DIR/widget.mobileprovision\" || { echo \"Prepared widget profile is missing.\"; exit 1; }\ntest -f \"$SIGNING_DIR/manifest.json\" || { echo \"Prepared signing manifest is missing.\"; exit 1; }\n\necho \"PROFILE_PATH=$SIGNING_DIR/app.mobileprovision\"\
-        \ >> \"$GITHUB_ENV\"\necho \"WIDGET_PROFILE_PATH=$SIGNING_DIR/widget.mobileprovision\" >> \"$GITHUB_ENV\"\n\necho \"Using signing artifact from workflow run: $SIGNING_RUN_ID\"\ncat \"$SIGNING_DIR/manifest.json\"\n"
-    - name: Import existing signing identity on runner
-      env:
-        IOS_SIGNING_KEY_PASSWORD: ${{ secrets.IOS_SIGNING_KEY_PASSWORD }}
-        KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
-      run: "set -euo pipefail\n\ntest -f \"$PROFILE_PATH\" || { echo \"Prepared app profile not found.\"; exit 1; }\ntest -f \"$WIDGET_PROFILE_PATH\" || { echo \"Prepared widget profile not found.\"; exit 1; }\n\nsecurity cms -D -i \"$PROFILE_PATH\" > \"$RUNNER_TEMP/prepared-app-profile.plist\"\nsecurity cms -D -i \"$WIDGET_PROFILE_PATH\" > \"$RUNNER_TEMP/prepared-widget-profile.plist\"\n\nPREPARED_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' \"$RUNNER_TEMP/prepared-app-profile.plist\")\nPREPARED_WIDGET_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' \"$RUNNER_TEMP/prepared-widget-profile.plist\")\nPREPARED_APP_TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' \"$RUNNER_TEMP/prepared-app-profile.plist\")\nPREPARED_WIDGET_TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' \"$RUNNER_TEMP/prepared-widget-profile.plist\")\n\ntest \"$PREPARED_APP_TEAM\" = \"$APPLE_TEAM_ID\"\ntest \"$PREPARED_WIDGET_TEAM\" = \"\
-        $APPLE_TEAM_ID\"\ntest \"$PREPARED_APP_ID\" = \"${APPLE_TEAM_ID}.${BUNDLE_ID}\"\ntest \"$PREPARED_WIDGET_ID\" = \"${APPLE_TEAM_ID}.${WIDGET_BUNDLE_ID}\"\n\nPRIVATE_KEY=\"$RUNNER_TEMP/distribution-private-key.pem\"\nCERT_PEM=\"$RUNNER_TEMP/distribution-certificate.pem\"\nP12_PATH=\"$RUNNER_TEMP/existing-distribution-identity.p12\"\nKEYCHAIN_PATH=\"$RUNNER_TEMP/iumrah-app-signing.keychain-db\"\nP12_PASSWORD=\"iumrah-app-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\"\n\nopenssl enc \\\n  -d \\\n  -aes-256-cbc \\\n  -pbkdf2 \\\n  -iter 200000 \\\n  -in \"$GITHUB_WORKSPACE/Signing/distribution-private-key.enc\" \\\n  -out \"$PRIVATE_KEY\" \\\n  -pass env:IOS_SIGNING_KEY_PASSWORD\n\nsecurity cms -D -i \"$PROFILE_PATH\" > \"$RUNNER_TEMP/profile.plist\"\nsecurity cms -D -i \"$WIDGET_PROFILE_PATH\" > \"$RUNNER_TEMP/widget-profile.plist\"\n\nAPP_PROFILE_PLIST=\"$RUNNER_TEMP/profile.plist\" \\\nWIDGET_PROFILE_PLIST=\"$RUNNER_TEMP/widget-profile.plist\" \\\nCERT_DER=\"$RUNNER_TEMP/distribution-certificate.der\"\
-        \ \\\npython3 - <<'PYCODE'\nimport os\nimport plistlib\nfrom pathlib import Path\n\nwith Path(os.environ[\"APP_PROFILE_PLIST\"]).open(\"rb\") as f:\n    app = plistlib.load(f)\nwith Path(os.environ[\"WIDGET_PROFILE_PLIST\"]).open(\"rb\") as f:\n    widget = plistlib.load(f)\n\napp_certs = app.get(\"DeveloperCertificates\") or []\nwidget_certs = widget.get(\"DeveloperCertificates\") or []\nif not app_certs or not widget_certs:\n    raise SystemExit(\"A provisioning profile does not contain DeveloperCertificates\")\nif app_certs[0] != widget_certs[0]:\n    raise SystemExit(\"App and widget provisioning profiles use different Apple Distribution certificates\")\n\nPath(os.environ[\"CERT_DER\"]).write_bytes(app_certs[0])\nprint(f\"Verified shared signing certificate: {len(app_certs[0])} bytes\")\nPYCODE\n\nopenssl x509 \\\n  -inform DER \\\n  -in \"$RUNNER_TEMP/distribution-certificate.der\" \\\n  -out \"$CERT_PEM\"\n\nKEY_FP=$(openssl pkey -in \"$PRIVATE_KEY\" -pubout 2>/dev/null | openssl\
-        \ sha256)\nCERT_FP=$(openssl x509 -in \"$CERT_PEM\" -pubkey -noout 2>/dev/null | openssl sha256)\n\nif [ \"$KEY_FP\" != \"$CERT_FP\" ]; then\n  echo \"Provisioning profile certificate does not match signing private key.\"\n  exit 1\nfi\n\nopenssl pkcs12 \\\n  -export \\\n  -inkey \"$PRIVATE_KEY\" \\\n  -in \"$CERT_PEM\" \\\n  -out \"$P12_PATH\" \\\n  -name \"Apple Distribution\" \\\n  -passout pass:\"$P12_PASSWORD\"\n\nsecurity create-keychain -p \"$KEYCHAIN_PASSWORD\" \"$KEYCHAIN_PATH\"\nsecurity set-keychain-settings -lut 21600 \"$KEYCHAIN_PATH\"\nsecurity unlock-keychain -p \"$KEYCHAIN_PASSWORD\" \"$KEYCHAIN_PATH\"\nsecurity import \"$P12_PATH\" -P \"$P12_PASSWORD\" -A -t cert -f pkcs12 -k \"$KEYCHAIN_PATH\"\nsecurity list-keychain -d user -s \"$KEYCHAIN_PATH\" login.keychain-db\nsecurity set-key-partition-list -S apple-tool:,apple: -k \"$KEYCHAIN_PASSWORD\" \"$KEYCHAIN_PATH\"\n\nPROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' \"$RUNNER_TEMP/profile.plist\")\nPROFILE_NAME=$(/usr/libexec/PlistBuddy\
-        \ -c 'Print :Name' \"$RUNNER_TEMP/profile.plist\")\nWIDGET_PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' \"$RUNNER_TEMP/widget-profile.plist\")\nWIDGET_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' \"$RUNNER_TEMP/widget-profile.plist\")\n\nmkdir -p \"$HOME/Library/MobileDevice/Provisioning Profiles\"\ncp \"$PROFILE_PATH\" \"$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision\"\ncp \"$WIDGET_PROFILE_PATH\" \"$HOME/Library/MobileDevice/Provisioning Profiles/$WIDGET_PROFILE_UUID.mobileprovision\"\n\nSIGNING_IDENTITY=$(security find-identity -v -p codesigning \"$KEYCHAIN_PATH\" \\\n  | sed -n '1s/.*\"\\(.*\\)\".*/\\1/p')\n\ntest -n \"$SIGNING_IDENTITY\" || {\n  echo \"Apple Distribution signing identity not found.\"\n  exit 1\n}\n\necho \"PROFILE_NAME=$PROFILE_NAME\" >> \"$GITHUB_ENV\"\necho \"WIDGET_PROFILE_NAME=$WIDGET_PROFILE_NAME\" >> \"$GITHUB_ENV\"\necho \"SIGNING_IDENTITY=$SIGNING_IDENTITY\" >> \"$GITHUB_ENV\"\n\necho \"Installed\
-        \ existing app profile on this ephemeral runner: $PROFILE_NAME\"\necho \"Installed existing widget profile on this ephemeral runner: $WIDGET_PROFILE_NAME\"\necho \"Signing identity: $SIGNING_IDENTITY\"\n"
-    - name: Confirm signing source
-      run: 'echo "TestFlight is using the previously prepared existing signing profiles."
+          APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' Resources/iUmra.entitlements 2>/dev/null || true)
+          test "$APS" = "production" || { echo "STOP: aps-environment must be production, got: ${APS:-missing}"; exit 1; }
 
-        echo "This workflow does not create, renew, or revoke Apple certificates or provisioning profiles."
+          APPLE_SIGNIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' Resources/iUmra.entitlements 2>/dev/null || true)
+          test "$APPLE_SIGNIN" = "Default" || { echo "STOP: Sign in with Apple entitlement is missing"; exit 1; }
 
-        '
-    - name: Archive signed app
-      env:
-        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      run: "set -o pipefail\nmkdir -p build\nBUILD_NUMBER=$((20000 + GITHUB_RUN_NUMBER))\necho \"BUILD_NUMBER=$BUILD_NUMBER\" >> \"$GITHUB_ENV\"\necho \"Building Iumrah $MARKETING_VERSION ($BUILD_NUMBER)\"\n\nxcodebuild \\\n  -project \"$PROJECT\" \\\n  -scheme \"$SCHEME\" \\\n  -configuration Release \\\n  -destination 'generic/platform=iOS' \\\n  -archivePath \"$PWD/$ARCHIVE_PATH\" \\\n  IUMRAH_APPLE_TEAM_ID=\"$APPLE_TEAM_ID\" \\\n  IUMRAH_PROFILE_NAME=\"$PROFILE_NAME\" \\\n  IUMRAH_WIDGET_PROFILE_NAME=\"$WIDGET_PROFILE_NAME\" \\\n  MARKETING_VERSION=\"$MARKETING_VERSION\" \\\n  CURRENT_PROJECT_VERSION=\"$BUILD_NUMBER\" \\\n  archive\n"
-    - name: Repair and verify archived app metadata
-      run: "set -euo pipefail\n\nAPP_PATH=$(find \"$PWD/$ARCHIVE_PATH/Products/Applications\" \\\n  -maxdepth 1 -name '*.app' -print -quit)\n\ntest -n \"$APP_PATH\" || {\n  echo \"Archived .app not found.\"\n  exit 1\n}\n\nINFO_PLIST=\"$APP_PATH/Info.plist\"\nICON_SOURCE=\"$PWD/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png\"\n\nBUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \"$INFO_PLIST\")\ntest \"$BUNDLE\" = \"$BUNDLE_ID\" || {\n  echo \"Archive bundle mismatch: expected $BUNDLE_ID, got $BUNDLE\"\n  exit 1\n}\n\nVERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \"$INFO_PLIST\")\nBUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' \"$INFO_PLIST\")\ntest \"$VERSION\" = \"$MARKETING_VERSION\" || { echo \"Archive version mismatch: expected $MARKETING_VERSION, got $VERSION\"; exit 1; }\ntest \"$BUILD\" -ge 15 || { echo \"Archive build must be > legacy build 14. Got: $BUILD\"; exit 1; }\n\ncodesign -d --entitlements :- \"$APP_PATH\"\
-        \ > \"$RUNNER_TEMP/archive-entitlements.plist\" 2>/dev/null\nARCHIVE_APP_KEYCHAIN=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' \"$RUNNER_TEMP/archive-entitlements.plist\" 2>/dev/null || true)\ntest \"$ARCHIVE_APP_KEYCHAIN\" = \"${APPLE_TEAM_ID}.com.iumrah.shared\" || {\n  echo \"Archive app is missing the shared widget keychain entitlement.\"\n  exit 1\n}\n\nWIDGET_PATH=$(find \"$APP_PATH/PlugIns\" -maxdepth 1 -name '*.appex' -print -quit 2>/dev/null || true)\ntest -n \"$WIDGET_PATH\" || { echo \"Archive is missing embedded Widget Extension.\"; exit 1; }\nWIDGET_BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \"$WIDGET_PATH/Info.plist\")\ntest \"$WIDGET_BUNDLE\" = \"$WIDGET_BUNDLE_ID\" || { echo \"Archive widget bundle mismatch: $WIDGET_BUNDLE\"; exit 1; }\ncodesign -d --entitlements :- \"$WIDGET_PATH\" > \"$RUNNER_TEMP/archive-widget-entitlements.plist\" 2>/dev/null\nARCHIVE_WIDGET_KEYCHAIN=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0'\
-        \ \"$RUNNER_TEMP/archive-widget-entitlements.plist\" 2>/dev/null || true)\ntest \"$ARCHIVE_WIDGET_KEYCHAIN\" = \"${APPLE_TEAM_ID}.com.iumrah.shared\" || {\n  echo \"Archive widget is missing the shared keychain entitlement.\"\n  exit 1\n}\n\nARCHIVE_APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' \"$RUNNER_TEMP/archive-entitlements.plist\" 2>/dev/null || true)\ntest \"$ARCHIVE_APS\" = \"production\" || {\n  echo \"Archive is missing production APNs entitlement. Found: ${ARCHIVE_APS:-missing}\"\n  exit 1\n}\nARCHIVE_APPLE_SIGN_IN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' \"$RUNNER_TEMP/archive-entitlements.plist\" 2>/dev/null || true)\ntest \"$ARCHIVE_APPLE_SIGN_IN\" = \"Default\" || {\n  echo \"Archive is missing Sign in with Apple entitlement.\"\n  exit 1\n}\nARCHIVE_ASSOCIATED_DOMAIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' \"$RUNNER_TEMP/archive-entitlements.plist\" 2>/dev/null || true)\ntest \"$ARCHIVE_ASSOCIATED_DOMAIN\"\
-        \ = \"applinks:iumrah.app\" || {\n  echo \"Archive is missing applinks:iumrah.app entitlement.\"\n  exit 1\n}\n\necho \"Archived app: $APP_PATH\"\necho \"Info.plist before compatibility repair:\"\nplutil -p \"$INFO_PLIST\"\n\ncp \"$RUNNER_TEMP/archive-entitlements.plist\" \"$RUNNER_TEMP/app-entitlements.plist\"\n\n# Keep Xcode's asset-catalog icon metadata (including alternate icons).\n# Add explicit fallback files for both iPhone and iPad so App Store\n# validation can never reject the binary for a missing 152x152 iPad icon.\n/usr/libexec/PlistBuddy -c \"Delete :CFBundleIconName\" \"$INFO_PLIST\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIconName string AppIcon\" \"$INFO_PLIST\"\n\n/usr/libexec/PlistBuddy -c \"Delete :CFBundleIconFiles\" \"$INFO_PLIST\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIconFiles array\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIconFiles:0 string AppIcon60x60\" \"$INFO_PLIST\"\n\n/usr/libexec/PlistBuddy\
-        \ -c \"Delete :CFBundleIconFiles~ipad\" \"$INFO_PLIST\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIconFiles~ipad array\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIconFiles~ipad:0 string AppIcon76x76\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIconFiles~ipad:1 string AppIcon83.5x83.5\" \"$INFO_PLIST\"\n\n# Ensure primary icon dictionaries exist without deleting alternate icons.\n/usr/libexec/PlistBuddy -c \"Print :CFBundleIcons\" \"$INFO_PLIST\" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c \"Add :CFBundleIcons dict\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Print :CFBundleIcons:CFBundlePrimaryIcon\" \"$INFO_PLIST\" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c \"Add :CFBundleIcons:CFBundlePrimaryIcon dict\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Delete :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName\" \"$INFO_PLIST\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName\
-        \ string AppIcon\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Delete :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles\" \"$INFO_PLIST\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles array\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon60x60\" \"$INFO_PLIST\"\n\n/usr/libexec/PlistBuddy -c \"Print :CFBundleIcons~ipad\" \"$INFO_PLIST\" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c \"Add :CFBundleIcons~ipad dict\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Print :CFBundleIcons~ipad:CFBundlePrimaryIcon\" \"$INFO_PLIST\" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c \"Add :CFBundleIcons~ipad:CFBundlePrimaryIcon dict\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Delete :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName\" \"$INFO_PLIST\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName\
-        \ string AppIcon\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Delete :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles\" \"$INFO_PLIST\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles array\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon76x76\" \"$INFO_PLIST\"\n/usr/libexec/PlistBuddy -c \"Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:1 string AppIcon83.5x83.5\" \"$INFO_PLIST\"\n\nsips -z 120 120 \"$ICON_SOURCE\" --out \"$APP_PATH/AppIcon60x60@2x.png\" >/dev/null\nsips -z 180 180 \"$ICON_SOURCE\" --out \"$APP_PATH/AppIcon60x60@3x.png\" >/dev/null\nsips -z 76 76 \"$ICON_SOURCE\" --out \"$APP_PATH/AppIcon76x76.png\" >/dev/null\nsips -z 152 152 \"$ICON_SOURCE\" --out \"$APP_PATH/AppIcon76x76@2x.png\" >/dev/null\nsips -z 167 167 \"$ICON_SOURCE\" --out \"$APP_PATH/AppIcon83.5x83.5@2x.png\" >/dev/null\n\nif [ -s \"$RUNNER_TEMP/app-entitlements.plist\"\
-        \ ]; then\n  codesign \\\n    --force \\\n    --sign \"$SIGNING_IDENTITY\" \\\n    --entitlements \"$RUNNER_TEMP/app-entitlements.plist\" \\\n    --timestamp=none \\\n    \"$APP_PATH\"\nelse\n  codesign \\\n    --force \\\n    --sign \"$SIGNING_IDENTITY\" \\\n    --timestamp=none \\\n    \"$APP_PATH\"\nfi\n\ntest \"$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' \"$INFO_PLIST\")\" = \"AppIcon\"\ntest -f \"$APP_PATH/AppIcon60x60@2x.png\"\ntest -f \"$APP_PATH/AppIcon60x60@3x.png\"\ntest -f \"$APP_PATH/AppIcon76x76@2x.png\"\ntest -f \"$APP_PATH/AppIcon83.5x83.5@2x.png\"\ntest -f \"$APP_PATH/Assets.car\"\n\nIPAD152_W=$(sips -g pixelWidth \"$APP_PATH/AppIcon76x76@2x.png\" | awk '/pixelWidth/ {print $2}')\nIPAD152_H=$(sips -g pixelHeight \"$APP_PATH/AppIcon76x76@2x.png\" | awk '/pixelHeight/ {print $2}')\ntest \"$IPAD152_W\" = \"152\" && test \"$IPAD152_H\" = \"152\" || { echo \"iPad 152x152 fallback icon is invalid\"; exit 1; }\n\nIPAD167_W=$(sips -g pixelWidth \"$APP_PATH/AppIcon83.5x83.5@2x.png\"\
-        \ | awk '/pixelWidth/ {print $2}')\nIPAD167_H=$(sips -g pixelHeight \"$APP_PATH/AppIcon83.5x83.5@2x.png\" | awk '/pixelHeight/ {print $2}')\ntest \"$IPAD167_W\" = \"167\" && test \"$IPAD167_H\" = \"167\" || { echo \"iPad 167x167 fallback icon is invalid\"; exit 1; }\n\n/usr/libexec/PlistBuddy -c 'Print :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles' \"$INFO_PLIST\"\necho \"Archive preflight passed, including iPad 152x152 + 167x167 icons.\"\n"
-    - name: Export IPA
-      env:
-        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      run: "set -euo pipefail\n\ncat > \"$RUNNER_TEMP/ExportOptions.plist\" <<PLIST\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict>\n  <key>method</key><string>app-store-connect</string>\n  <key>signingStyle</key><string>manual</string>\n  <key>teamID</key><string>${APPLE_TEAM_ID}</string>\n  <key>provisioningProfiles</key><dict>\n    <key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string>\n    <key>${WIDGET_BUNDLE_ID}</key><string>${WIDGET_PROFILE_NAME}</string>\n  </dict>\n  <key>stripSwiftSymbols</key><true/>\n</dict></plist>\nPLIST\n\nrm -rf \"$PWD/build/export\"\n\nxcodebuild -exportArchive \\\n  -archivePath \"$PWD/$ARCHIVE_PATH\" \\\n  -exportPath \"$PWD/build/export\" \\\n  -exportOptionsPlist \"$RUNNER_TEMP/ExportOptions.plist\"\n\nls -lah build/export\n"
-    - name: Preflight exported IPA
-      run: "set -euo pipefail\n\nIPA=$(find \"$PWD/build/export\" -maxdepth 1 -name '*.ipa' -print -quit)\ntest -n \"$IPA\" || {\n  echo \"Exported IPA not found.\"\n  exit 1\n}\n\nCHECK_DIR=\"$RUNNER_TEMP/ipa-check\"\nrm -rf \"$CHECK_DIR\"\nmkdir -p \"$CHECK_DIR\"\nunzip -q \"$IPA\" -d \"$CHECK_DIR\"\n\nAPP_PATH=$(find \"$CHECK_DIR/Payload\" -maxdepth 1 -name '*.app' -print -quit)\nINFO_PLIST=\"$APP_PATH/Info.plist\"\n\nFINAL_BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \"$INFO_PLIST\")\ntest \"$FINAL_BUNDLE\" = \"$BUNDLE_ID\" || {\n  echo \"FINAL IPA bundle mismatch: expected $BUNDLE_ID, got $FINAL_BUNDLE\"\n  exit 1\n}\n\nFINAL_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \"$INFO_PLIST\")\nFINAL_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' \"$INFO_PLIST\")\ntest \"$FINAL_VERSION\" = \"$MARKETING_VERSION\" || { echo \"FINAL IPA version mismatch: expected $MARKETING_VERSION, got $FINAL_VERSION\"; exit 1; }\ntest \"$FINAL_BUILD\"\
-        \ -ge 15 || { echo \"FINAL IPA build must be > legacy build 14. Got: $FINAL_BUILD\"; exit 1; }\n\ncodesign -d --entitlements :- \"$APP_PATH\" > \"$RUNNER_TEMP/final-entitlements.plist\" 2>/dev/null\nFINAL_APP_KEYCHAIN=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' \"$RUNNER_TEMP/final-entitlements.plist\" 2>/dev/null || true)\ntest \"$FINAL_APP_KEYCHAIN\" = \"${APPLE_TEAM_ID}.com.iumrah.shared\" || { echo \"FINAL IPA app is missing shared widget keychain entitlement.\"; exit 1; }\n\nFINAL_WIDGET_PATH=$(find \"$APP_PATH/PlugIns\" -maxdepth 1 -name '*.appex' -print -quit 2>/dev/null || true)\ntest -n \"$FINAL_WIDGET_PATH\" || { echo \"FINAL IPA is missing embedded Widget Extension.\"; exit 1; }\nFINAL_WIDGET_BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \"$FINAL_WIDGET_PATH/Info.plist\")\ntest \"$FINAL_WIDGET_BUNDLE\" = \"$WIDGET_BUNDLE_ID\" || { echo \"FINAL IPA widget bundle mismatch: $FINAL_WIDGET_BUNDLE\"; exit 1; }\ncodesign -d --entitlements\
-        \ :- \"$FINAL_WIDGET_PATH\" > \"$RUNNER_TEMP/final-widget-entitlements.plist\" 2>/dev/null\nFINAL_WIDGET_KEYCHAIN=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' \"$RUNNER_TEMP/final-widget-entitlements.plist\" 2>/dev/null || true)\ntest \"$FINAL_WIDGET_KEYCHAIN\" = \"${APPLE_TEAM_ID}.com.iumrah.shared\" || { echo \"FINAL IPA widget is missing shared keychain entitlement.\"; exit 1; }\n\nFINAL_APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' \"$RUNNER_TEMP/final-entitlements.plist\" 2>/dev/null || true)\ntest \"$FINAL_APS\" = \"production\" || {\n  echo \"FINAL IPA is missing aps-environment=production. Found: ${FINAL_APS:-missing}\"\n  exit 1\n}\nFINAL_APPLE_SIGN_IN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' \"$RUNNER_TEMP/final-entitlements.plist\" 2>/dev/null || true)\ntest \"$FINAL_APPLE_SIGN_IN\" = \"Default\" || { echo \"FINAL IPA is missing Sign in with Apple entitlement.\"; exit 1; }\nFINAL_ASSOCIATED_DOMAIN=$(/usr/libexec/PlistBuddy\
-        \ -c 'Print :com.apple.developer.associated-domains:0' \"$RUNNER_TEMP/final-entitlements.plist\" 2>/dev/null || true)\ntest \"$FINAL_ASSOCIATED_DOMAIN\" = \"applinks:iumrah.app\" || { echo \"FINAL IPA is missing applinks:iumrah.app entitlement.\"; exit 1; }\n\nICON_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' \"$INFO_PLIST\" 2>/dev/null || true)\ntest \"$ICON_NAME\" = \"AppIcon\" || {\n  echo \"FINAL IPA is missing CFBundleIconName=AppIcon\"\n  exit 1\n}\n\ntest -f \"$APP_PATH/Assets.car\" || {\n  echo \"FINAL IPA is missing compiled Assets.car\"\n  exit 1\n}\n\ntest -f \"$APP_PATH/AppIcon60x60@2x.png\" || {\n  echo \"FINAL IPA is missing 120x120 fallback icon\"\n  exit 1\n}\n\nWIDTH=$(sips -g pixelWidth \"$APP_PATH/AppIcon60x60@2x.png\" | awk '/pixelWidth/ {print $2}')\nHEIGHT=$(sips -g pixelHeight \"$APP_PATH/AppIcon60x60@2x.png\" | awk '/pixelHeight/ {print $2}')\n\ntest \"$WIDTH\" = \"120\" && test \"$HEIGHT\" = \"120\" || {\n  echo \"120x120 fallback icon has\
-        \ wrong size: ${WIDTH}x${HEIGHT}\"\n  exit 1\n}\n\ntest -f \"$APP_PATH/AppIcon76x76@2x.png\" || {\n  echo \"FINAL IPA is missing required iPad 152x152 icon\"\n  exit 1\n}\ntest -f \"$APP_PATH/AppIcon83.5x83.5@2x.png\" || {\n  echo \"FINAL IPA is missing required iPad 167x167 icon\"\n  exit 1\n}\n\nIPAD152_W=$(sips -g pixelWidth \"$APP_PATH/AppIcon76x76@2x.png\" | awk '/pixelWidth/ {print $2}')\nIPAD152_H=$(sips -g pixelHeight \"$APP_PATH/AppIcon76x76@2x.png\" | awk '/pixelHeight/ {print $2}')\ntest \"$IPAD152_W\" = \"152\" && test \"$IPAD152_H\" = \"152\" || {\n  echo \"FINAL IPA iPad icon has wrong size: ${IPAD152_W}x${IPAD152_H}\"\n  exit 1\n}\n\nIPAD167_W=$(sips -g pixelWidth \"$APP_PATH/AppIcon83.5x83.5@2x.png\" | awk '/pixelWidth/ {print $2}')\nIPAD167_H=$(sips -g pixelHeight \"$APP_PATH/AppIcon83.5x83.5@2x.png\" | awk '/pixelHeight/ {print $2}')\ntest \"$IPAD167_W\" = \"167\" && test \"$IPAD167_H\" = \"167\" || {\n  echo \"FINAL IPA iPad icon has wrong size: ${IPAD167_W}x${IPAD167_H}\"\
-        \n  exit 1\n}\n\n/usr/libexec/PlistBuddy -c 'Print :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles' \"$INFO_PLIST\" >/dev/null || {\n  echo \"FINAL IPA is missing CFBundleIcons~ipad primary icon metadata\"\n  exit 1\n}\n\necho \"FINAL IPA PRECHECK PASSED, including iPad 152x152 + 167x167 icons.\"\necho \"IPA_PATH=$IPA\" >> \"$GITHUB_ENV\"\n"
-    - name: Set up Ruby for fastlane
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.3'
-    - name: Install fastlane
-      run: gem install fastlane --no-document
-    - name: Prepare App Store Connect API key
-      env:
-        ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-        ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-        ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
-      run: "set -euo pipefail\nset +x\n\nfor name in ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8; do\n  if [ -z \"${!name:-}\" ]; then\n    echo \"Missing GitHub secret: $name\"\n    exit 1\n  fi\ndone\n\nP8_PATH=\"$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8\"\nJSON_PATH=\"$RUNNER_TEMP/app-store-connect-api-key.json\"\nprintf '%s' \"$ASC_API_KEY_P8\" > \"$P8_PATH\"\nchmod 600 \"$P8_PATH\"\n\nASC_P8_PATH=\"$P8_PATH\" ASC_JSON_PATH=\"$JSON_PATH\" python3 - <<'PYCODE'\nimport json, os\nfrom pathlib import Path\n\np8 = Path(os.environ[\"ASC_P8_PATH\"]).read_text()\npayload = {\n    \"key_id\": os.environ[\"ASC_KEY_ID\"],\n    \"issuer_id\": os.environ[\"ASC_ISSUER_ID\"],\n    \"key\": p8,\n    \"duration\": 1200,\n    \"in_house\": False,\n}\nPath(os.environ[\"ASC_JSON_PATH\"]).write_text(json.dumps(payload))\nPYCODE\n\necho \"ASC_API_KEY_PATH=$JSON_PATH\" >> \"$GITHUB_ENV\"\n"
-    - name: Upload IPA to TestFlight
-      env:
-        TESTFLIGHT_CHANGELOG: ${{ inputs.what_to_test }}
-      run: "set -euo pipefail\nset +x\n\ntest -n \"${IPA_PATH:-}\" || {\n  echo \"IPA_PATH was not produced by final IPA preflight.\"\n  exit 1\n}\ntest -f \"$ASC_API_KEY_PATH\"\n\nargs=(\n  pilot upload\n  --ipa \"$IPA_PATH\"\n  --api_key_path \"$ASC_API_KEY_PATH\"\n  --app_identifier \"$BUNDLE_ID\"\n  --skip_submission true\n  --skip_waiting_for_build_processing true\n)\n\nif [ -n \"${TESTFLIGHT_CHANGELOG:-}\" ]; then\n  args+=(--changelog \"$TESTFLIGHT_CHANGELOG\")\nfi\n\nfastlane \"${args[@]}\"\n"
-    - name: TestFlight summary
-      run: "{\n  echo \"## Iumrah TestFlight upload\"\n  echo \"- Bundle ID: \\`$BUNDLE_ID\\`\"\n  echo \"- Version: \\`$MARKETING_VERSION\\`\"\n  echo \"- Build: \\`${BUILD_NUMBER:-unknown}\\`\"\n  echo \"- The binary was uploaded only to TestFlight/App Store Connect; it was not submitted to App Review.\"\n} >> \"$GITHUB_STEP_SUMMARY\"\n"
-    - name: Upload build diagnostics
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: iumrah-testflight-build-${{ github.run_number }}
-        path: 'build/export/*.ipa
+          DOMAIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' Resources/iUmra.entitlements 2>/dev/null || true)
+          test "$DOMAIN" = "applinks:iumrah.app" || { echo "STOP: applinks:iumrah.app entitlement is missing"; exit 1; }
 
-          build/*.xcarchive/Info.plist
+          APP_KEYCHAIN_GROUP=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' Resources/iUmra.entitlements 2>/dev/null || true)
+          test "$APP_KEYCHAIN_GROUP" = "${APPLE_TEAM_ID}.com.iumrah.shared" || { echo "STOP: app shared keychain entitlement is missing"; exit 1; }
 
-          '
-        if-no-files-found: ignore
-        retention-days: 7
+          WIDGET_KEYCHAIN_GROUP=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' WidgetExtension/iUmraWidgets.entitlements 2>/dev/null || true)
+          test "$WIDGET_KEYCHAIN_GROUP" = "${APPLE_TEAM_ID}.com.iumrah.shared" || { echo "STOP: widget shared keychain entitlement is missing"; exit 1; }
+
+          grep -F 'static let iumrahPlusProductID = "iumrah.plus"' Sources/Core/AppIdentity.swift >/dev/null || {
+            echo "STOP: legacy iumrah.plus product identity is missing"; exit 1;
+          }
+
+          ! grep -R --line-number --fixed-strings 'com.iumrah.beta' project.yml Resources Sources Backend || {
+            echo "STOP: active production files still contain com.iumrah.beta"; exit 1;
+          }
+
+          GOOGLE_IOS_ID=$(/usr/libexec/PlistBuddy -c 'Print :GIDClientID' Resources/Info.plist 2>/dev/null || true)
+          GOOGLE_SERVER_ID=$(/usr/libexec/PlistBuddy -c 'Print :GIDServerClientID' Resources/Info.plist 2>/dev/null || true)
+          test "$GOOGLE_IOS_ID" = "863185716777-p3ugvu6llaj3np0g0p6of3cqfr1d37te.apps.googleusercontent.com" || { echo "STOP: production Google iOS Client ID mismatch"; exit 1; }
+          test "$GOOGLE_SERVER_ID" = "863185716777-8tec2kuch1qkra1f1coikpi20j6is65f.apps.googleusercontent.com" || { echo "STOP: production Google Server Client ID mismatch"; exit 1; }
+          grep -F 'com.googleusercontent.apps.863185716777-p3ugvu6llaj3np0g0p6of3cqfr1d37te' Resources/Info.plist >/dev/null || { echo "STOP: Google callback URL scheme missing"; exit 1; }
+
+          echo "Production identity OK: Iumrah / com.iumrah.app / $MARKETING_VERSION / Google Sign-In"
+
+      - name: Prepare iPhone and iPad icons
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          sets=(Resources/Assets.xcassets/AppIcon*.appiconset)
+          test ${#sets[@]} -gt 0 || { echo "STOP: no AppIcon*.appiconset folders found"; exit 1; }
+
+          for set_dir in "${sets[@]}"; do
+            source="$set_dir/AppIcon-1024.png"
+            contents="$set_dir/Contents.json"
+
+            test -f "$source" || { echo "STOP: missing $source"; exit 1; }
+            test -f "$contents" || { echo "STOP: missing $contents"; exit 1; }
+
+            sips -z 20 20   "$source" --out "$set_dir/AppIcon-iPad-20@1x.png" >/dev/null
+            sips -z 40 40   "$source" --out "$set_dir/AppIcon-iPad-20@2x.png" >/dev/null
+            sips -z 29 29   "$source" --out "$set_dir/AppIcon-iPad-29@1x.png" >/dev/null
+            sips -z 58 58   "$source" --out "$set_dir/AppIcon-iPad-29@2x.png" >/dev/null
+            sips -z 40 40   "$source" --out "$set_dir/AppIcon-iPad-40@1x.png" >/dev/null
+            sips -z 80 80   "$source" --out "$set_dir/AppIcon-iPad-40@2x.png" >/dev/null
+            sips -z 76 76   "$source" --out "$set_dir/AppIcon-iPad-76@1x.png" >/dev/null
+            sips -z 152 152 "$source" --out "$set_dir/AppIcon-iPad-76@2x.png" >/dev/null
+            sips -z 167 167 "$source" --out "$set_dir/AppIcon-iPad-83.5@2x.png" >/dev/null
+
+            CONTENTS="$contents" python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+
+          p = Path(os.environ["CONTENTS"])
+          data = json.loads(p.read_text())
+          images = [x for x in data.get("images", []) if x.get("idiom") != "ipad"]
+          images += [
+              {"filename":"AppIcon-iPad-20@1x.png","idiom":"ipad","scale":"1x","size":"20x20"},
+              {"filename":"AppIcon-iPad-20@2x.png","idiom":"ipad","scale":"2x","size":"20x20"},
+              {"filename":"AppIcon-iPad-29@1x.png","idiom":"ipad","scale":"1x","size":"29x29"},
+              {"filename":"AppIcon-iPad-29@2x.png","idiom":"ipad","scale":"2x","size":"29x29"},
+              {"filename":"AppIcon-iPad-40@1x.png","idiom":"ipad","scale":"1x","size":"40x40"},
+              {"filename":"AppIcon-iPad-40@2x.png","idiom":"ipad","scale":"2x","size":"40x40"},
+              {"filename":"AppIcon-iPad-76@1x.png","idiom":"ipad","scale":"1x","size":"76x76"},
+              {"filename":"AppIcon-iPad-76@2x.png","idiom":"ipad","scale":"2x","size":"76x76"},
+              {"filename":"AppIcon-iPad-83.5@2x.png","idiom":"ipad","scale":"2x","size":"83.5x83.5"},
+          ]
+          data["images"] = images
+          data.setdefault("info", {"author":"xcode","version":1})
+          p.write_text(json.dumps(data, indent=2) + "\n")
+          PYCODE
+          done
+
+          echo "Prepared iPhone/iPad app icon catalogs."
+
+      - name: Xcode environment
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Validate generated scheme
+        run: |
+          set -euo pipefail
+          test -d "$PROJECT"
+          xcodebuild -project "$PROJECT" -list
+
+      - name: Validate simulator build
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Download prepared signing bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          SIGNING_RUN_ID=$(gh run list \
+            --workflow testflight-signing.yml \
+            --branch "${GITHUB_REF_NAME}" \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')
+
+          test -n "$SIGNING_RUN_ID" || {
+            echo "No successful 'Iumrah — Prepare iOS Signing' run was found."
+            echo "Run testflight-signing.yml once, then rerun TestFlight."
+            exit 1
+          }
+
+          SIGNING_DIR="$RUNNER_TEMP/prepared-signing"
+          rm -rf "$SIGNING_DIR"
+          mkdir -p "$SIGNING_DIR"
+
+          gh run download "$SIGNING_RUN_ID" \
+            --name iumrah-ios-signing-bundle \
+            --dir "$SIGNING_DIR"
+
+          test -f "$SIGNING_DIR/app.mobileprovision" || { echo "Prepared app profile is missing."; exit 1; }
+          test -f "$SIGNING_DIR/widget.mobileprovision" || { echo "Prepared widget profile is missing."; exit 1; }
+          test -f "$SIGNING_DIR/manifest.json" || { echo "Prepared signing manifest is missing."; exit 1; }
+
+          echo "PROFILE_PATH=$SIGNING_DIR/app.mobileprovision" >> "$GITHUB_ENV"
+          echo "WIDGET_PROFILE_PATH=$SIGNING_DIR/widget.mobileprovision" >> "$GITHUB_ENV"
+
+          echo "Using signing artifact from workflow run: $SIGNING_RUN_ID"
+          cat "$SIGNING_DIR/manifest.json"
+
+      - name: Import existing signing identity on runner
+        env:
+          IOS_SIGNING_KEY_PASSWORD: ${{ secrets.IOS_SIGNING_KEY_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          test -f "$PROFILE_PATH" || { echo "Prepared app profile not found."; exit 1; }
+          test -f "$WIDGET_PROFILE_PATH" || { echo "Prepared widget profile not found."; exit 1; }
+
+          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/prepared-app-profile.plist"
+          security cms -D -i "$WIDGET_PROFILE_PATH" > "$RUNNER_TEMP/prepared-widget-profile.plist"
+
+          PREPARED_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/prepared-app-profile.plist")
+          PREPARED_WIDGET_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/prepared-widget-profile.plist")
+          PREPARED_APP_TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$RUNNER_TEMP/prepared-app-profile.plist")
+          PREPARED_WIDGET_TEAM=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$RUNNER_TEMP/prepared-widget-profile.plist")
+
+          test "$PREPARED_APP_TEAM" = "$APPLE_TEAM_ID"
+          test "$PREPARED_WIDGET_TEAM" = "$APPLE_TEAM_ID"
+          test "$PREPARED_APP_ID" = "${APPLE_TEAM_ID}.${BUNDLE_ID}"
+          test "$PREPARED_WIDGET_ID" = "${APPLE_TEAM_ID}.${WIDGET_BUNDLE_ID}"
+
+          PRIVATE_KEY="$RUNNER_TEMP/distribution-private-key.pem"
+          CERT_PEM="$RUNNER_TEMP/distribution-certificate.pem"
+          P12_PATH="$RUNNER_TEMP/existing-distribution-identity.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/iumrah-app-signing.keychain-db"
+          P12_PASSWORD="iumrah-app-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          openssl enc \
+            -d \
+            -aes-256-cbc \
+            -pbkdf2 \
+            -iter 200000 \
+            -in "$GITHUB_WORKSPACE/Signing/distribution-private-key.enc" \
+            -out "$PRIVATE_KEY" \
+            -pass env:IOS_SIGNING_KEY_PASSWORD
+
+          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+          security cms -D -i "$WIDGET_PROFILE_PATH" > "$RUNNER_TEMP/widget-profile.plist"
+
+          APP_PROFILE_PLIST="$RUNNER_TEMP/profile.plist" \
+          WIDGET_PROFILE_PLIST="$RUNNER_TEMP/widget-profile.plist" \
+          CERT_DER="$RUNNER_TEMP/distribution-certificate.der" \
+          python3 - <<'PYCODE'
+          import os
+          import plistlib
+          from pathlib import Path
+
+          with Path(os.environ["APP_PROFILE_PLIST"]).open("rb") as f:
+              app = plistlib.load(f)
+          with Path(os.environ["WIDGET_PROFILE_PLIST"]).open("rb") as f:
+              widget = plistlib.load(f)
+
+          app_certs = app.get("DeveloperCertificates") or []
+          widget_certs = widget.get("DeveloperCertificates") or []
+          if not app_certs or not widget_certs:
+              raise SystemExit("A provisioning profile does not contain DeveloperCertificates")
+          if app_certs[0] != widget_certs[0]:
+              raise SystemExit("App and widget provisioning profiles use different Apple Distribution certificates")
+
+          Path(os.environ["CERT_DER"]).write_bytes(app_certs[0])
+          print(f"Verified shared signing certificate: {len(app_certs[0])} bytes")
+          PYCODE
+
+          openssl x509 \
+            -inform DER \
+            -in "$RUNNER_TEMP/distribution-certificate.der" \
+            -out "$CERT_PEM"
+
+          KEY_FP=$(openssl pkey -in "$PRIVATE_KEY" -pubout 2>/dev/null | openssl sha256)
+          CERT_FP=$(openssl x509 -in "$CERT_PEM" -pubkey -noout 2>/dev/null | openssl sha256)
+
+          if [ "$KEY_FP" != "$CERT_FP" ]; then
+            echo "Provisioning profile certificate does not match signing private key."
+            exit 1
+          fi
+
+          openssl pkcs12 \
+            -export \
+            -inkey "$PRIVATE_KEY" \
+            -in "$CERT_PEM" \
+            -out "$P12_PATH" \
+            -name "Apple Distribution" \
+            -passout pass:"$P12_PASSWORD"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$P12_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          WIDGET_PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/widget-profile.plist")
+          WIDGET_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/widget-profile.plist")
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          cp "$WIDGET_PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$WIDGET_PROFILE_UUID.mobileprovision"
+
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | sed -n '1s/.*"\(.*\)".*/\1/p')
+
+          test -n "$SIGNING_IDENTITY" || {
+            echo "Apple Distribution signing identity not found."
+            exit 1
+          }
+
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "WIDGET_PROFILE_NAME=$WIDGET_PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
+
+          echo "Installed existing app profile on this ephemeral runner: $PROFILE_NAME"
+          echo "Installed existing widget profile on this ephemeral runner: $WIDGET_PROFILE_NAME"
+          echo "Signing identity: $SIGNING_IDENTITY"
+
+      - name: Confirm signing source
+        run: |
+          echo "TestFlight is using the previously prepared existing signing profiles."
+          echo "This workflow does not create, renew, or revoke Apple certificates or provisioning profiles."
+
+      - name: Archive signed app
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          mkdir -p build
+          BUILD_NUMBER=$((20000 + GITHUB_RUN_NUMBER))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "Building Iumrah $MARKETING_VERSION ($BUILD_NUMBER)"
+
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/$ARCHIVE_PATH" \
+            IUMRAH_APPLE_TEAM_ID="$APPLE_TEAM_ID" \
+            IUMRAH_PROFILE_NAME="$PROFILE_NAME" \
+            IUMRAH_WIDGET_PROFILE_NAME="$WIDGET_PROFILE_NAME" \
+            MARKETING_VERSION="$MARKETING_VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            archive
+
+      - name: Repair and verify archived app metadata
+        run: |
+          set -euo pipefail
+
+          APP_PATH=$(find "$PWD/$ARCHIVE_PATH/Products/Applications" \
+            -maxdepth 1 -name '*.app' -print -quit)
+
+          test -n "$APP_PATH" || {
+            echo "Archived .app not found."
+            exit 1
+          }
+
+          INFO_PLIST="$APP_PATH/Info.plist"
+          ICON_SOURCE="$PWD/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+
+          BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")
+          test "$BUNDLE" = "$BUNDLE_ID" || {
+            echo "Archive bundle mismatch: expected $BUNDLE_ID, got $BUNDLE"
+            exit 1
+          }
+
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")
+          test "$VERSION" = "$MARKETING_VERSION" || { echo "Archive version mismatch: expected $MARKETING_VERSION, got $VERSION"; exit 1; }
+          test "$BUILD" -ge 15 || { echo "Archive build must be > legacy build 14. Got: $BUILD"; exit 1; }
+
+          codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null
+          ARCHIVE_APP_KEYCHAIN=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null || true)
+          test "$ARCHIVE_APP_KEYCHAIN" = "${APPLE_TEAM_ID}.com.iumrah.shared" || {
+            echo "Archive app is missing the shared widget keychain entitlement."
+            exit 1
+          }
+
+          WIDGET_PATH=$(find "$APP_PATH/PlugIns" -maxdepth 1 -name '*.appex' -print -quit 2>/dev/null || true)
+          test -n "$WIDGET_PATH" || { echo "Archive is missing embedded Widget Extension."; exit 1; }
+          WIDGET_BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$WIDGET_PATH/Info.plist")
+          test "$WIDGET_BUNDLE" = "$WIDGET_BUNDLE_ID" || { echo "Archive widget bundle mismatch: $WIDGET_BUNDLE"; exit 1; }
+          codesign -d --entitlements :- "$WIDGET_PATH" > "$RUNNER_TEMP/archive-widget-entitlements.plist" 2>/dev/null
+          ARCHIVE_WIDGET_KEYCHAIN=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' "$RUNNER_TEMP/archive-widget-entitlements.plist" 2>/dev/null || true)
+          test "$ARCHIVE_WIDGET_KEYCHAIN" = "${APPLE_TEAM_ID}.com.iumrah.shared" || {
+            echo "Archive widget is missing the shared keychain entitlement."
+            exit 1
+          }
+
+          ARCHIVE_APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null || true)
+          test "$ARCHIVE_APS" = "production" || {
+            echo "Archive is missing production APNs entitlement. Found: ${ARCHIVE_APS:-missing}"
+            exit 1
+          }
+          ARCHIVE_APPLE_SIGN_IN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null || true)
+          test "$ARCHIVE_APPLE_SIGN_IN" = "Default" || {
+            echo "Archive is missing Sign in with Apple entitlement."
+            exit 1
+          }
+          ARCHIVE_ASSOCIATED_DOMAIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' "$RUNNER_TEMP/archive-entitlements.plist" 2>/dev/null || true)
+          test "$ARCHIVE_ASSOCIATED_DOMAIN" = "applinks:iumrah.app" || {
+            echo "Archive is missing applinks:iumrah.app entitlement."
+            exit 1
+          }
+
+          echo "Archived app: $APP_PATH"
+          echo "Info.plist before compatibility repair:"
+          plutil -p "$INFO_PLIST"
+
+          cp "$RUNNER_TEMP/archive-entitlements.plist" "$RUNNER_TEMP/app-entitlements.plist"
+
+          # Keep Xcode's asset-catalog icon metadata (including alternate icons).
+          # Add explicit fallback files for both iPhone and iPad so App Store
+          # validation can never reject the binary for a missing 152x152 iPad icon.
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$INFO_PLIST"
+
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIconFiles" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles array" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles:0 string AppIcon60x60" "$INFO_PLIST"
+
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIconFiles~ipad" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles~ipad array" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles~ipad:0 string AppIcon76x76" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles~ipad:1 string AppIcon83.5x83.5" "$INFO_PLIST"
+
+          # Ensure primary icon dictionaries exist without deleting alternate icons.
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons" "$INFO_PLIST" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c "Add :CFBundleIcons dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon" "$INFO_PLIST" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName string AppIcon" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles array" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon60x60" "$INFO_PLIST"
+
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons~ipad" "$INFO_PLIST" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons~ipad:CFBundlePrimaryIcon" "$INFO_PLIST" >/dev/null 2>&1 || /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon dict" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName string AppIcon" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles array" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:0 string AppIcon76x76" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles:1 string AppIcon83.5x83.5" "$INFO_PLIST"
+
+          sips -z 120 120 "$ICON_SOURCE" --out "$APP_PATH/AppIcon60x60@2x.png" >/dev/null
+          sips -z 180 180 "$ICON_SOURCE" --out "$APP_PATH/AppIcon60x60@3x.png" >/dev/null
+          sips -z 76 76 "$ICON_SOURCE" --out "$APP_PATH/AppIcon76x76.png" >/dev/null
+          sips -z 152 152 "$ICON_SOURCE" --out "$APP_PATH/AppIcon76x76@2x.png" >/dev/null
+          sips -z 167 167 "$ICON_SOURCE" --out "$APP_PATH/AppIcon83.5x83.5@2x.png" >/dev/null
+
+          if [ -s "$RUNNER_TEMP/app-entitlements.plist" ]; then
+            codesign \
+              --force \
+              --sign "$SIGNING_IDENTITY" \
+              --entitlements "$RUNNER_TEMP/app-entitlements.plist" \
+              --timestamp=none \
+              "$APP_PATH"
+          else
+            codesign \
+              --force \
+              --sign "$SIGNING_IDENTITY" \
+              --timestamp=none \
+              "$APP_PATH"
+          fi
+
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$INFO_PLIST")" = "AppIcon"
+          test -f "$APP_PATH/AppIcon60x60@2x.png"
+          test -f "$APP_PATH/AppIcon60x60@3x.png"
+          test -f "$APP_PATH/AppIcon76x76@2x.png"
+          test -f "$APP_PATH/AppIcon83.5x83.5@2x.png"
+          test -f "$APP_PATH/Assets.car"
+
+          IPAD152_W=$(sips -g pixelWidth "$APP_PATH/AppIcon76x76@2x.png" | awk '/pixelWidth/ {print $2}')
+          IPAD152_H=$(sips -g pixelHeight "$APP_PATH/AppIcon76x76@2x.png" | awk '/pixelHeight/ {print $2}')
+          test "$IPAD152_W" = "152" && test "$IPAD152_H" = "152" || { echo "iPad 152x152 fallback icon is invalid"; exit 1; }
+
+          IPAD167_W=$(sips -g pixelWidth "$APP_PATH/AppIcon83.5x83.5@2x.png" | awk '/pixelWidth/ {print $2}')
+          IPAD167_H=$(sips -g pixelHeight "$APP_PATH/AppIcon83.5x83.5@2x.png" | awk '/pixelHeight/ {print $2}')
+          test "$IPAD167_W" = "167" && test "$IPAD167_H" = "167" || { echo "iPad 167x167 fallback icon is invalid"; exit 1; }
+
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles' "$INFO_PLIST"
+          echo "Archive preflight passed, including iPad 152x152 + 167x167 icons."
+
+      - name: Export IPA
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>provisioningProfiles</key><dict>
+              <key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string>
+              <key>${WIDGET_BUNDLE_ID}</key><string>${WIDGET_PROFILE_NAME}</string>
+            </dict>
+            <key>stripSwiftSymbols</key><true/>
+          </dict></plist>
+          PLIST
+
+          rm -rf "$PWD/build/export"
+
+          xcodebuild -exportArchive \
+            -archivePath "$PWD/$ARCHIVE_PATH" \
+            -exportPath "$PWD/build/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+          ls -lah build/export
+
+      - name: Preflight exported IPA
+        run: |
+          set -euo pipefail
+
+          IPA=$(find "$PWD/build/export" -maxdepth 1 -name '*.ipa' -print -quit)
+          test -n "$IPA" || {
+            echo "Exported IPA not found."
+            exit 1
+          }
+
+          CHECK_DIR="$RUNNER_TEMP/ipa-check"
+          rm -rf "$CHECK_DIR"
+          mkdir -p "$CHECK_DIR"
+          unzip -q "$IPA" -d "$CHECK_DIR"
+
+          APP_PATH=$(find "$CHECK_DIR/Payload" -maxdepth 1 -name '*.app' -print -quit)
+          INFO_PLIST="$APP_PATH/Info.plist"
+
+          FINAL_BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")
+          test "$FINAL_BUNDLE" = "$BUNDLE_ID" || {
+            echo "FINAL IPA bundle mismatch: expected $BUNDLE_ID, got $FINAL_BUNDLE"
+            exit 1
+          }
+
+          FINAL_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")
+          FINAL_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")
+          test "$FINAL_VERSION" = "$MARKETING_VERSION" || { echo "FINAL IPA version mismatch: expected $MARKETING_VERSION, got $FINAL_VERSION"; exit 1; }
+          test "$FINAL_BUILD" -ge 15 || { echo "FINAL IPA build must be > legacy build 14. Got: $FINAL_BUILD"; exit 1; }
+
+          codesign -d --entitlements :- "$APP_PATH" > "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null
+          FINAL_APP_KEYCHAIN=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null || true)
+          test "$FINAL_APP_KEYCHAIN" = "${APPLE_TEAM_ID}.com.iumrah.shared" || { echo "FINAL IPA app is missing shared widget keychain entitlement."; exit 1; }
+
+          FINAL_WIDGET_PATH=$(find "$APP_PATH/PlugIns" -maxdepth 1 -name '*.appex' -print -quit 2>/dev/null || true)
+          test -n "$FINAL_WIDGET_PATH" || { echo "FINAL IPA is missing embedded Widget Extension."; exit 1; }
+          FINAL_WIDGET_BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$FINAL_WIDGET_PATH/Info.plist")
+          test "$FINAL_WIDGET_BUNDLE" = "$WIDGET_BUNDLE_ID" || { echo "FINAL IPA widget bundle mismatch: $FINAL_WIDGET_BUNDLE"; exit 1; }
+          codesign -d --entitlements :- "$FINAL_WIDGET_PATH" > "$RUNNER_TEMP/final-widget-entitlements.plist" 2>/dev/null
+          FINAL_WIDGET_KEYCHAIN=$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' "$RUNNER_TEMP/final-widget-entitlements.plist" 2>/dev/null || true)
+          test "$FINAL_WIDGET_KEYCHAIN" = "${APPLE_TEAM_ID}.com.iumrah.shared" || { echo "FINAL IPA widget is missing shared keychain entitlement."; exit 1; }
+
+          FINAL_APS=$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null || true)
+          test "$FINAL_APS" = "production" || {
+            echo "FINAL IPA is missing aps-environment=production. Found: ${FINAL_APS:-missing}"
+            exit 1
+          }
+          FINAL_APPLE_SIGN_IN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null || true)
+          test "$FINAL_APPLE_SIGN_IN" = "Default" || { echo "FINAL IPA is missing Sign in with Apple entitlement."; exit 1; }
+          FINAL_ASSOCIATED_DOMAIN=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains:0' "$RUNNER_TEMP/final-entitlements.plist" 2>/dev/null || true)
+          test "$FINAL_ASSOCIATED_DOMAIN" = "applinks:iumrah.app" || { echo "FINAL IPA is missing applinks:iumrah.app entitlement."; exit 1; }
+
+          ICON_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$INFO_PLIST" 2>/dev/null || true)
+          test "$ICON_NAME" = "AppIcon" || {
+            echo "FINAL IPA is missing CFBundleIconName=AppIcon"
+            exit 1
+          }
+
+          test -f "$APP_PATH/Assets.car" || {
+            echo "FINAL IPA is missing compiled Assets.car"
+            exit 1
+          }
+
+          test -f "$APP_PATH/AppIcon60x60@2x.png" || {
+            echo "FINAL IPA is missing 120x120 fallback icon"
+            exit 1
+          }
+
+          WIDTH=$(sips -g pixelWidth "$APP_PATH/AppIcon60x60@2x.png" | awk '/pixelWidth/ {print $2}')
+          HEIGHT=$(sips -g pixelHeight "$APP_PATH/AppIcon60x60@2x.png" | awk '/pixelHeight/ {print $2}')
+
+          test "$WIDTH" = "120" && test "$HEIGHT" = "120" || {
+            echo "120x120 fallback icon has wrong size: ${WIDTH}x${HEIGHT}"
+            exit 1
+          }
+
+          test -f "$APP_PATH/AppIcon76x76@2x.png" || {
+            echo "FINAL IPA is missing required iPad 152x152 icon"
+            exit 1
+          }
+          test -f "$APP_PATH/AppIcon83.5x83.5@2x.png" || {
+            echo "FINAL IPA is missing required iPad 167x167 icon"
+            exit 1
+          }
+
+          IPAD152_W=$(sips -g pixelWidth "$APP_PATH/AppIcon76x76@2x.png" | awk '/pixelWidth/ {print $2}')
+          IPAD152_H=$(sips -g pixelHeight "$APP_PATH/AppIcon76x76@2x.png" | awk '/pixelHeight/ {print $2}')
+          test "$IPAD152_W" = "152" && test "$IPAD152_H" = "152" || {
+            echo "FINAL IPA iPad icon has wrong size: ${IPAD152_W}x${IPAD152_H}"
+            exit 1
+          }
+
+          IPAD167_W=$(sips -g pixelWidth "$APP_PATH/AppIcon83.5x83.5@2x.png" | awk '/pixelWidth/ {print $2}')
+          IPAD167_H=$(sips -g pixelHeight "$APP_PATH/AppIcon83.5x83.5@2x.png" | awk '/pixelHeight/ {print $2}')
+          test "$IPAD167_W" = "167" && test "$IPAD167_H" = "167" || {
+            echo "FINAL IPA iPad icon has wrong size: ${IPAD167_W}x${IPAD167_H}"
+            exit 1
+          }
+
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles' "$INFO_PLIST" >/dev/null || {
+            echo "FINAL IPA is missing CFBundleIcons~ipad primary icon metadata"
+            exit 1
+          }
+
+          echo "FINAL IPA PRECHECK PASSED, including iPad 152x152 + 167x167 icons."
+          echo "IPA_PATH=$IPA" >> "$GITHUB_ENV"
+
+      - name: Set up Ruby for fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install fastlane
+        run: gem install fastlane --no-document
+
+      - name: Prepare App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_API_KEY_P8; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing GitHub secret: $name"
+              exit 1
+            fi
+          done
+
+          P8_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          JSON_PATH="$RUNNER_TEMP/app-store-connect-api-key.json"
+          printf '%s' "$ASC_API_KEY_P8" > "$P8_PATH"
+          chmod 600 "$P8_PATH"
+
+          ASC_P8_PATH="$P8_PATH" ASC_JSON_PATH="$JSON_PATH" python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+
+          p8 = Path(os.environ["ASC_P8_PATH"]).read_text()
+          payload = {
+              "key_id": os.environ["ASC_KEY_ID"],
+              "issuer_id": os.environ["ASC_ISSUER_ID"],
+              "key": p8,
+              "duration": 1200,
+              "in_house": False,
+          }
+          Path(os.environ["ASC_JSON_PATH"]).write_text(json.dumps(payload))
+          PYCODE
+
+          echo "ASC_API_KEY_PATH=$JSON_PATH" >> "$GITHUB_ENV"
+
+      - name: Upload IPA to TestFlight
+        env:
+          TESTFLIGHT_CHANGELOG: ${{ inputs.what_to_test }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          test -n "${IPA_PATH:-}" || {
+            echo "IPA_PATH was not produced by final IPA preflight."
+            exit 1
+          }
+          test -f "$ASC_API_KEY_PATH"
+
+          args=(
+            pilot upload
+            --ipa "$IPA_PATH"
+            --api_key_path "$ASC_API_KEY_PATH"
+            --app_identifier "$BUNDLE_ID"
+            --skip_submission true
+            --skip_waiting_for_build_processing true
+          )
+
+          if [ -n "${TESTFLIGHT_CHANGELOG:-}" ]; then
+            args+=(--changelog "$TESTFLIGHT_CHANGELOG")
+          fi
+
+          fastlane "${args[@]}"
+
+      - name: TestFlight summary
+        run: |
+          {
+            echo "## Iumrah TestFlight upload"
+            echo "- Bundle ID: \`$BUNDLE_ID\`"
+            echo "- Version: \`$MARKETING_VERSION\`"
+            echo "- Build: \`${BUILD_NUMBER:-unknown}\`"
+            echo "- The binary was uploaded only to TestFlight/App Store Connect; it was not submitted to App Review."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: iumrah-testflight-build-${{ github.run_number }}
+          path: |
+            build/export/*.ipa
+            build/*.xcarchive/Info.plist
+          if-no-files-found: ignore
+          retention-days: 7
