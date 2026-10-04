@@ -42,6 +42,7 @@ struct IumrahTravelerProfileView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                securityAnimationCard
                 passportCard
                 manualCard
 
@@ -65,6 +66,25 @@ struct IumrahTravelerProfileView: View {
         .onChange(of: passportPhoto) { _, item in
             guard let item else { return }
             Task { await preparePreview(item) }
+        }
+    }
+
+    private var securityAnimationCard: some View {
+        VStack(spacing: 10) {
+            LoopingVideoView(resource: "iumrah-security-identity", gravity: .resizeAspect)
+                .frame(maxWidth: .infinity)
+                .frame(height: 190)
+                .background(Color.black, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+
+            HStack(spacing: 9) {
+                Image(systemName: "lock.shield.fill")
+                Text(tr("Passport data is handled securely for your booking.", "Паспортные данные защищены и используются только для оформления поездки.", "Pasport ma’lumotlari himoyalangan va faqat safarni rasmiylashtirish uchun ishlatiladi.", "Паспорт маълумотлари ҳимояланган ва фақат сафарни расмийлаштириш учун ишлатилади."))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -102,7 +122,7 @@ struct IumrahTravelerProfileView: View {
         VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .top, spacing: 12) {
                 IumrahIconBadge(
-                    systemName: passportReady ? "checkmark.circle.fill" : "camera.fill",
+                    systemName: "person.text.rectangle.fill",
                     role: passportReady ? .success : .document,
                     size: 50,
                     symbolSize: 20,

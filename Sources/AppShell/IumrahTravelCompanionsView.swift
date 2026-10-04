@@ -39,7 +39,7 @@ struct IumrahTravelCompanionsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 12)
+            .padding(.top, 58)
             .padding(.bottom, 48)
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
@@ -53,7 +53,7 @@ struct IumrahTravelCompanionsView: View {
     private var pageHeader: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(tr("Who is traveling with you", "Кто едет с Вами", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"))
-                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .font(.system(size: 30, weight: .bold, design: .rounded))
                 .tracking(-0.65)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -71,16 +71,22 @@ struct IumrahTravelCompanionsView: View {
 
     private var passportIntroCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Image("TravelCompanionsCover")
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .frame(height: 154)
-                .clipped()
+            HStack {
+                Spacer(minLength: 0)
+                Image("TravelCompanionsCover")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 106)
+                    .accessibilityHidden(true)
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 10)
+            .padding(.horizontal, 12)
+            .background(Color.iumrahRaisedBackground.opacity(0.60))
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 13) {
-                    IumrahIconBadge(systemName: "passport.fill", role: .document, size: 52, symbolSize: 21, cornerRadius: 17)
+                    IumrahIconBadge(systemName: "person.text.rectangle.fill", role: .document, size: 52, symbolSize: 21, cornerRadius: 17)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(tr("Passport first", "Сначала паспорт", "Avval pasport", "Аввал паспорт"))
@@ -168,7 +174,7 @@ struct IumrahTravelCompanionsView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 13) {
                     IumrahIconBadge(
-                        systemName: passportReady ? "checkmark.circle.fill" : relationshipIcon(traveler.relationship),
+                        systemName: "person.text.rectangle.fill",
                         role: passportReady ? .success : .profile,
                         size: 54,
                         symbolSize: 22,
@@ -198,7 +204,7 @@ struct IumrahTravelCompanionsView: View {
                 }
 
                 HStack(spacing: 11) {
-                    Image(systemName: "passport.fill")
+                    Image(systemName: "person.text.rectangle.fill")
                         .font(.system(size: 16, weight: .semibold))
                         .frame(width: 24)
                     VStack(alignment: .leading, spacing: 2) {
@@ -228,6 +234,11 @@ struct IumrahTravelCompanionsView: View {
             }
             .padding(18)
             .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.075), lineWidth: 0.8)
+            }
+            .shadow(color: .black.opacity(0.035), radius: 14, y: 6)
         }
         .buttonStyle(.plain)
     }

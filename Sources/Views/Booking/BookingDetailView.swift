@@ -5,8 +5,8 @@ struct BookingDetailView: View {
     @EnvironmentObject private var bookings: BookingStore
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var account: IumrahAccountStore
-    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     let bookingID: String
 
@@ -33,7 +33,7 @@ struct BookingDetailView: View {
     @State private var mutationError: String?
     @State private var isRequestingConfirmation = false
     @State private var confirmationSent = false
-    @State private var showPackageCareExplanation = false
+    @State private var careProfile: IumrahPublicProfile?
     @State private var bookingCardFlipped = false
     @State private var securityConfirmation: IumrahSecurityConfirmation?
     @State private var selectedPrimaryPage: BookingPrimaryPage = .booking
@@ -55,7 +55,54 @@ struct BookingDetailView: View {
                             )
 
                             if selectedPrimaryPage == .booking {
-                                bookingPageContent(session)
+                                bookingIdentityStrip(session)
+
+                                IumrahBookingDomeCard(
+                                    bookingNumber: session.displayBookingNumber,
+                                    travelerName: bookingTravelerName(session),
+                                    language: settings.language,
+                                    isFlipped: $bookingCardFlipped
+                                )
+                                statusHero(session)
+                                if shouldShowCheckoutEntry(for: session) {
+                                    IumrahManualPaymentNotice()
+                                    IumrahRefundPolicyCard(component: .package, compact: true)
+                                    IumrahInvoiceShareCard(session: session, compact: true)
+                                }
+                                bookingMetaCard(session.booking)
+                                BookingItineraryCalendarView(
+                                    bookingID: session.id,
+                                    startDate: session.booking.input.startDate,
+                                    endDate: session.booking.input.endDate,
+                                    booking: session.booking,
+                                    presentation: .preview,
+                                    onOpenFullSchedule: {
+                                        withAnimation(.snappy(duration: 0.24)) { selectedPrimaryPage = .schedule }
+                                    }
+                                )
+
+                                BookingFlightFirstComponentsView(
+                                    session: session,
+                                    onChangeMakkahHotel: { showMakkahHotelChange = true },
+                                    onChangeMadinahHotel: { showMadinahHotelChange = true }
+                                )
+
+                                contactCard(session)
+
+                                if session.pendingChangeConfirmation == true || confirmationSent {
+                                    confirmationCard(session)
+                                }
+
+                                destructiveActions
+
+                                bookingCareBalanceCard
+
+                                IumrahTelegramConnectCard(
+                                    session: session,
+                                    accountToken: account.bearerToken,
+                                    style: .compact
+                                )
+                                .padding(.top, 8)
                             } else if selectedPrimaryPage == .status {
                                 PilgrimCheckoutView(bookingID: bookingID, presentation: .bookingStatus)
                                     .transition(.opacity)
@@ -82,6 +129,7 @@ struct BookingDetailView: View {
                         await loadSecurityConfirmation()
                         loadZiyaratDraft()
                         loadESIMDraft()
+                        await loadCareProfile()
                     }
                     .sheet(isPresented: $showMakkahHotelChange) {
                         BookingHotelChangeView(bookingID: bookingID, role: .makkah)
@@ -101,10 +149,6 @@ struct BookingDetailView: View {
                         )
                         .environmentObject(settings)
                         .environmentObject(bookings)
-                    }
-                    .sheet(isPresented: $showPackageCareExplanation) {
-                        UmrahCarePackageExplanationView()
-                            .environmentObject(settings)
                     }
                 }
 
@@ -135,128 +179,6 @@ struct BookingDetailView: View {
         } message: {
             Text(L10n.text("booking_delete_confirm_body", settings.language))
         }
-    }
-
-    @ViewBuilder
-    private func bookingPageContent(_ session: StoredBookingSession) -> some View {
-        bookingIdentityStrip(session)
-
-        if adaptiveLayout.isWide {
-            HStack(alignment: .top, spacing: 20) {
-                VStack(spacing: 16) {
-                    bookingOverviewColumn(session)
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
-
-                VStack(spacing: 16) {
-                    bookingOperationsColumn(session)
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
-            }
-        } else {
-            // Keep the iPhone hierarchy intentionally identical to the pre-iPad/Mac
-            // implementation. Large-screen composition must never perturb compact
-            // stack spacing or card sizing.
-            IumrahBookingDomeCard(
-                bookingNumber: session.displayBookingNumber,
-                travelerName: bookingTravelerName(session),
-                language: settings.language,
-                isFlipped: $bookingCardFlipped
-            )
-            statusHero(session)
-            if shouldShowCheckoutEntry(for: session) {
-                IumrahManualPaymentNotice()
-                IumrahRefundPolicyCard(component: .package, compact: true)
-                IumrahInvoiceShareCard(session: session, compact: true)
-            }
-            bookingMetaCard(session.booking)
-            if session.booking.perPilgrimUsd >= 1800 {
-                bookingCareBalanceCard
-            }
-            BookingItineraryCalendarView(
-                bookingID: session.id,
-                startDate: session.booking.input.startDate,
-                endDate: session.booking.input.endDate,
-                booking: session.booking,
-                presentation: .preview,
-                onOpenFullSchedule: {
-                    withAnimation(.snappy(duration: 0.24)) { selectedPrimaryPage = .schedule }
-                }
-            )
-
-            BookingFlightFirstComponentsView(
-                session: session,
-                onChangeMakkahHotel: { showMakkahHotelChange = true },
-                onChangeMadinahHotel: { showMadinahHotelChange = true }
-            )
-            contactCard(session)
-            if session.pendingChangeConfirmation == true || confirmationSent {
-                confirmationCard(session)
-            }
-            careAction
-            destructiveActions
-            IumrahTelegramConnectCard(
-                session: session,
-                accountToken: account.bearerToken,
-                style: .compact
-            )
-            .padding(.top, 8)
-        }
-    }
-
-    @ViewBuilder
-    private func bookingOverviewColumn(_ session: StoredBookingSession) -> some View {
-        IumrahBookingDomeCard(
-            bookingNumber: session.displayBookingNumber,
-            travelerName: bookingTravelerName(session),
-            language: settings.language,
-            isFlipped: $bookingCardFlipped
-        )
-        statusHero(session)
-        if shouldShowCheckoutEntry(for: session) {
-            IumrahManualPaymentNotice()
-            IumrahRefundPolicyCard(component: .package, compact: true)
-            IumrahInvoiceShareCard(session: session, compact: true)
-        }
-        bookingMetaCard(session.booking)
-        if session.booking.perPilgrimUsd >= 1800 {
-            bookingCareBalanceCard
-        }
-        BookingItineraryCalendarView(
-            bookingID: session.id,
-            startDate: session.booking.input.startDate,
-            endDate: session.booking.input.endDate,
-            booking: session.booking,
-            presentation: .preview,
-            onOpenFullSchedule: {
-                withAnimation(.snappy(duration: 0.24)) { selectedPrimaryPage = .schedule }
-            }
-        )
-    }
-
-    @ViewBuilder
-    private func bookingOperationsColumn(_ session: StoredBookingSession) -> some View {
-        BookingFlightFirstComponentsView(
-            session: session,
-            onChangeMakkahHotel: { showMakkahHotelChange = true },
-            onChangeMadinahHotel: { showMadinahHotelChange = true }
-        )
-
-        contactCard(session)
-
-        if session.pendingChangeConfirmation == true || confirmationSent {
-            confirmationCard(session)
-        }
-
-        careAction
-        destructiveActions
-
-        IumrahTelegramConnectCard(
-            session: session,
-            accountToken: account.bearerToken,
-            style: .compact
-        )
-        .padding(.top, 8)
     }
 
     private func bookingTravelerName(_ session: StoredBookingSession) -> String {
@@ -1199,24 +1121,58 @@ struct BookingDetailView: View {
                 .frame(maxWidth: .infinity)
                 .background(Color.black)
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text(localized("Мы рядом", "We are with you", "Biz yoningizdamiz", "Биз ёнингиздамиз"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+
                 Text(bookingCareBalanceTitle)
                     .font(.headline)
                 Text(bookingCareBalanceBody)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Button {
-                    showPackageCareExplanation = true
-                    IumrahHaptics.soft()
-                } label: {
-                    HStack {
-                        Text(bookingCareHowItWorks)
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
+
+                Text(localized(
+                    "Если по бронированию, рейсам, отелю или маршруту появились вопросы — свяжитесь с нами удобным способом. Команда видит контекст Вашей брони, поэтому не придётся заново объяснять всю поездку.",
+                    "If anything about your booking, flights, hotel or route is unclear, contact us in the way that is most convenient for you. The team sees your booking context and can help without making you explain the trip again.",
+                    "Bron, reys, mehmonxona yoki yo‘nalish bo‘yicha savol tug‘ilsa, o‘zingizga qulay usulda bog‘laning. Jamoa bron kontekstini ko‘radi, safarni boshidan qayta tushuntirishingiz shart emas.",
+                    "Брон, рейс, меҳмонхона ёки йўналиш бўйича савол туғилса, ўзингизга қулай усулда боғланинг. Жамоа брон контекстини кўради, сафарни бошидан қайта тушунтиришингиз шарт эмас."
+                ))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 10) {
+                    careContactButton(title: localized("Позвонить", "Call", "Qo‘ng‘iroq", "Қўнғироқ"), icon: "phone.fill", enabled: true) {
+                        let digits = directCarePhone.filter { $0.isNumber || $0 == "+" }
+                        if let url = URL(string: "tel:\(digits)") { openURL(url) }
+                    }
+                    careContactButton(title: "Telegram", icon: "paperplane.fill", enabled: careTelegramURL != nil) {
+                        if let url = careTelegramURL { openURL(url) }
                     }
                 }
-                .buttonStyle(IumrahSecondaryButtonStyle())
+
+                NavigationLink {
+                    BookingChatView(bookingID: bookingID)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "message.fill")
+                        Text(localized("Открыть чат iumrah", "Open iumrah chat", "iumrah chatini ochish", "iumrah чатини очиш"))
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .frame(height: 52)
+                    .background(Color.black, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
             .padding(17)
         }
@@ -1224,8 +1180,42 @@ struct BookingDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
         }
+        .shadow(color: .black.opacity(0.035), radius: 14, y: 6)
+    }
+
+    private func careContactButton(title: String, icon: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                Text(title).lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(enabled ? Color.primary : Color.secondary)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+
+    @MainActor
+    private func loadCareProfile() async {
+        careProfile = try? await ChatService().loadCareProfile()
+    }
+
+    private let directCarePhone = "+998508898845"
+
+    private var careTelegramURL: URL? {
+        guard let raw = careProfile?.telegram.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
+        if raw.lowercased().hasPrefix("http") { return URL(string: raw) }
+        let handle = raw.replacingOccurrences(of: "@", with: "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard !handle.isEmpty else { return nil }
+        return URL(string: "https://t.me/\(handle)")
     }
 
     private var bookingCareBalanceTitle: String {
@@ -1243,15 +1233,6 @@ struct BookingDetailView: View {
         case .english: return "This trip is above our usual reference range. Before final ticketing we will review more convenient flights, night allocation and comparable hotels to stabilize the journey without compromising quality."
         case .uzbek: return "Bu safar odatiy mo‘ljaldan yuqoriroq. Yakuniy rasmiylashtirishdan oldin qulayroq reyslar, tunlar taqsimoti va mos mehmonxonalar yana tekshiriladi."
         case .uzbekCyrillic: return "Бу сафар одатий мўлжалдан юқорироқ. Якуний расмийлаштиришдан олдин қулайроқ рейслар, тунлар тақсимоти ва мос меҳмонхоналар яна текширилади."
-        }
-    }
-
-    private var bookingCareHowItWorks: String {
-        switch settings.language {
-        case .russian: return "Как это работает"
-        case .english: return "How it works"
-        case .uzbek: return "Qanday ishlaydi"
-        case .uzbekCyrillic: return "Қандай ишлайди"
         }
     }
 

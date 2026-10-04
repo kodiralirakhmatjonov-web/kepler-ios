@@ -117,32 +117,29 @@ struct IumrahIdentityDomeCard: View {
                         .tracking(-0.3)
                         .foregroundStyle(.white.opacity(0.96))
 
-                    Spacer(minLength: 14)
-
-                    Text(displayName)
-                        .font(.system(size: nameSize, weight: .semibold, design: .rounded))
-                        .tracking(-0.5)
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.72)
-
                     Spacer(minLength: 10)
 
                     if showsPublicIdentityQR {
-                        HStack(alignment: .center, spacing: 14) {
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(publicIdentityCaption)
-                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.58))
-                                    .fixedSize(horizontal: false, vertical: true)
-                                Text("iumrah.app")
-                                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                                    .foregroundStyle(.white.opacity(0.38))
-                            }
-                            Spacer(minLength: 8)
+                        HStack(alignment: .center, spacing: 18) {
+                            Text(displayName)
+                                .font(.system(size: min(32.0, max(25.0, proxy.size.width * 0.078)), weight: .semibold, design: .rounded))
+                                .tracking(-0.55)
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.70)
+
+                            Spacer(minLength: 10)
                             publicIdentityQRCode
                         }
                     } else {
+                        Text(displayName)
+                            .font(.system(size: nameSize, weight: .semibold, design: .rounded))
+                            .tracking(-0.5)
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.72)
+
+                        Spacer(minLength: 10)
                         VStack(alignment: .leading, spacing: 4) {
                             if let phone = nonBlank(data.phone) {
                                 Label(phone, systemImage: "phone.fill")
@@ -212,13 +209,13 @@ struct IumrahIdentityDomeCard: View {
                 .interpolation(.none)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 72, height: 72)
-                .padding(6)
+                .frame(width: 92, height: 92)
+                .padding(7)
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         } else {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.white.opacity(0.10))
-                .frame(width: 84, height: 84)
+                .frame(width: 106, height: 106)
                 .overlay {
                     Image(systemName: "qrcode")
                         .font(.system(size: 29, weight: .medium))

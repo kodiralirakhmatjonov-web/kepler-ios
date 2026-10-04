@@ -65,31 +65,27 @@ struct BookingFlightFirstComponentsView: View {
             includedServicesCard
         }
         .sheet(item: $serviceDetail) { detail in
-            BookingIncludedServiceDetailSheet(
-                detail: detail,
-                session: session,
-                language: settings.language
-            )
+            if detail == .ziyarats {
+                ZiyaratIncludedCatalogSheet()
+                    .environmentObject(settings)
+            } else {
+                BookingIncludedServiceDetailSheet(
+                    detail: detail,
+                    session: session,
+                    language: settings.language
+                )
+            }
         }
     }
 
     private var includedServicesCard: some View {
         VStack(spacing: 0) {
-            includedRow(
-                detail: .transfer,
-                icon: "car.fill",
-                title: localized("Трансфер по маршруту", "Route transfer", "Yo‘nalish transferi", "Йўналиш трансфери"),
-                subtitle: localized("Аэропорт, отели и ключевые точки поездки", "Airport, hotels and key trip points", "Aeroport, mehmonxonalar va asosiy nuqtalar", "Аэропорт, меҳмонхоналар ва асосий нуқталар")
-            )
-
-            Divider().padding(.leading, 58)
-
-            includedRow(
-                detail: .guide,
-                icon: "person.badge.shield.checkmark.fill",
-                title: "iumrah Guide",
-                subtitle: guideSubtitle
-            )
+            NavigationLink {
+                IumrahGuideTransferView(bookingID: session.id)
+            } label: {
+                guideTransferFeatureCard
+            }
+            .buttonStyle(.plain)
 
             if session.ziyaratMakkahEnabled || session.ziyaratMadinahEnabled {
                 Divider().padding(.leading, 58)
@@ -134,6 +130,48 @@ struct BookingFlightFirstComponentsView: View {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.055), lineWidth: 0.7)
         }
+    }
+
+    private var guideTransferFeatureCard: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                IumrahIconBadge(systemName: "person.2.fill", role: .profile, size: 54, symbolSize: 21, cornerRadius: 18)
+                Image(systemName: "car.fill")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 23, height: 23)
+                    .background(Color(uiColor: .systemBlue), in: Circle())
+                    .offset(x: 21, y: 20)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(localized("Ваш гид и трансфер в Саудовской Аравии", "Your guide & transfer in Saudi Arabia", "Saudiya Arabistonidagi gid va transferingiz", "Саудия Арабистонидаги гид ва трансферингиз"))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(localized(
+                    "Команда встречи, выбранный автомобиль и полный маршрут сопровождения",
+                    "Meeting team, selected vehicle and your full support route",
+                    "Kutib olish jamoasi, tanlangan avtomobil va to‘liq hamrohlik yo‘nalishi",
+                    "Кутиб олиш жамоаси, танланган автомобиль ва тўлиқ ҳамроҳлик йўналиши"
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(16)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.7)
+        }
+        .padding(10)
     }
 
     private func includedRow(
@@ -313,7 +351,7 @@ private struct BookingIncludedServiceDetailSheet: View {
     private var title: String {
         switch detail {
         case .transfer: return localized("Трансфер по маршруту", "Route transfer", "Yo‘nalish transferi", "Йўналиш трансфери")
-        case .guide: return "iumrah Guide"
+        case .guide: return localized("Ваш гид", "Your guide", "Sizning gidingiz", "Сизнинг гидингиз")
         case .ziyarats: return localized("Зияраты", "Ziyarats", "Ziyoratlar", "Зиёратлар")
         case .esim: return "iumrah eSIM"
         case .care: return "iumrah Care"

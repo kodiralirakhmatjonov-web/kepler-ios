@@ -23,6 +23,7 @@ struct IumrahBookingPassportsView: View {
         ScrollView(showsIndicators: false) {
             LazyVStack(alignment: .leading, spacing: 18) {
                 header
+                securityAnimationCard
                 instructionCard
 
                 if isLoading && checkout == nil {
@@ -71,6 +72,25 @@ struct IumrahBookingPassportsView: View {
         .toolbar(.hidden, for: .tabBar)
         .refreshable { await loadCheckout(showLoader: false) }
         .task { await loadCheckout(showLoader: true) }
+    }
+
+    private var securityAnimationCard: some View {
+        VStack(spacing: 10) {
+            LoopingVideoView(resource: "iumrah-security-identity", gravity: .resizeAspect)
+                .frame(maxWidth: .infinity)
+                .frame(height: 190)
+                .background(Color.black, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+
+            HStack(spacing: 9) {
+                Image(systemName: "lock.shield.fill")
+                Text(tr("Passport data is handled securely for your booking.", "Паспортные данные защищены и используются только для оформления поездки.", "Pasport ma’lumotlari himoyalangan va faqat safarni rasmiylashtirish uchun ishlatiladi.", "Паспорт маълумотлари ҳимояланган ва фақат сафарни расмийлаштириш учун ишлатилади."))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private var header: some View {

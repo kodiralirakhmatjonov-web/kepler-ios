@@ -1,0 +1,11 @@
+UI/UX refinement requested after visual QA:
+- iumrah ID back removes website/scan copy and enlarges name + QR
+- Apple Wallet moved directly below iumrah ID; duplicate active-trip card removed
+- Who travels with you page spacing/cover/passport-person icons refined
+- KYC identity animation added to passport flows
+- booking Care explainer moved to the end before Telegram and rebuilt with Call/Telegram/in-app chat actions
+- guide+transfer consolidated into a localized booking card opening the dedicated Guide & Transfer page
+- guide/founder contact details remain locked until payment confirmation
+- Guide & Transfer page now explains full end-to-end accompaniment and transfer coverage
+- booking Ziyarats opens a full Makkah/Madinah card catalog
+- Ziyarats page rewritten to remove the old async sheet/detent presentation state machine that could fail during opening

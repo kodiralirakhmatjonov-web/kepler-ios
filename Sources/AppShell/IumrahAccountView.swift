@@ -48,7 +48,6 @@ struct IumrahAccountView: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var chrome: AppChromeStore
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
     @ObservedObject private var clientNotifications = ClientNotificationCenter.shared
     @ObservedObject private var push = PushNotificationManager.shared
 
@@ -112,9 +111,36 @@ struct IumrahAccountView: View {
                     accountHeader
 
                     if let profile = account.account {
-                        authenticatedAccountContent(profile)
+                        IumrahAccountIdentityHeroCard(
+                            profile: profile,
+                            language: settings.language,
+                            publicIdentityURL: identityPublicURL ?? fallbackIdentityURL(profile.iumrahID),
+                            copyMessage: identityCopyMessage,
+                            onCopy: { copyIdentityID(profile) }
+                        )
+
+                        walletSection(profile)
+
+                        userDataEntryCard(profile)
+                        travelCompanionsEntryCard
+
+                        if let active = activeTrip {
+                            IumrahTripWalletEntry(session: active, profile: profile, language: settings.language)
+                        }
+                        tripsSection
+                        telegramIntegrationSection
+                        paymentSecuritySection
+                        settingsSection
+                        signOutButton
                     } else {
-                        guestAccountContent
+                        IumrahLockedIdentityCard(language: settings.language) {
+                            showIdentityUnlockSheet = true
+                        }
+                        loginCard
+                            .id("account-login")
+                        telegramIntegrationSection
+                        paymentSecuritySection
+                        guestSettingsSection
                     }
                 }
                 .padding(.horizontal, IumrahDesign.pagePadding)
@@ -197,91 +223,6 @@ struct IumrahAccountView: View {
                     IumrahHaptics.soft()
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private func authenticatedAccountContent(_ profile: IumrahAccountProfile) -> some View {
-        IumrahAccountIdentityHeroCard(
-            profile: profile,
-            language: settings.language,
-            publicIdentityURL: identityPublicURL ?? fallbackIdentityURL(profile.iumrahID),
-            copyMessage: identityCopyMessage,
-            onCopy: { copyIdentityID(profile) }
-        )
-
-        if adaptiveLayout.isWide {
-            HStack(alignment: .top, spacing: 18) {
-                VStack(spacing: 20) {
-                    userDataEntryCard(profile)
-                    travelCompanionsEntryCard
-                    telegramIntegrationSection
-                    settingsSection
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
-
-                VStack(spacing: 20) {
-                    if let active = activeTrip {
-                        IumrahTripWalletEntry(session: active, profile: profile, language: settings.language)
-                        activeTripCard(active)
-                    }
-                    tripsSection
-                    walletSection(profile)
-                    paymentSecuritySection
-                    signOutButton
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
-            }
-        } else {
-            // Compact path is intentionally the original iPhone ordering.
-            userDataEntryCard(profile)
-            travelCompanionsEntryCard
-
-            if let active = activeTrip {
-                IumrahTripWalletEntry(session: active, profile: profile, language: settings.language)
-                activeTripCard(active)
-            }
-            tripsSection
-            walletSection(profile)
-            telegramIntegrationSection
-            paymentSecuritySection
-            settingsSection
-            signOutButton
-        }
-    }
-
-    @ViewBuilder
-    private var guestAccountContent: some View {
-        if adaptiveLayout.isWide {
-            HStack(alignment: .top, spacing: 18) {
-                IumrahLockedIdentityCard(language: settings.language) {
-                    showIdentityUnlockSheet = true
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
-
-                loginCard
-                    .id("account-login")
-                    .frame(maxWidth: .infinity, alignment: .top)
-            }
-
-            HStack(alignment: .top, spacing: 18) {
-                telegramIntegrationSection
-                    .frame(maxWidth: .infinity, alignment: .top)
-                VStack(spacing: 20) {
-                    paymentSecuritySection
-                    guestSettingsSection
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
-            }
-        } else {
-            IumrahLockedIdentityCard(language: settings.language) {
-                showIdentityUnlockSheet = true
-            }
-            loginCard
-                .id("account-login")
-            telegramIntegrationSection
-            paymentSecuritySection
-            guestSettingsSection
         }
     }
 

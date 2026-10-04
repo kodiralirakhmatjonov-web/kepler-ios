@@ -28,6 +28,7 @@ struct IumrahGuideTransferView: View {
                 header
                 guideCard
                 ownerCard
+                guideResponsibilitiesCard
                 transferCard
                 meetingPhotoCard
 
@@ -104,7 +105,11 @@ struct IumrahGuideTransferView: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
-            contactButtons(phone: guidePhone, telegram: guideTelegram)
+            if contactsUnlocked {
+                contactButtons(phone: guidePhone, telegram: guideTelegram)
+            } else {
+                lockedContactsNote
+            }
         }
         .iumrahCard()
     }
@@ -137,9 +142,74 @@ struct IumrahGuideTransferView: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
-            contactButtons(phone: ownerPhone, telegram: ownerTelegram)
+            if contactsUnlocked {
+                contactButtons(phone: ownerPhone, telegram: ownerTelegram)
+            } else {
+                lockedContactsNote
+            }
         }
         .iumrahCard()
+    }
+
+    private var guideResponsibilitiesCard: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack(spacing: 12) {
+                IumrahIconBadge(systemName: "checklist", role: .profile, size: 48, symbolSize: 19, cornerRadius: 16)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(tr("Your support from arrival to departure", "Сопровождение от прилёта до вылета", "Kelishdan qaytishgacha hamrohlik", "Келишдан қайтишгача ҳамроҳлик"))
+                        .font(.headline)
+                    Text(tr("Everything below is already part of your trip support.", "Всё ниже уже входит в сопровождение Вашей поездки.", "Quyidagilarning barchasi safar hamrohligiga kiradi.", "Қуйидагиларнинг барчаси сафар ҳамроҳлигига киради."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            guideDuty("airplane.arrival", tr("Airport meeting", "Встреча в аэропорту", "Aeroportda kutib olish", "Аэропортда кутиб олиш"), tr("The guide coordinates your arrival and helps the group meet the driver without unnecessary waiting.", "Гид координирует прилёт и помогает группе встретиться с водителем без лишнего ожидания.", "Gid kelishni muvofiqlashtiradi va guruhning haydovchi bilan ortiqcha kutmasdan uchrashishiga yordam beradi.", "Гид келишни мувофиқлаштиради ва гуруҳнинг ҳайдовчи билан ортиқча кутмасдан учрашишига ёрдам беради."))
+            guideDuty("building.2.fill", tr("Hotel check-in support", "Сопровождение до отеля", "Mehmonxonagacha hamrohlik", "Меҳмонхонагача ҳамроҳлик"), tr("You are accompanied to the confirmed hotel and helped with the first practical steps after arrival.", "Вас сопровождают до подтверждённого отеля и помогают с первыми организационными вопросами после прилёта.", "Tasdiqlangan mehmonxonagacha hamrohlik qilinadi va kelgandan keyingi dastlabki tashkiliy masalalarda yordam beriladi.", "Тасдиқланган меҳмонхонагача ҳамроҳлик қилинади ва келгандан кейинги дастлабки ташкилий масалаларда ёрдам берилади."))
+            guideDuty("figure.walk", tr("Umrah guidance", "Сопровождение Умры", "Umra hamrohligi", "Умра ҳамроҳлиги"), tr("The guide keeps the group oriented through the main Umrah stages and coordinates movement when needed.", "Гид помогает группе ориентироваться по основным этапам Умры и координирует перемещения, когда это необходимо.", "Gid Umraning asosiy bosqichlarida guruhga yo‘l-yo‘riq ko‘rsatadi va zarur paytda harakatni muvofiqlashtiradi.", "Гид Умранинг асосий босқичларида гуруҳга йўл-йўриқ кўрсатади ва зарур пайтда ҳаракатни мувофиқлаштиради."))
+            guideDuty("map.fill", tr("Ziyarats", "Зияраты", "Ziyoratlar", "Зиёратлар"), tr("Your included Makkah and Madinah visits are coordinated with the guide and transfer route.", "Включённые посещения в Мекке и Медине координируются вместе с гидом и маршрутом трансфера.", "Makka va Madinadagi kiritilgan ziyoratlar gid va transfer yo‘nalishi bilan muvofiqlashtiriladi.", "Макка ва Мадинадаги киритилган зиёратлар гид ва трансфер йўналиши билан мувофиқлаштирилади."))
+            guideDuty("tram.fill", tr("Intercity coordination", "Переезд между городами", "Shaharlararo yo‘l", "Шаҳарлараро йўл"), tr("The team coordinates the Makkah–Madinah movement, including the train segment when it is part of your itinerary.", "Команда координирует переезд Мекка–Медина, включая поезд, если он входит в Ваш маршрут.", "Jamoa Makka–Madina harakatini, yo‘nalishga kirsa poyezd qismini ham muvofiqlashtiradi.", "Жамоа Макка–Мадина ҳаракатини, йўналишга кирса поезд қисмини ҳам мувофиқлаштиради."))
+            guideDuty("airplane.departure", tr("Departure support", "Сопровождение до аэропорта", "Aeroportgacha hamrohlik", "Аэропортгача ҳамроҳлик"), tr("At the end of the trip, the transfer and team coordinate your return to the departure airport.", "В конце поездки трансфер и команда координируют Ваш выезд в аэропорт обратного рейса.", "Safar oxirida transfer va jamoa qaytish reysi aeroportiga borishingizni muvofiqlashtiradi.", "Сафар охирида трансфер ва жамоа қайтиш рейси аэропортига боришингизни мувофиқлаштиради."))
+        }
+        .iumrahCard()
+    }
+
+    private func guideDuty(_ icon: String, _ title: String, _ body: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color(uiColor: .systemBlue))
+                .frame(width: 36, height: 36)
+                .background(Color(uiColor: .systemBlue).opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(body).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var contactsUnlocked: Bool {
+        guard let status = session?.effectiveStatus.uppercased() else { return false }
+        return ["PAID", "BOOKING_CONFIRMED", "DOCUMENTS_READY", "READY_TO_TRAVEL", "IN_TRIP", "COMPLETED"].contains(status)
+    }
+
+    private var lockedContactsNote: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "lock.fill")
+            Text(tr(
+                "Phone and Telegram unlock after payment is confirmed.",
+                "Телефон и Telegram откроются после подтверждения оплаты.",
+                "Telefon va Telegram to‘lov tasdiqlangandan keyin ochiladi.",
+                "Телефон ва Telegram тўлов тасдиқлангандан кейин очилади."
+            ))
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.secondary)
+        .padding(13)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
     }
 
     private var transferCard: some View {
@@ -451,7 +521,7 @@ struct IumrahGuideTransferView: View {
 
     private var guideDisplayName: String {
         let value = guide?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return value.isEmpty ? "iumrah Guide" : value
+        return value.isEmpty ? tr("Your guide", "Ваш гид", "Sizning gidingiz", "Сизнинг гидингиз") : value
     }
 
     private var ownerDisplayName: String {
