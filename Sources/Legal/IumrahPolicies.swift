@@ -215,6 +215,10 @@ struct IumrahPolicyDetailView: View {
             VStack(alignment: .leading, spacing: 18) {
                 policyHero
 
+                IumrahPaymentMethodsMarquee(compact: true)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+
                 switch kind {
                 case .privacy:
                     privacyContent

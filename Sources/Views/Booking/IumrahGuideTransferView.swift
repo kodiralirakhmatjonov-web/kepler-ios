@@ -142,11 +142,7 @@ struct IumrahGuideTransferView: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
-            if contactsUnlocked {
-                contactButtons(phone: ownerPhone, telegram: ownerTelegram)
-            } else {
-                lockedContactsNote
-            }
+            ownerContactButtons
         }
         .iumrahCard()
     }
@@ -407,6 +403,48 @@ struct IumrahGuideTransferView: View {
         }
     }
 
+    private var ownerContactButtons: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                contactButton(
+                    title: tr("Call", "Позвонить", "Qo‘ng‘iroq", "Қўнғироқ"),
+                    systemName: "phone.fill",
+                    tint: Color(uiColor: .systemGreen),
+                    enabled: !ownerPhone.isEmpty
+                ) { openPhone(ownerPhone) }
+
+                contactButton(
+                    title: "Telegram",
+                    systemName: "paperplane.fill",
+                    tint: Color(uiColor: .systemBlue),
+                    enabled: !ownerTelegram.isEmpty
+                ) { openTelegram(ownerTelegram) }
+            }
+
+            NavigationLink {
+                BookingChatView(bookingID: bookingID)
+            } label: {
+                HStack(spacing: 9) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                    Text(tr("Care chat", "Чат iumrah Care", "iumrah Care chat", "iumrah Care чат"))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 14)
+                .frame(height: 50)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.7)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     private func contactButtons(phone: String, telegram: String) -> some View {
         HStack(spacing: 10) {
             contactButton(
@@ -545,12 +583,16 @@ struct IumrahGuideTransferView: View {
     }
 
     private var ownerPhone: String {
-        guard let ownerProfile else { return "" }
-        return preferredPhone(phoneSA: ownerProfile.phoneSA, phoneUZ: ownerProfile.phoneUZ)
+        if let ownerProfile {
+            let preferred = preferredPhone(phoneSA: ownerProfile.phoneSA, phoneUZ: ownerProfile.phoneUZ)
+            if !preferred.isEmpty { return preferred }
+        }
+        return "+998 50 889 88 45"
     }
 
     private var ownerTelegram: String {
-        cleanHandle(ownerProfile?.telegram ?? "")
+        let value = cleanHandle(ownerProfile?.telegram ?? "")
+        return value.isEmpty ? "saudiclub966" : value
     }
 
     private var airportWaitText: String {
@@ -598,7 +640,14 @@ struct IumrahGuideTransferView: View {
     }
 
     private func cleanHandle(_ value: String) -> String {
-        value.trimmingCharacters(in: CharacterSet(charactersIn: " @"))
+        var result = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        for prefix in ["https://t.me/", "http://t.me/", "t.me/"] {
+            if result.lowercased().hasPrefix(prefix) {
+                result = String(result.dropFirst(prefix.count))
+                break
+            }
+        }
+        return result.trimmingCharacters(in: CharacterSet(charactersIn: " @/"))
     }
 
     private func openPhone(_ value: String) {

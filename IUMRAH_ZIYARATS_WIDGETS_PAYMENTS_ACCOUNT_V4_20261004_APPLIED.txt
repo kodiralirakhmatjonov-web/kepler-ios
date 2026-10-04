@@ -1,0 +1,10 @@
+Production UI update:
+- restores full map-first iumrah Ziyarats page using its in-view Find My-style panel instead of the unstable sheet/detent state machine
+- booking Ziyarats uses a swipeable place-card carousel with photo on top and detailed information below
+- Ziyarats remote photos use AppConfig absolute URLs and are prefetched into URLCache + in-memory cache
+- prayer widget uses a larger HH:MM:SS countdown without unit letters and tighter vertical layout
+- weather widget restores colored system symbols, including yellow sun styling
+- founder contact is always available with Call, Telegram and in-app Care chat; guide contact remains payment-gated
+- Apple Wallet moved after Who travels with you
+- automatic payment-method marquee added for Visa, PayMe, Humo, Uzcard and Click in payment/policy/account surfaces
+- Account adds a Services block with Airmora Flights Status, Ziyarats, eSIM, Care and Gift Cards/Balance

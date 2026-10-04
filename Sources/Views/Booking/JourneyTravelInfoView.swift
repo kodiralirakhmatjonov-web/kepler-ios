@@ -128,7 +128,7 @@ struct JourneyTravelInfoView: View {
                     .tag(JourneyInfoPage.clocks)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 326)
+            .frame(height: 310)
 
             HStack(spacing: 7) {
                 ForEach(JourneyInfoPage.allCases) { item in
@@ -192,15 +192,15 @@ private struct PrayerTimesCard: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Label(eyebrow, systemImage: "moon.stars.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(.secondary)
                         Text(city.title(settings.language))
-                            .font(.system(size: 27, weight: .bold, design: .rounded))
-                            .tracking(-0.45)
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .tracking(-0.55)
                     }
                     Spacer(minLength: 8)
                     if isRefreshing && day == nil { ProgressView().controlSize(.small) }
@@ -267,17 +267,17 @@ private struct PrayerTimesCard: View {
         let active = prayer.id == nextID
         return VStack(spacing: 9) {
             Image(systemName: prayer.symbol)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(active ? Color.white : Color.secondary)
             Text(prayer.shortTitle(settings.language))
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(active ? Color.white.opacity(0.88) : Color.secondary)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(active ? Color.white.opacity(0.90) : Color.secondary)
             Text(prayer.time)
-                .font(.caption.monospacedDigit().weight(.bold))
+                .font(.system(size: 15, weight: .bold, design: .monospaced))
                 .foregroundStyle(active ? Color.white : Color.primary)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 88)
+        .frame(height: 94)
         .background(active ? Color.black : Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
         .animation(.easeInOut(duration: 0.25), value: active)
     }
@@ -285,38 +285,25 @@ private struct PrayerTimesCard: View {
     private func countdownPanel(next: IumrahPrayerMoment, now: Date) -> some View {
         let parts = countdownParts(to: next.date, now: now)
         return HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tr("UNTIL NEXT PRAYER", "ДО СЛЕДУЮЩЕЙ МОЛИТВЫ", "KEYINGI NAMOZGACHA", "КЕЙИНГИ НАМОЗГАЧА"))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(tr("NEXT PRAYER", "СЛЕДУЮЩАЯ МОЛИТВА", "KEYINGI NAMOZ", "КЕЙИНГИ НАМОЗ"))
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.secondary)
                 Text(next.title(settings.language))
-                    .font(.subheadline.weight(.bold))
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
             }
 
             Spacer(minLength: 8)
 
-            HStack(spacing: 7) {
-                timerUnit(parts.hours, tr("h", "ч", "soat", "с"))
-                Text(":").font(.headline.monospacedDigit()).foregroundStyle(.secondary)
-                timerUnit(parts.minutes, tr("m", "м", "daq", "д"))
-                Text(":").font(.headline.monospacedDigit()).foregroundStyle(.secondary)
-                timerUnit(parts.seconds, tr("s", "с", "son", "с"))
-            }
+            Text(String(format: "%02d:%02d:%02d", parts.hours, parts.minutes, parts.seconds))
+                .font(.system(size: 25, weight: .bold, design: .monospaced))
+                .monospacedDigit()
+                .minimumScaleFactor(0.75)
+                .lineLimit(1)
         }
-        .padding(.horizontal, 14)
-        .frame(height: 54)
-        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-    }
-
-    private func timerUnit(_ value: Int, _ label: String) -> some View {
-        VStack(spacing: 0) {
-            Text(String(format: "%02d", value))
-                .font(.subheadline.monospacedDigit().weight(.bold))
-            Text(label)
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.secondary)
-        }
-        .frame(minWidth: 27)
+        .padding(.horizontal, 15)
+        .frame(height: 64)
+        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
     }
 
     private func countdownParts(to date: Date, now: Date) -> (hours: Int, minutes: Int, seconds: Int) {
@@ -389,13 +376,22 @@ private struct WeatherForecastCard: View {
                 }
                 Spacer(minLength: 8)
                 if let forecast {
-                    VStack(alignment: .trailing, spacing: 0) {
-                        Text("\(Int(forecast.currentTemperature.rounded()))°")
-                            .font(.system(size: 40, weight: .semibold, design: .rounded))
-                            .tracking(-1.2)
-                        Text(forecast.currentCondition.localized(settings.language))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
+                    HStack(alignment: .center, spacing: 10) {
+                        Image(systemName: forecast.currentCondition.symbol)
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(
+                                forecast.currentCondition.primaryColor,
+                                forecast.currentCondition.secondaryColor
+                            )
+                            .font(.system(size: 34, weight: .semibold))
+                        VStack(alignment: .trailing, spacing: 0) {
+                            Text("\(Int(forecast.currentTemperature.rounded()))°")
+                                .font(.system(size: 40, weight: .semibold, design: .rounded))
+                                .tracking(-1.2)
+                            Text(forecast.currentCondition.localized(settings.language))
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 } else if isRefreshing {
                     ProgressView().controlSize(.small)
@@ -412,8 +408,9 @@ private struct WeatherForecastCard: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.62)
                             Image(systemName: day.condition.symbol)
-                                .symbolRenderingMode(.hierarchical)
-                                .font(.system(size: 19, weight: .semibold))
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(day.condition.primaryColor, day.condition.secondaryColor)
+                                .font(.system(size: 21, weight: .semibold))
                             Text("\(Int(day.high.rounded()))°")
                                 .font(.caption.monospacedDigit().weight(.bold))
                             Text("\(Int(day.low.rounded()))°")
@@ -457,7 +454,7 @@ private struct WeatherForecastCard: View {
 
     private var weatherBackground: some ShapeStyle {
         LinearGradient(
-            colors: [Color.iumrahCardBackground, Color.blue.opacity(0.055)],
+            colors: [Color.iumrahCardBackground, Color.blue.opacity(0.085), Color.yellow.opacity(0.035)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -928,6 +925,30 @@ enum IumrahWeatherCondition: String, Codable, Hashable {
         case .thunder: return "cloud.bolt.rain.fill"
         case .snow: return "cloud.snow.fill"
         case .unknown: return "cloud.fill"
+        }
+    }
+
+    var primaryColor: Color {
+        switch self {
+        case .clear: return .yellow
+        case .partlyCloudy: return .yellow
+        case .cloudy, .fog: return Color(uiColor: .systemGray)
+        case .rain, .showers: return .blue
+        case .thunder: return .yellow
+        case .snow: return Color(uiColor: .systemCyan)
+        case .unknown: return Color(uiColor: .systemGray2)
+        }
+    }
+
+    var secondaryColor: Color {
+        switch self {
+        case .clear: return .orange
+        case .partlyCloudy: return Color(uiColor: .systemBlue)
+        case .cloudy, .fog: return Color(uiColor: .systemGray3)
+        case .rain, .showers: return Color(uiColor: .systemCyan)
+        case .thunder: return Color(uiColor: .systemIndigo)
+        case .snow: return .white
+        case .unknown: return Color(uiColor: .systemGray4)
         }
     }
 

@@ -119,10 +119,9 @@ struct IumrahAccountView: View {
                             onCopy: { copyIdentityID(profile) }
                         )
 
-                        walletSection(profile)
-
                         userDataEntryCard(profile)
                         travelCompanionsEntryCard
+                        walletSection(profile)
 
                         if let active = activeTrip {
                             IumrahTripWalletEntry(session: active, profile: profile, language: settings.language)
@@ -130,6 +129,7 @@ struct IumrahAccountView: View {
                         tripsSection
                         telegramIntegrationSection
                         paymentSecuritySection
+                        servicesSection
                         settingsSection
                         signOutButton
                     } else {
@@ -1058,6 +1058,9 @@ struct IumrahAccountView: View {
             )
             .padding(.bottom, 8)
 
+            IumrahPaymentMethodsMarquee(compact: true)
+                .padding(.bottom, 8)
+
             NavigationLink {
                 IumrahPolicyDetailView(kind: .paymentSecurity)
             } label: {
@@ -1112,6 +1115,110 @@ struct IumrahAccountView: View {
 
         }
         .iumrahCard()
+    }
+
+    private var servicesSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            sectionHeader(
+                icon: "square.grid.2x2.fill",
+                title: tr("Services", "Сервисы", "Xizmatlar", "Хизматлар"),
+                subtitle: tr(
+                    "All key iumrah tools in one place",
+                    "Все основные функции iumrah в одном месте",
+                    "iumrah asosiy funksiyalari bir joyda",
+                    "iumrah асосий функциялари бир жойда"
+                )
+            )
+            .padding(.bottom, 8)
+
+            NavigationLink {
+                IumrahFlightsView(preferredBookingID: activeTrip?.id)
+            } label: {
+                settingsRow(
+                    icon: "airplane.circle.fill",
+                    title: "Airmora Flights Status",
+                    value: tr(
+                        "Live flight status, route and travel updates",
+                        "Статус рейса, маршрут и обновления поездки",
+                        "Reys holati, yo‘nalish va safar yangiliklari",
+                        "Рейс ҳолати, йўналиш ва сафар янгиликлари"
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
+                ZiyaratJourneyView()
+            } label: {
+                settingsRow(
+                    icon: "map.fill",
+                    title: "iumrah Ziyarats",
+                    value: tr(
+                        "Makkah and Madinah places, route and navigation",
+                        "Места Мекки и Медины, маршрут и навигация",
+                        "Makka va Madina joylari, yo‘nalish va navigatsiya",
+                        "Макка ва Мадина жойлари, йўналиш ва навигация"
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
+                ESIMView()
+            } label: {
+                settingsRow(
+                    icon: "simcard.fill",
+                    title: "iumrah eSIM",
+                    value: tr(
+                        "Saudi connectivity and eSIM status",
+                        "Связь в Саудии и статус eSIM",
+                        "Saudiya aloqasi va eSIM holati",
+                        "Саудия алоқаси ва eSIM ҳолати"
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
+                CareHomeView()
+            } label: {
+                settingsRow(
+                    icon: "heart.fill",
+                    title: "iumrah Care",
+                    value: tr(
+                        "Booking help and trip support",
+                        "Помощь по бронированию и сопровождению поездки",
+                        "Bron va safar bo‘yicha yordam",
+                        "Брон ва сафар бўйича ёрдам"
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
+                IumrahGiftCardsView()
+            } label: {
+                settingsRow(
+                    icon: "giftcard.fill",
+                    title: tr("Gift Cards & Balance", "Gift Cards и баланс", "Gift Cards va balans", "Gift Cards ва баланс"),
+                    value: tr(
+                        "Gifts, referrals and iumrah Balance",
+                        "Подарки, приглашения и iumrah Balance",
+                        "Sovg‘alar, takliflar va iumrah Balance",
+                        "Совғалар, таклифлар ва iumrah Balance"
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private var settingsSection: some View {

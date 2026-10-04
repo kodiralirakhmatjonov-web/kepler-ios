@@ -1069,6 +1069,9 @@ struct PilgrimCheckoutView: View {
 
                 friendsBenefitCard
 
+                IumrahPaymentMethodsMarquee()
+                    .padding(.vertical, 2)
+
                 if paymentOptions(value).isEmpty {
                     Label(tr("Payment details will appear after iumrah Business adds them.", "Реквизиты появятся после того, как iumrah Business их добавит.", "To‘lov rekvizitlari iumrah Business qo‘shgandan keyin paydo bo‘ladi.", "Тўлов реквизитлари iumrah Business қўшгандан кейин пайдо бўлади."), systemImage: "clock")
                         .font(.subheadline).foregroundStyle(.secondary)
