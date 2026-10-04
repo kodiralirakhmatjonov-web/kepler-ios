@@ -21,6 +21,7 @@ jobs:
   build:
     runs-on: macos-26
     env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       SCHEME: iUmra
       PROJECT: iUmra.xcodeproj
       BUNDLE_ID: com.iumrah.app
@@ -261,7 +262,7 @@ jobs:
 
           test -n "$SIGNING_RUN_ID" || {
             echo "No successful 'Iumrah — Prepare iOS Signing' run was found."
-            echo "Run ios-signing-prepare.yml once, then rerun TestFlight."
+            echo "Run testflight-signing.yml once, then rerun TestFlight."
             exit 1
           }
 
