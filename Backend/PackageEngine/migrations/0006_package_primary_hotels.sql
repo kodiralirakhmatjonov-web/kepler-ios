@@ -166,6 +166,25 @@ CREATE TABLE IF NOT EXISTS iumrah_client_security_audit (
 CREATE INDEX IF NOT EXISTS idx_iumrah_client_security_audit_account
 ON iumrah_client_security_audit(pilgrim_id, created_at DESC);
 
+
+-- Short-lived proof issued only after the current account owner re-authenticates.
+-- Sensitive contact replacement must present this proof in addition to the
+-- ordinary bearer/device session so UI-only checks can never be bypassed.
+CREATE TABLE IF NOT EXISTS iumrah_client_security_proofs (
+  id TEXT PRIMARY KEY,
+  proof_hash TEXT NOT NULL UNIQUE,
+  pilgrim_id INTEGER NOT NULL,
+  session_id TEXT NOT NULL,
+  purpose TEXT NOT NULL DEFAULT 'contact_change'
+    CHECK (purpose IN ('contact_change')),
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT,
+  FOREIGN KEY (pilgrim_id) REFERENCES pilgrims(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_iumrah_client_security_proofs_account
+ON iumrah_client_security_proofs(pilgrim_id, expires_at DESC);
+
 -- iumrah Security final identity registry. PackageEngine never accepts KYC
 -- self-confirmation: only iumrah Business manual approval writes a confirmed row.
 -- Only masked passport metadata and the deterministic anti-fraud fingerprint live here.

@@ -523,12 +523,19 @@ async function securityOverview(db: D1Like, auth: DeviceAuth) {
     `SELECT email_display,verified_at FROM iumrah_client_account_emails
      WHERE pilgrim_id=?1 LIMIT 1`,
   ).bind(auth.pilgrimID).first<{ email_display: string; verified_at: string }>();
+  const accountPhone = await db.prepare(
+    `SELECT phone_display,phone_normalized,verified_at FROM iumrah_client_account_phones
+     WHERE pilgrim_id=?1 LIMIT 1`,
+  ).bind(auth.pilgrimID).first<{ phone_display: string; phone_normalized: string; verified_at: string }>();
   return {
     ok: true,
     iumrahID: formatIumrahID(auth.pilgrimID),
     currentSessionID: auth.sessionID,
     currentDeviceIsPrimary: auth.isPrimary,
     primaryDeviceProtected: Boolean(primary),
+    loginPhone: accountPhone
+      ? { phone: accountPhone.phone_display || accountPhone.phone_normalized, verifiedAt: accountPhone.verified_at }
+      : null,
     loginEmail: accountEmail
       ? { email: accountEmail.email_display, verifiedAt: accountEmail.verified_at }
       : null,
@@ -582,6 +589,98 @@ async function audit(
     `audit-${crypto.randomUUID()}`, pilgrimID, eventType, actorSessionID,
     targetSessionID, new Date().toISOString(),
   ).run();
+}
+
+const SECURITY_PROOF_TTL_MS = 10 * 60_000;
+
+type SecurityProofPurpose = "contact_change";
+
+async function promoteCurrentDevice(db: D1Like, auth: DeviceAuth, eventType: string) {
+  const existing = await db.prepare(
+    `SELECT id FROM iumrah_client_devices
+     WHERE pilgrim_id=?1 AND is_primary=1 AND revoked_at IS NULL LIMIT 1`,
+  ).bind(auth.pilgrimID).first<{ id: string }>();
+
+  await db.prepare(
+    `UPDATE iumrah_client_devices
+     SET is_primary=CASE WHEN id=?1 THEN 1 ELSE 0 END
+     WHERE pilgrim_id=?2 AND revoked_at IS NULL`,
+  ).bind(auth.deviceID, auth.pilgrimID).run();
+
+  await audit(
+    db,
+    auth.pilgrimID,
+    existing && existing.id !== auth.deviceID ? `${eventType}_transferred` : eventType,
+    auth.sessionID,
+    auth.sessionID,
+  );
+  return { ...auth, isPrimary: true };
+}
+
+async function createSecurityProof(
+  db: D1Like,
+  auth: DeviceAuth,
+  purpose: SecurityProofPurpose,
+) {
+  const token = randomToken(32);
+  const proofHash = await sha256Hex(token);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + SECURITY_PROOF_TTL_MS).toISOString();
+  const retentionCutoff = new Date(now.getTime() - 24 * 60 * 60_000).toISOString();
+
+  // Security proofs are deliberately ephemeral. Keep the table bounded without
+  // retaining sensitive re-authentication artifacts longer than needed.
+  await db.prepare(
+    `DELETE FROM iumrah_client_security_proofs
+     WHERE expires_at<=?1 OR (consumed_at IS NOT NULL AND consumed_at<?2)`,
+  ).bind(now.toISOString(), retentionCutoff).run();
+
+  // Keep one active proof per session/purpose. Re-authentication invalidates any
+  // older proof so a copied token cannot remain useful in parallel.
+  await db.prepare(
+    `UPDATE iumrah_client_security_proofs SET consumed_at=?1
+     WHERE pilgrim_id=?2 AND session_id=?3 AND purpose=?4 AND consumed_at IS NULL`,
+  ).bind(now.toISOString(), auth.pilgrimID, auth.sessionID, purpose).run();
+
+  await db.prepare(
+    `INSERT INTO iumrah_client_security_proofs(
+       id,proof_hash,pilgrim_id,session_id,purpose,created_at,expires_at,consumed_at
+     ) VALUES(?1,?2,?3,?4,?5,?6,?7,NULL)`,
+  ).bind(
+    `proof-${crypto.randomUUID()}`, proofHash, auth.pilgrimID, auth.sessionID,
+    purpose, now.toISOString(), expiresAt,
+  ).run();
+
+  return { token, expiresAt };
+}
+
+async function requireSecurityProof(
+  request: Request,
+  db: D1Like,
+  auth: DeviceAuth,
+  purpose: SecurityProofPurpose,
+  consume = false,
+) {
+  const raw = cleanText(request.headers.get("x-iumrah-security-proof"), 512);
+  if (!raw) throw new RouteError("SECURITY_REAUTH_REQUIRED", 403);
+  const proofHash = await sha256Hex(raw);
+  const now = new Date().toISOString();
+  const proof = await db.prepare(
+    `SELECT id FROM iumrah_client_security_proofs
+     WHERE proof_hash=?1 AND pilgrim_id=?2 AND session_id=?3 AND purpose=?4
+       AND consumed_at IS NULL AND expires_at>?5 LIMIT 1`,
+  ).bind(proofHash, auth.pilgrimID, auth.sessionID, purpose, now).first<{ id: string }>();
+  if (!proof) throw new RouteError("SECURITY_REAUTH_REQUIRED", 403);
+
+  if (consume) {
+    const consumed = await db.prepare(
+      `UPDATE iumrah_client_security_proofs SET consumed_at=?1
+       WHERE id=?2 AND consumed_at IS NULL`,
+    ).bind(now, proof.id).run();
+    const changes = Number(consumed.meta?.changes ?? 0);
+    if (changes < 1) throw new RouteError("SECURITY_REAUTH_REQUIRED", 403);
+  }
+  return proof;
 }
 
 async function createAccountSession(db: D1Like, pilgrimID: number) {
@@ -2026,19 +2125,66 @@ async function claimPrimary(request: Request, db: D1Like) {
   const auth = await requireDevice(request, db);
   const payload = await request.json().catch(() => null) as { password?: unknown } | null;
   await verifyAccountPassword(db, auth.pilgrimID, String(payload?.password ?? ""));
-  const existing = await db.prepare(
-    `SELECT id FROM iumrah_client_devices
-     WHERE pilgrim_id=?1 AND is_primary=1 AND revoked_at IS NULL LIMIT 1`,
-  ).bind(auth.pilgrimID).first<{ id: string }>();
-  if (existing && existing.id !== auth.deviceID) {
-    throw new RouteError("PRIMARY_DEVICE_ALREADY_PROTECTED", 409);
-  }
-  await db.prepare(
-    `UPDATE iumrah_client_devices
-     SET is_primary=CASE WHEN id=?1 THEN 1 ELSE 0 END WHERE pilgrim_id=?2`,
-  ).bind(auth.deviceID, auth.pilgrimID).run();
-  await audit(db, auth.pilgrimID, "primary_device_claimed", auth.sessionID, auth.sessionID);
-  return json(await securityOverview(db, { ...auth, isPrimary: true }));
+  const promoted = await promoteCurrentDevice(db, auth, "primary_device_claimed");
+  return json(await securityOverview(db, promoted));
+}
+
+async function authorizeSensitiveActionWithPassword(request: Request, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  const payload = await request.json().catch(() => null) as { password?: unknown } | null;
+  await verifyAccountPassword(db, auth.pilgrimID, String(payload?.password ?? ""));
+  return sensitiveAuthorizationResponse(db, auth, "password");
+}
+
+
+async function sensitiveAuthorizationResponse(db: D1Like, auth: DeviceAuth, method: string) {
+  const promoted = await promoteCurrentDevice(db, auth, `sensitive_reauth_${method}`);
+  const proof = await createSecurityProof(db, promoted, "contact_change");
+  await audit(db, auth.pilgrimID, `contact_change_authorized_${method}`, auth.sessionID, null);
+  return json({
+    ok: true,
+    securityProof: proof.token,
+    proofExpiresAt: proof.expiresAt,
+    overview: await securityOverview(db, promoted),
+  });
+}
+
+async function authorizeSensitiveActionWithApple(request: Request, env: Env, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  const payload = await request.json().catch(() => null) as {
+    identityToken?: unknown;
+    nonce?: unknown;
+  } | null;
+  const apple = await verifyAppleIdentity(
+    payload?.identityToken,
+    payload?.nonce,
+    [env.APPLE_BUNDLE_ID ?? "com.iumrah.app", env.APPLE_WEB_CLIENT_ID ?? ""],
+  );
+  await consumeAppleAssertion(db, apple.token);
+  const linked = await db.prepare(
+    `SELECT pilgrim_id FROM iumrah_client_apple_links
+     WHERE apple_subject=?1 AND pilgrim_id=?2 LIMIT 1`,
+  ).bind(apple.subject, auth.pilgrimID).first<{ pilgrim_id: number }>();
+  if (!linked) throw new RouteError("APPLE_REAUTH_MISMATCH", 403);
+  return sensitiveAuthorizationResponse(db, auth, "apple");
+}
+
+async function authorizeSensitiveActionWithGoogle(request: Request, env: Env, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  const payload = await request.json().catch(() => null) as {
+    identityToken?: unknown;
+    nonce?: unknown;
+  } | null;
+  const clientID = cleanText(env.GOOGLE_SERVER_CLIENT_ID, 512);
+  if (!clientID) throw new RouteError("GOOGLE_AUTH_NOT_CONFIGURED", 503);
+  const google = await verifyGoogleIdentity(payload?.identityToken, payload?.nonce, clientID);
+  await consumeGoogleAssertion(db, google.token);
+  const linked = await db.prepare(
+    `SELECT pilgrim_id FROM iumrah_client_google_links
+     WHERE google_subject=?1 AND pilgrim_id=?2 LIMIT 1`,
+  ).bind(google.subject, auth.pilgrimID).first<{ pilgrim_id: number }>();
+  if (!linked) throw new RouteError("GOOGLE_REAUTH_MISMATCH", 403);
+  return sensitiveAuthorizationResponse(db, auth, "google");
 }
 
 async function terminateSession(request: Request, db: D1Like, sessionID: string) {
@@ -2062,9 +2208,95 @@ async function terminateSession(request: Request, db: D1Like, sessionID: string)
   return json({ ok: true, signedOut: self });
 }
 
+function maskedPhone(value: string) {
+  const digits = normalizePhone(value);
+  if (digits.length <= 6) return digits;
+  return `${digits.slice(0, 4)} •••• ${digits.slice(-4)}`;
+}
+
+function maskedEmail(value: string) {
+  const normalized = normalizeEmail(value);
+  const at = normalized.indexOf("@");
+  if (at <= 0) return normalized;
+  const local = normalized.slice(0, at);
+  const domain = normalized.slice(at + 1);
+  const visible = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+  return `${visible}•••@${domain}`;
+}
+
+async function startPrimaryRecoveryChallenge(request: Request, env: Env, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  const payload = await request.json().catch(() => null) as { method?: unknown; locale?: unknown } | null;
+  const method = cleanText(payload?.method, 16).toLowerCase();
+  const locale = cleanText(payload?.locale, 24);
+
+  if (method === "phone") {
+    const phone = await db.prepare(
+      `SELECT phone_display,phone_normalized FROM iumrah_client_account_phones
+       WHERE pilgrim_id=?1 AND verified_at IS NOT NULL LIMIT 1`,
+    ).bind(auth.pilgrimID).first<{ phone_display: string; phone_normalized: string }>();
+    if (!phone) throw new RouteError("RECOVERY_METHOD_UNAVAILABLE", 404);
+    const destination = phone.phone_display || phone.phone_normalized;
+    const challenge = await createSMSChallenge(
+      db, env, request, "verify_phone", auth.pilgrimID, destination,
+    );
+    await audit(db, auth.pilgrimID, "primary_recovery_phone_started", auth.sessionID, null);
+    return json({
+      ok: true, method: "phone", challengeID: challenge.id,
+      expiresAt: challenge.expiresAt, maskedDestination: maskedPhone(destination),
+    });
+  }
+
+  if (method === "email") {
+    const email = await db.prepare(
+      `SELECT email_display FROM iumrah_client_account_emails
+       WHERE pilgrim_id=?1 AND verified_at IS NOT NULL LIMIT 1`,
+    ).bind(auth.pilgrimID).first<{ email_display: string }>();
+    if (!email) throw new RouteError("RECOVERY_METHOD_UNAVAILABLE", 404);
+    const challenge = await createEmailChallenge(
+      db, env, request, "verify_email", auth.pilgrimID, email.email_display, locale,
+    );
+    await audit(db, auth.pilgrimID, "primary_recovery_email_started", auth.sessionID, null);
+    return json({
+      ok: true, method: "email", challengeID: challenge.id,
+      expiresAt: challenge.expiresAt, maskedDestination: maskedEmail(email.email_display),
+    });
+  }
+
+  throw new RouteError("RECOVERY_METHOD_INVALID", 400);
+}
+
+async function confirmPrimaryRecoveryChallenge(request: Request, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  const payload = await request.json().catch(() => null) as {
+    method?: unknown; challengeID?: unknown; code?: unknown;
+  } | null;
+  const method = cleanText(payload?.method, 16).toLowerCase();
+  const challengeID = cleanText(payload?.challengeID, 120);
+  const code = cleanText(payload?.code, 12);
+
+  if (method === "phone") {
+    await verifySMSChallenge(db, challengeID, "verify_phone", code, auth.pilgrimID);
+  } else if (method === "email") {
+    await verifyEmailChallenge(db, challengeID, "verify_email", code, auth.pilgrimID);
+  } else {
+    throw new RouteError("RECOVERY_METHOD_INVALID", 400);
+  }
+
+  const promoted = await promoteCurrentDevice(db, auth, `primary_recovery_${method}_completed`);
+  const proof = await createSecurityProof(db, promoted, "contact_change");
+  await audit(db, auth.pilgrimID, `contact_change_authorized_${method}`, auth.sessionID, null);
+  return json({
+    ok: true,
+    securityProof: proof.token,
+    proofExpiresAt: proof.expiresAt,
+    overview: await securityOverview(db, promoted),
+  });
+}
+
 async function startAccountPhoneVerification(request: Request, env: Env, db: D1Like) {
   const auth = await requireDevice(request, db);
-  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  await requireSecurityProof(request, db, auth, "contact_change");
   const payload = await request.json().catch(() => null) as { phone?: unknown; locale?: unknown } | null;
   const phone = normalizePhone(payload?.phone);
   if (!phone.startsWith("+998")) throw new RouteError("SMS_COUNTRY_UNSUPPORTED", 400);
@@ -2089,7 +2321,7 @@ async function startAccountPhoneVerification(request: Request, env: Env, db: D1L
 
 async function confirmAccountPhoneVerification(request: Request, db: D1Like) {
   const auth = await requireDevice(request, db);
-  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  await requireSecurityProof(request, db, auth, "contact_change");
   const payload = await request.json().catch(() => null) as { challengeID?: unknown; code?: unknown } | null;
   const challenge = await verifySMSChallenge(
     db,
@@ -2099,6 +2331,7 @@ async function confirmAccountPhoneVerification(request: Request, db: D1Like) {
     auth.pilgrimID,
   );
   await ensurePhoneAvailable(db, challenge.phone_normalized, auth.pilgrimID);
+  await requireSecurityProof(request, db, auth, "contact_change", true);
   const verifiedAt = await linkVerifiedPhone(
     db,
     auth.pilgrimID,
@@ -2111,7 +2344,7 @@ async function confirmAccountPhoneVerification(request: Request, db: D1Like) {
 
 async function startEmailVerification(request: Request, env: Env, db: D1Like) {
   const auth = await requireDevice(request, db);
-  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  await requireSecurityProof(request, db, auth, "contact_change");
   const payload = await request.json().catch(() => null) as { email?: unknown; locale?: unknown } | null;
   const email = cleanText(payload?.email, 254);
   const normalized = normalizeEmail(email);
@@ -2125,7 +2358,7 @@ async function startEmailVerification(request: Request, env: Env, db: D1Like) {
 
 async function confirmEmailVerification(request: Request, db: D1Like) {
   const auth = await requireDevice(request, db);
-  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  await requireSecurityProof(request, db, auth, "contact_change");
   const payload = await request.json().catch(() => null) as { challengeID?: unknown; code?: unknown } | null;
   const challenge = await verifyEmailChallenge(
     db,
@@ -2134,9 +2367,58 @@ async function confirmEmailVerification(request: Request, db: D1Like) {
     cleanText(payload?.code, 12),
     auth.pilgrimID,
   );
+  await requireSecurityProof(request, db, auth, "contact_change", true);
   await linkVerifiedEmail(db, auth.pilgrimID, challenge.email_display, challenge.email_normalized);
   await audit(db, auth.pilgrimID, "login_email_verified", auth.sessionID, null);
   return json({ ok: true, email: challenge.email_display, verifiedAt: new Date().toISOString() });
+}
+
+async function changeAccountPassword(request: Request, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  const payload = await request.json().catch(() => null) as {
+    currentPassword?: unknown; newPassword?: unknown;
+  } | null;
+  const currentPassword = String(payload?.currentPassword ?? "");
+  const newPassword = String(payload?.newPassword ?? "");
+  if (!validPassword(newPassword)) throw new RouteError("PASSWORD_TOO_WEAK", 400);
+  await verifyAccountPassword(db, auth.pilgrimID, currentPassword);
+
+  const salt = randomToken(18);
+  const passwordHash = await passwordDigest(newPassword, salt, PASSWORD_ITERATIONS);
+  const now = new Date().toISOString();
+  await db.prepare(
+    `UPDATE iumrah_accounts
+     SET password_salt=?1,password_hash=?2,password_iterations=?3,password_updated_at=?4,
+         failed_attempts=0,locked_until=NULL
+     WHERE pilgrim_id=?5`,
+  ).bind(salt, passwordHash, PASSWORD_ITERATIONS, now, auth.pilgrimID).run();
+
+  // Password changes are a high-risk event: keep the current session, revoke
+  // every other session, and let the user see a clean device list immediately.
+  await db.prepare(
+    `UPDATE iumrah_account_sessions SET revoked_at=?1
+     WHERE pilgrim_id=?2 AND token_hash<>?3 AND revoked_at IS NULL`,
+  ).bind(now, auth.pilgrimID, auth.tokenHash).run();
+  await audit(db, auth.pilgrimID, "password_changed", auth.sessionID, auth.sessionID);
+  return json({ ok: true, sessionsRevoked: true });
+}
+
+async function unlinkApple(request: Request, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  await db.prepare("DELETE FROM iumrah_client_apple_links WHERE pilgrim_id=?1")
+    .bind(auth.pilgrimID).run();
+  await audit(db, auth.pilgrimID, "apple_unlinked", auth.sessionID, null);
+  return json({ ok: true });
+}
+
+async function unlinkGoogle(request: Request, db: D1Like) {
+  const auth = await requireDevice(request, db);
+  if (!auth.isPrimary) throw new RouteError("PRIMARY_DEVICE_REQUIRED", 403);
+  await db.prepare("DELETE FROM iumrah_client_google_links WHERE pilgrim_id=?1")
+    .bind(auth.pilgrimID).run();
+  await audit(db, auth.pilgrimID, "google_unlinked", auth.sessionID, null);
+  return json({ ok: true });
 }
 
 async function startPasswordRecovery(request: Request, env: Env, db: D1Like) {
@@ -2849,6 +3131,21 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     if (request.method === "POST" && url.pathname === "/api/package/client/account/security/claim-primary") {
       return await claimPrimary(request, db);
     }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/security/authorize/password") {
+      return await authorizeSensitiveActionWithPassword(request, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/security/authorize/apple") {
+      return await authorizeSensitiveActionWithApple(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/security/authorize/google") {
+      return await authorizeSensitiveActionWithGoogle(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/security/recovery/start") {
+      return await startPrimaryRecoveryChallenge(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/security/recovery/confirm") {
+      return await confirmPrimaryRecoveryChallenge(request, db);
+    }
     const sessionMatch = url.pathname.match(/^\/api\/package\/client\/account\/security\/sessions\/([^/]+)$/);
     if (request.method === "DELETE" && sessionMatch) {
       return await terminateSession(request, db, decodeURIComponent(sessionMatch[1]));
@@ -2856,11 +3153,17 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     if (request.method === "POST" && url.pathname === "/api/package/client/account/apple/link") {
       return await linkApple(request, env, db);
     }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/apple/unlink") {
+      return await unlinkApple(request, db);
+    }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/apple/sign-in") {
       return await signInWithApple(request, env, db);
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/google/link") {
       return await linkGoogle(request, env, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/google/unlink") {
+      return await unlinkGoogle(request, db);
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/google/sign-in") {
       return await signInWithGoogle(request, env, db);
@@ -2876,6 +3179,9 @@ export async function handleClientAccountSecurity(request: Request, env: Env, ur
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/email/confirm") {
       return await confirmEmailVerification(request, db);
+    }
+    if (request.method === "POST" && url.pathname === "/api/package/client/account/security/password/change") {
+      return await changeAccountPassword(request, db);
     }
     if (request.method === "POST" && url.pathname === "/api/package/client/account/password/recovery/start") {
       return await startPasswordRecovery(request, env, db);

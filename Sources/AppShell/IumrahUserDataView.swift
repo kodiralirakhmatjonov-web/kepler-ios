@@ -1,12 +1,5 @@
 import SwiftUI
 
-private enum IumrahLinkedContactKind: String, Identifiable {
-    case phone
-    case email
-
-    var id: String { rawValue }
-}
-
 /// Canonical owner profile used by Account and reused by future bookings.
 ///
 /// The screen intentionally keeps the visual language of iumrah Security while
@@ -35,7 +28,7 @@ struct IumrahUserDataView: View {
     @State private var nationality = ""
     @State private var isSaving = false
     @State private var saveMessage: String?
-    @State private var contactChangeKind: IumrahLinkedContactKind?
+    @State private var contactChangeKind: IumrahSecurityContactKind?
     @FocusState private var focusedField: Field?
     @Namespace private var segmentNamespace
 
@@ -98,7 +91,7 @@ struct IumrahUserDataView: View {
             }
         }
         .sheet(item: $contactChangeKind) { kind in
-            IumrahLinkedContactChangeView(
+            IumrahAccountContactSecurityView(
                 kind: kind,
                 currentValue: kind == .phone ? phone : email,
                 onCompleted: { value in
@@ -447,14 +440,14 @@ struct IumrahUserDataView: View {
             sectionHeader(
                 icon: "checkmark.shield.fill",
                 title: tr("Linked account contacts", "Привязанные данные", "Bog‘langan akkaunt ma’lumotlari", "Боғланган аккаунт маълумотлари"),
-                subtitle: tr("Protected by one-time verification", "Защищены одноразовым подтверждением", "Bir martalik tasdiqlash bilan himoyalangan", "Бир марталик тасдиқлаш билан ҳимояланган")
+                subtitle: tr("Owner verification + new contact verification", "Подтверждение владельца + нового контакта", "Egani va yangi kontaktni tasdiqlash", "Эгани ва янги контактни тасдиқлаш")
             )
 
             Text(tr(
-                "Your phone and email are locked to the account. To replace either one, iumrah verifies the new contact with a one-time code first.",
-                "Номер телефона и почта закреплены за аккаунтом. Чтобы заменить один из них, iumrah сначала подтверждает новый контакт одноразовым кодом.",
-                "Telefon va email akkauntga biriktirilgan. Ularni almashtirishdan oldin iumrah yangi kontaktni bir martalik kod bilan tasdiqlaydi.",
-                "Телефон ва email аккаунтга бириктирилган. Уларни алмаштиришдан олдин iumrah янги контактни бир марталик код билан тасдиқлайди."
+                "Your phone and email are protected account credentials. iumrah first verifies the current owner, then verifies the new phone or email before replacing anything.",
+                "Номер телефона и почта — защищённые данные аккаунта. iumrah сначала подтверждает текущего владельца, затем новый номер или почту, и только после этого заменяет контакт.",
+                "Telefon va email himoyalangan akkaunt ma’lumotlaridir. iumrah avval joriy egani, keyin yangi telefon yoki emailni tasdiqlaydi va shundan keyingina kontaktni almashtiradi.",
+                "Телефон ва email ҳимояланган аккаунт маълумотларидир. iumrah аввал жорий эгани, кейин янги телефон ёки emailни тасдиқлайди ва шундан кейингина контактни алмаштиради."
             ))
             .font(.footnote)
             .foregroundStyle(.secondary)
@@ -483,7 +476,7 @@ struct IumrahUserDataView: View {
     }
 
     private func linkedContactRow(
-        kind: IumrahLinkedContactKind,
+        kind: IumrahSecurityContactKind,
         icon: String,
         title: String,
         value: String
@@ -524,7 +517,7 @@ struct IumrahUserDataView: View {
                             : "checkmark.seal.fill"
                     )
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.orange : Color.green)
+                    .foregroundStyle(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.orange : Color.iumrahCareLight)
                 }
 
                 Spacer(minLength: 8)
@@ -891,415 +884,6 @@ struct IumrahUserDataView: View {
         let parts = iso.split(separator: "-")
         guard parts.count == 3 else { return iso }
         return "\(parts[2]).\(parts[1]).\(parts[0])"
-    }
-
-    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
-        switch settings.language {
-        case .english: return en
-        case .russian: return ru
-        case .uzbek: return uz
-        case .uzbekCyrillic: return cyrl
-        }
-    }
-}
-
-private struct IumrahLinkedContactChangeView: View {
-    @EnvironmentObject private var account: IumrahAccountStore
-    @EnvironmentObject private var settings: AppSettingsStore
-    @Environment(\.dismiss) private var dismiss
-
-    let kind: IumrahLinkedContactKind
-    let currentValue: String
-    let onCompleted: (String) -> Void
-
-    @State private var newValue = ""
-    @State private var challengeID = ""
-    @State private var requestedValue = ""
-    @State private var code = ""
-    @State private var isWorking = false
-    @State private var errorMessage: String?
-    @FocusState private var fieldFocused: Bool
-
-    var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 18) {
-                    securityHeader
-                    currentContactCard
-                    changeCard
-
-                    if let errorMessage {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 4)
-                    }
-
-                    primaryButton
-                }
-                .padding(.horizontal, IumrahDesign.pagePadding)
-                .padding(.top, 10)
-                .padding(.bottom, 36)
-            }
-            .background(Color.iumrahPageBackground.ignoresSafeArea())
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(tr("Cancel", "Отмена", "Bekor qilish", "Бекор қилиш")) {
-                        dismiss()
-                    }
-                }
-            }
-        }
-        .presentationDragIndicator(.visible)
-        .onAppear {
-            if newValue.isEmpty {
-                newValue = kind == .phone ? formatPhone(currentValue) : currentValue
-            }
-        }
-        .onChange(of: newValue) { _, _ in
-            errorMessage = nil
-        }
-        .onChange(of: code) { _, _ in
-            errorMessage = nil
-        }
-    }
-
-    private var securityHeader: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color.black)
-                    .frame(width: 74, height: 74)
-                Image(systemName: kind == .phone ? "phone.badge.checkmark.fill" : "envelope.badge.fill")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .shadow(color: .black.opacity(0.16), radius: 16, y: 7)
-
-            VStack(spacing: 5) {
-                Text(challengeID.isEmpty ? title : codeTitle)
-                    .font(.system(size: 25, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.center)
-
-                Text(challengeID.isEmpty ? introText : codeBody)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-    }
-
-    private var currentContactCard: some View {
-        HStack(spacing: 13) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.primary.opacity(0.055))
-                Image(systemName: kind == .phone ? "phone.fill" : "envelope.fill")
-                    .font(.system(size: 17, weight: .semibold))
-            }
-            .frame(width: 46, height: 46)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(tr("Currently linked", "Сейчас привязано", "Hozir biriktirilgan", "Ҳозир бириктирилган"))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(displayCurrentValue)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-            }
-
-            Spacer(minLength: 8)
-
-            Label(
-                currentValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? tr("Not linked", "Не привязано", "Biriktirilmagan", "Бириктирилмаган")
-                    : tr("Verified", "Подтверждено", "Tasdiqlangan", "Тасдиқланган"),
-                systemImage: currentValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? "exclamationmark.circle.fill"
-                    : "checkmark.seal.fill"
-            )
-            .font(.caption2.weight(.bold))
-            .foregroundStyle(currentValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.orange : Color.green)
-        }
-        .padding(16)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
-        }
-    }
-
-    private var changeCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(challengeID.isEmpty ? newContactTitle : tr("Confirmation code", "Код подтверждения", "Tasdiqlash kodi", "Тасдиқлаш коди"))
-                .font(.headline)
-
-            if challengeID.isEmpty {
-                HStack(spacing: 11) {
-                    Image(systemName: kind == .phone ? "phone.fill" : "envelope.fill")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22)
-
-                    TextField(inputPlaceholder, text: $newValue)
-                        .keyboardType(kind == .phone ? .phonePad : .emailAddress)
-                        .textContentType(kind == .phone ? .telephoneNumber : .emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .focused($fieldFocused)
-                        .onChange(of: newValue) { _, raw in
-                            guard kind == .phone else { return }
-                            let formatted = formatPhone(raw)
-                            if formatted != raw { newValue = formatted }
-                        }
-                }
-                .padding(.horizontal, 15)
-                .frame(height: 56)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                Text(kind == .phone
-                     ? tr(
-                        "The new Uzbekistan number will receive a 6-digit SMS code. The linked number changes only after the code is confirmed.",
-                        "На новый номер Узбекистана придёт 6-значный SMS-код. Привязанный номер изменится только после подтверждения кода.",
-                        "Yangi O‘zbekiston raqamiga 6 xonali SMS-kod keladi. Biriktirilgan raqam faqat kod tasdiqlangandan keyin o‘zgaradi.",
-                        "Янги Ўзбекистон рақамига 6 хонали SMS-код келади. Бириктирилган рақам фақат код тасдиқлангандан кейин ўзгаради."
-                     )
-                     : tr(
-                        "A 6-digit code will be sent to the new email. The linked email changes only after the code is confirmed.",
-                        "На новую почту придёт 6-значный код. Привязанная почта изменится только после подтверждения кода.",
-                        "Yangi emailga 6 xonali kod yuboriladi. Biriktirilgan email faqat kod tasdiqlangandan keyin o‘zgaradi.",
-                        "Янги emailга 6 хонали код юборилади. Бириктирилган email фақат код тасдиқлангандан кейин ўзгаради."
-                     ))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            } else {
-                HStack(spacing: 11) {
-                    Image(systemName: "number.square.fill")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22)
-                    TextField("123456", text: $code)
-                        .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
-                        .focused($fieldFocused)
-                        .onChange(of: code) { _, raw in
-                            let digits = String(raw.filter(\.isNumber).prefix(6))
-                            if digits != raw { code = digits }
-                        }
-                }
-                .padding(.horizontal, 15)
-                .frame(height: 56)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                Button {
-                    challengeID = ""
-                    code = ""
-                    errorMessage = nil
-                    fieldFocused = true
-                } label: {
-                    Text(tr("Use another contact", "Указать другой контакт", "Boshqa kontaktni kiritish", "Бошқа контактни киритиш"))
-                        .font(.caption.weight(.bold))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .iumrahCard()
-    }
-
-    private var primaryButton: some View {
-        Button {
-            Task {
-                if challengeID.isEmpty {
-                    await requestCode()
-                } else {
-                    await confirmCode()
-                }
-            }
-        } label: {
-            HStack(spacing: 10) {
-                if isWorking { ProgressView().tint(.white) }
-                Image(systemName: challengeID.isEmpty ? "lock.shield.fill" : "checkmark.shield.fill")
-                Text(challengeID.isEmpty
-                     ? tr("Send verification code", "Отправить код подтверждения", "Tasdiqlash kodini yuborish", "Тасдиқлаш кодини юбориш")
-                     : tr("Confirm change", "Подтвердить изменение", "O‘zgarishni tasdiqlash", "Ўзгаришни тасдиқлаш"))
-                Spacer(minLength: 8)
-                Image(systemName: "arrow.right")
-            }
-        }
-        .buttonStyle(IumrahPrimaryButtonStyle())
-        .disabled(!canContinue || isWorking)
-    }
-
-    @MainActor
-    private func requestCode() async {
-        guard canContinue else { return }
-        isWorking = true
-        errorMessage = nil
-        defer { isWorking = false }
-
-        do {
-            switch kind {
-            case .phone:
-                let normalized = normalizedPhone(newValue)
-                let response = try await account.startPhoneVerification(phone: normalized, locale: localeIdentifier)
-                challengeID = response.challengeID
-                requestedValue = response.phone
-            case .email:
-                let normalized = newValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let response = try await account.startEmailVerification(email: normalized, locale: localeIdentifier)
-                challengeID = response.challengeID
-                requestedValue = normalized
-            }
-            code = ""
-            IumrahHaptics.success()
-            try? await Task.sleep(for: .milliseconds(120))
-            fieldFocused = true
-        } catch {
-            errorMessage = message(for: error)
-            IumrahHaptics.error()
-        }
-    }
-
-    @MainActor
-    private func confirmCode() async {
-        guard code.count == 6 else { return }
-        isWorking = true
-        errorMessage = nil
-        defer { isWorking = false }
-
-        do {
-            let finalValue: String
-            switch kind {
-            case .phone:
-                let response = try await account.confirmPhoneVerification(challengeID: challengeID, code: code)
-                finalValue = response.phone
-            case .email:
-                let response = try await account.confirmEmailVerification(challengeID: challengeID, code: code)
-                finalValue = response.email
-            }
-            onCompleted(finalValue)
-            IumrahHaptics.success()
-            dismiss()
-        } catch {
-            errorMessage = message(for: error)
-            IumrahHaptics.error()
-        }
-    }
-
-    private var canContinue: Bool {
-        if !challengeID.isEmpty { return code.count == 6 }
-        switch kind {
-        case .phone:
-            let value = normalizedPhone(newValue)
-            return value.hasPrefix("+998") && value.filter(\.isNumber).count == 12 && value != normalizedPhone(currentValue)
-        case .email:
-            let value = newValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            return value.contains("@") && value.contains(".") && value != currentValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        }
-    }
-
-    private var title: String {
-        kind == .phone
-            ? tr("Linked phone", "Привязанный номер", "Bog‘langan telefon", "Боғланган телефон")
-            : tr("Linked email", "Привязанная почта", "Bog‘langan email", "Боғланган email")
-    }
-
-    private var codeTitle: String {
-        tr("Confirm the new contact", "Подтвердите новый контакт", "Yangi kontaktni tasdiqlang", "Янги контактни тасдиқланг")
-    }
-
-    private var introText: String {
-        kind == .phone
-            ? tr("Your linked phone cannot be edited directly.", "Привязанный номер нельзя изменить без подтверждения.", "Biriktirilgan telefonni tasdiqlashsiz o‘zgartirib bo‘lmaydi.", "Бириктирилган телефонни тасдиқлашсиз ўзгартириб бўлмайди.")
-            : tr("Your linked email cannot be edited directly.", "Привязанную почту нельзя изменить без подтверждения.", "Biriktirilgan emailni tasdiqlashsiz o‘zgartirib bo‘lmaydi.", "Бириктирилган emailни тасдиқлашсиз ўзгартириб бўлмайди.")
-    }
-
-    private var codeBody: String {
-        let destination = requestedValue.isEmpty ? newValue : requestedValue
-        return tr(
-            "Enter the 6-digit code sent to \(destination).",
-            "Введите 6-значный код, отправленный на \(destination).",
-            "\(destination) manziliga yuborilgan 6 xonali kodni kiriting.",
-            "\(destination) манзилига юборилган 6 хонали кодни киритинг."
-        )
-    }
-
-    private var newContactTitle: String {
-        kind == .phone
-            ? tr("New phone number", "Новый номер телефона", "Yangi telefon raqami", "Янги телефон рақами")
-            : tr("New email", "Новая почта", "Yangi email", "Янги email")
-    }
-
-    private var inputPlaceholder: String {
-        kind == .phone ? "+998 90 123 45 67" : "name@example.com"
-    }
-
-    private var displayCurrentValue: String {
-        let value = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? tr("Not linked", "Не привязано", "Biriktirilmagan", "Бириктирилмаган") : value
-    }
-
-    private var localeIdentifier: String {
-        switch settings.language {
-        case .russian: return "ru-RU"
-        case .english: return "en-US"
-        case .uzbek: return "uz-Latn-UZ"
-        case .uzbekCyrillic: return "uz-Cyrl-UZ"
-        }
-    }
-
-    private func normalizedPhone(_ value: String) -> String {
-        let digits = String(value.filter(\.isNumber).prefix(12))
-        return digits.isEmpty ? "" : "+" + digits
-    }
-
-    private func formatPhone(_ value: String) -> String {
-        normalizedPhone(value)
-    }
-
-    private func message(for error: Error) -> String {
-        let raw: String
-        if case APIError.server(_, let message) = error {
-            raw = message
-        } else if case APIError.status(let status) = error, status == 403 {
-            raw = "PRIMARY_DEVICE_REQUIRED"
-        } else {
-            raw = error.localizedDescription
-        }
-
-        switch raw {
-        case "PRIMARY_DEVICE_REQUIRED":
-            return tr(
-                "For account security, linked contacts can be changed only from your primary device.",
-                "Для безопасности аккаунта привязанные контакты можно менять только с основного устройства.",
-                "Akkaunt xavfsizligi uchun biriktirilgan kontaktlarni faqat asosiy qurilmadan o‘zgartirish mumkin.",
-                "Аккаунт хавфсизлиги учун бириктирилган контактларни фақат асосий қурилмадан ўзгартириш мумкин."
-            )
-        case "PHONE_ALREADY_CONNECTED":
-            return tr("This number is already linked to another iumrah account.", "Этот номер уже привязан к другому аккаунту iumrah.", "Bu raqam boshqa iumrah akkauntiga biriktirilgan.", "Бу рақам бошқа iumrah аккаунтига бириктирилган.")
-        case "EMAIL_ALREADY_CONNECTED":
-            return tr("This email is already linked to another iumrah account.", "Эта почта уже привязана к другому аккаунту iumrah.", "Bu email boshqa iumrah akkauntiga biriktirilgan.", "Бу email бошқа iumrah аккаунтига бириктирилган.")
-        case "PHONE_INVALID", "SMS_COUNTRY_UNSUPPORTED":
-            return tr("Enter a valid Uzbekistan phone number.", "Введите корректный номер Узбекистана.", "To‘g‘ri O‘zbekiston telefon raqamini kiriting.", "Тўғри Ўзбекистон телефон рақамини киритинг.")
-        case "EMAIL_INVALID":
-            return tr("Enter a valid email address.", "Введите корректный адрес электронной почты.", "To‘g‘ri email manzilini kiriting.", "Тўғри email манзилини киритинг.")
-        case "VERIFICATION_CODE_INVALID":
-            return tr("The code is incorrect or has expired.", "Код неверный или срок его действия истёк.", "Kod noto‘g‘ri yoki muddati tugagan.", "Код нотўғри ёки муддати тугаган.")
-        case "SMS_RATE_LIMITED", "EMAIL_RATE_LIMITED":
-            return tr("Too many attempts. Try again later.", "Слишком много попыток. Попробуйте позже.", "Urinishlar juda ko‘p. Keyinroq qayta urinib ko‘ring.", "Уринишлар жуда кўп. Кейинроқ қайта уриниб кўринг.")
-        case "SMS_DELIVERY_NOT_CONFIGURED", "SMS_DELIVERY_UNAVAILABLE", "DEVSMS_OTP_SEND_FAILED":
-            return tr("SMS could not be sent right now. Try again later.", "Сейчас не удалось отправить SMS. Попробуйте позже.", "Hozir SMS yuborib bo‘lmadi. Keyinroq urinib ko‘ring.", "Ҳозир SMS юбориб бўлмади. Кейинроқ уриниб кўринг.")
-        case "EMAIL_DELIVERY_NOT_CONFIGURED", "EMAIL_DELIVERY_UNAVAILABLE":
-            return tr("The verification email could not be sent right now.", "Сейчас не удалось отправить письмо с кодом.", "Hozir tasdiqlash xatini yuborib bo‘lmadi.", "Ҳозир тасдиқлаш хатини юбориб бўлмади.")
-        default:
-            return tr("Could not complete verification. Please try again.", "Не удалось выполнить подтверждение. Попробуйте ещё раз.", "Tasdiqlashni yakunlab bo‘lmadi. Qayta urinib ko‘ring.", "Тасдиқлашни якунлаб бўлмади. Қайта уриниб кўринг.")
-        }
     }
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {

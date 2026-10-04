@@ -1,0 +1,27 @@
+iumrah Account Security — production update
+
+Client:
+- Unified Login & Security page for phone, email, password, Apple, Google and active sessions.
+- Linked phone/email changes now use two-step owner re-authentication + new-contact verification.
+- Owner can re-authenticate with password, existing SMS/email, connected Apple ID or Google account.
+- A stale protected/primary device no longer creates a dead end: verified ownership can transfer protection to the current device.
+- Dedicated password-change flow revokes other sessions while preserving the current session.
+- Dedicated account-recovery guidance when no trusted method is accessible.
+- Existing account profile fields can no longer silently replace linked security contacts.
+
+Server:
+- Short-lived, hashed, session-bound, single-use security proofs for contact replacement.
+- New contact endpoints require the server-issued owner proof; UI checks alone are not trusted.
+- Apple/Google sensitive re-authentication verifies the already-linked provider subject.
+- Recovery OTP can transfer protected-device authority after proving ownership.
+- Security audit events cover recovery, provider re-authentication, password changes and contact changes.
+
+Deployment order:
+1. Apply this beta update ZIP.
+2. Run Deploy Package Engine (applies the updated 0006 migration and backend routes).
+3. Run TestFlight deployment.
+
+Validation performed:
+- Backend TypeScript: npx tsc --noEmit — passed.
+- Security contract tests: 22/22 — passed.
+- All changed Swift files: swiftc -parse — passed.

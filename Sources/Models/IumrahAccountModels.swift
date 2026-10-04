@@ -347,6 +347,11 @@ struct IumrahGoogleConnectionStatus: Decodable, Hashable {
     let linkedAt: String?
 }
 
+struct IumrahVerifiedLoginPhone: Decodable, Hashable {
+    let phone: String
+    let verifiedAt: String
+}
+
 struct IumrahVerifiedLoginEmail: Decodable, Hashable {
     let email: String
     let verifiedAt: String
@@ -358,6 +363,7 @@ struct IumrahSecurityOverview: Decodable, Hashable {
     let currentSessionID: String
     let currentDeviceIsPrimary: Bool
     let primaryDeviceProtected: Bool
+    let loginPhone: IumrahVerifiedLoginPhone?
     let loginEmail: IumrahVerifiedLoginEmail?
     let apple: IumrahAppleConnectionStatus
     let google: IumrahGoogleConnectionStatus?
@@ -366,6 +372,33 @@ struct IumrahSecurityOverview: Decodable, Hashable {
 
 struct IumrahClaimPrimaryRequest: Encodable {
     let password: String
+}
+
+struct IumrahPrimaryRecoveryStartRequest: Encodable {
+    let method: String
+    let locale: String
+}
+
+struct IumrahPrimaryRecoveryStartResponse: Decodable {
+    let ok: Bool
+    let method: String
+    let challengeID: String
+    let expiresAt: String?
+    let maskedDestination: String
+}
+
+struct IumrahPrimaryRecoveryConfirmRequest: Encodable {
+    let method: String
+    let challengeID: String
+    let code: String
+}
+
+
+struct IumrahSensitiveAuthorizationResponse: Decodable {
+    let ok: Bool
+    let securityProof: String
+    let proofExpiresAt: String
+    let overview: IumrahSecurityOverview
 }
 
 struct IumrahAppleRequest: Encodable {
@@ -422,6 +455,16 @@ struct IumrahEmailChallengeConfirmResponse: Decodable {
     let ok: Bool
     let email: String
     let verifiedAt: String
+}
+
+struct IumrahPasswordChangeRequest: Encodable {
+    let currentPassword: String
+    let newPassword: String
+}
+
+struct IumrahPasswordChangeResponse: Decodable {
+    let ok: Bool
+    let sessionsRevoked: Bool
 }
 
 struct IumrahPasswordRecoveryConfirmRequest: Encodable {

@@ -359,6 +359,48 @@ struct IumrahAccountService {
         )
     }
 
+
+    func authorizeSensitiveAction(password: String, token: String) async throws -> IumrahSensitiveAuthorizationResponse {
+        try await api.post(
+            "/api/package/client/account/security/authorize/password",
+            body: IumrahClaimPrimaryRequest(password: password),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+
+    func authorizeSensitiveActionWithApple(_ credential: IumrahAppleCredential, token: String) async throws -> IumrahSensitiveAuthorizationResponse {
+        try await api.post(
+            "/api/package/client/account/security/authorize/apple",
+            body: IumrahAppleRequest(identityToken: credential.identityToken, nonce: credential.nonce),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func authorizeSensitiveActionWithGoogle(_ credential: IumrahGoogleCredential, token: String) async throws -> IumrahSensitiveAuthorizationResponse {
+        try await api.post(
+            "/api/package/client/account/security/authorize/google",
+            body: IumrahGoogleRequest(identityToken: credential.identityToken, nonce: credential.nonce),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func startPrimaryRecovery(method: String, locale: String, token: String) async throws -> IumrahPrimaryRecoveryStartResponse {
+        try await api.post(
+            "/api/package/client/account/security/recovery/start",
+            body: IumrahPrimaryRecoveryStartRequest(method: method, locale: locale),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func confirmPrimaryRecovery(method: String, challengeID: String, code: String, token: String) async throws -> IumrahSensitiveAuthorizationResponse {
+        try await api.post(
+            "/api/package/client/account/security/recovery/confirm",
+            body: IumrahPrimaryRecoveryConfirmRequest(method: method, challengeID: challengeID, code: code),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
     func terminateSession(id: String, token: String) async throws -> IumrahTerminateSessionResponse {
         try await api.delete(
             "/api/package/client/account/security/sessions/\(id)",
@@ -385,6 +427,14 @@ struct IumrahAccountService {
         )
     }
 
+    func unlinkApple(token: String) async throws -> IumrahSimpleResponse {
+        try await api.post(
+            "/api/package/client/account/apple/unlink",
+            body: EmptyBody(),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
     func signInWithGoogle(_ credential: IumrahGoogleCredential, locale: String) async throws -> IumrahAccountAuthResponse {
         try await api.post(
             "/api/package/client/account/google/sign-in",
@@ -404,36 +454,58 @@ struct IumrahAccountService {
         )
     }
 
-    func startPhoneVerification(phone: String, locale: String, token: String) async throws -> IumrahPhoneChallengeStartResponse {
+    func unlinkGoogle(token: String) async throws -> IumrahSimpleResponse {
+        try await api.post(
+            "/api/package/client/account/google/unlink",
+            body: EmptyBody(),
+            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        )
+    }
+
+    func startPhoneVerification(phone: String, locale: String, securityProof: String, token: String) async throws -> IumrahPhoneChallengeStartResponse {
         try await api.post(
             "/api/package/client/account/security/phone/start",
             body: IumrahAccountPhoneVerificationStartRequest(phone: phone, locale: locale),
-            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+            headers: sensitiveSecurityHeaders(token: token, proof: securityProof)
         )
     }
 
-    func confirmPhoneVerification(challengeID: String, code: String, token: String) async throws -> IumrahPhoneVerificationResponse {
+    func confirmPhoneVerification(challengeID: String, code: String, securityProof: String, token: String) async throws -> IumrahPhoneVerificationResponse {
         try await api.post(
             "/api/package/client/account/security/phone/confirm",
             body: IumrahAccountPhoneVerificationConfirmRequest(challengeID: challengeID, code: code),
-            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
+            headers: sensitiveSecurityHeaders(token: token, proof: securityProof)
         )
     }
 
-    func startEmailVerification(email: String, locale: String, token: String) async throws -> IumrahEmailChallengeStartResponse {
+    func startEmailVerification(email: String, locale: String, securityProof: String, token: String) async throws -> IumrahEmailChallengeStartResponse {
         try await api.post(
             "/api/package/client/account/email/start",
             body: IumrahEmailChallengeStartRequest(email: email, locale: locale),
+            headers: sensitiveSecurityHeaders(token: token, proof: securityProof)
+        )
+    }
+
+    func confirmEmailVerification(challengeID: String, code: String, securityProof: String, token: String) async throws -> IumrahEmailChallengeConfirmResponse {
+        try await api.post(
+            "/api/package/client/account/email/confirm",
+            body: IumrahEmailChallengeConfirmRequest(challengeID: challengeID, code: code),
+            headers: sensitiveSecurityHeaders(token: token, proof: securityProof)
+        )
+    }
+
+    func changePassword(currentPassword: String, newPassword: String, token: String) async throws -> IumrahPasswordChangeResponse {
+        try await api.post(
+            "/api/package/client/account/security/password/change",
+            body: IumrahPasswordChangeRequest(currentPassword: currentPassword, newPassword: newPassword),
             headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
         )
     }
 
-    func confirmEmailVerification(challengeID: String, code: String, token: String) async throws -> IumrahEmailChallengeConfirmResponse {
-        try await api.post(
-            "/api/package/client/account/email/confirm",
-            body: IumrahEmailChallengeConfirmRequest(challengeID: challengeID, code: code),
-            headers: IumrahAccountDeviceIdentity.securityHeaders(token: token)
-        )
+    private func sensitiveSecurityHeaders(token: String, proof: String) -> [String: String] {
+        var headers = IumrahAccountDeviceIdentity.securityHeaders(token: token)
+        headers["x-iumrah-security-proof"] = proof
+        return headers
     }
 
     func startPasswordRecovery(email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {

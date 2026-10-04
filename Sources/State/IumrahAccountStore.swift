@@ -240,6 +240,33 @@ final class IumrahAccountStore: ObservableObject {
         return try await service.claimPrimaryDevice(password: password, token: token)
     }
 
+
+    func authorizeSensitiveAction(password: String) async throws -> IumrahSensitiveAuthorizationResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.authorizeSensitiveAction(password: password, token: token)
+    }
+
+
+    func authorizeSensitiveActionWithApple(_ credential: IumrahAppleCredential) async throws -> IumrahSensitiveAuthorizationResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.authorizeSensitiveActionWithApple(credential, token: token)
+    }
+
+    func authorizeSensitiveActionWithGoogle(_ credential: IumrahGoogleCredential) async throws -> IumrahSensitiveAuthorizationResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.authorizeSensitiveActionWithGoogle(credential, token: token)
+    }
+
+    func startPrimaryRecovery(method: String, locale: String) async throws -> IumrahPrimaryRecoveryStartResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.startPrimaryRecovery(method: method, locale: locale, token: token)
+    }
+
+    func confirmPrimaryRecovery(method: String, challengeID: String, code: String) async throws -> IumrahSensitiveAuthorizationResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.confirmPrimaryRecovery(method: method, challengeID: challengeID, code: code, token: token)
+    }
+
     func terminateSecuritySession(id: String) async throws -> Bool {
         guard let token else { throw APIError.status(401) }
         let response = try await service.terminateSession(id: id, token: token)
@@ -252,19 +279,29 @@ final class IumrahAccountStore: ObservableObject {
         return try await service.linkApple(credential, token: token)
     }
 
+    func unlinkApple() async throws {
+        guard let token else { throw APIError.status(401) }
+        _ = try await service.unlinkApple(token: token)
+    }
+
     func linkGoogle(_ credential: IumrahGoogleCredential) async throws -> IumrahGoogleLinkResponse {
         guard let token else { throw APIError.status(401) }
         return try await service.linkGoogle(credential, token: token)
     }
 
-    func startPhoneVerification(phone: String, locale: String) async throws -> IumrahPhoneChallengeStartResponse {
+    func unlinkGoogle() async throws {
         guard let token else { throw APIError.status(401) }
-        return try await service.startPhoneVerification(phone: phone, locale: locale, token: token)
+        _ = try await service.unlinkGoogle(token: token)
     }
 
-    func confirmPhoneVerification(challengeID: String, code: String) async throws -> IumrahPhoneVerificationResponse {
+    func startPhoneVerification(phone: String, locale: String, securityProof: String) async throws -> IumrahPhoneChallengeStartResponse {
         guard let token else { throw APIError.status(401) }
-        let response = try await service.confirmPhoneVerification(challengeID: challengeID, code: code, token: token)
+        return try await service.startPhoneVerification(phone: phone, locale: locale, securityProof: securityProof, token: token)
+    }
+
+    func confirmPhoneVerification(challengeID: String, code: String, securityProof: String) async throws -> IumrahPhoneVerificationResponse {
+        guard let token else { throw APIError.status(401) }
+        let response = try await service.confirmPhoneVerification(challengeID: challengeID, code: code, securityProof: securityProof, token: token)
         if let profile = account {
             let updated = IumrahAccountProfile(
                 iumrahID: profile.iumrahID,
@@ -282,14 +319,14 @@ final class IumrahAccountStore: ObservableObject {
         return response
     }
 
-    func startEmailVerification(email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {
+    func startEmailVerification(email: String, locale: String, securityProof: String) async throws -> IumrahEmailChallengeStartResponse {
         guard let token else { throw APIError.status(401) }
-        return try await service.startEmailVerification(email: email, locale: locale, token: token)
+        return try await service.startEmailVerification(email: email, locale: locale, securityProof: securityProof, token: token)
     }
 
-    func confirmEmailVerification(challengeID: String, code: String) async throws -> IumrahEmailChallengeConfirmResponse {
+    func confirmEmailVerification(challengeID: String, code: String, securityProof: String) async throws -> IumrahEmailChallengeConfirmResponse {
         guard let token else { throw APIError.status(401) }
-        let response = try await service.confirmEmailVerification(challengeID: challengeID, code: code, token: token)
+        let response = try await service.confirmEmailVerification(challengeID: challengeID, code: code, securityProof: securityProof, token: token)
         if let profile = account {
             let updated = IumrahAccountProfile(
                 iumrahID: profile.iumrahID,
@@ -305,6 +342,11 @@ final class IumrahAccountStore: ObservableObject {
             IumrahAccountVault.save(.init(token: token, account: updated))
         }
         return response
+    }
+
+    func changePassword(currentPassword: String, newPassword: String) async throws -> IumrahPasswordChangeResponse {
+        guard let token else { throw APIError.status(401) }
+        return try await service.changePassword(currentPassword: currentPassword, newPassword: newPassword, token: token)
     }
 
     func startPasswordRecovery(email: String, locale: String) async throws -> IumrahEmailChallengeStartResponse {

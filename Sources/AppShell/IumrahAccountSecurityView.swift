@@ -11,9 +11,6 @@ struct IumrahAccountSecurityView: View {
     @State private var overview: IumrahSecurityOverview?
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var showingPrimarySheet = false
-    @State private var primaryPassword = ""
-    @State private var isClaimingPrimary = false
     @State private var pendingTermination: IumrahSecuritySession?
     @State private var workingSessionID: String?
     @State private var pendingTerminateOthers = false
@@ -21,7 +18,15 @@ struct IumrahAccountSecurityView: View {
     @State private var appleNonce = ""
     @State private var isLinkingApple = false
     @State private var isLinkingGoogle = false
-    @State private var showingEmailSheet = false
+    @State private var contactKind: IumrahSecurityContactKind?
+    @State private var showingTrustDevice = false
+    @State private var pendingProviderUnlink: SecurityProvider?
+
+    private enum SecurityProvider: String, Identifiable {
+        case apple
+        case google
+        var id: String { rawValue }
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -30,10 +35,10 @@ struct IumrahAccountSecurityView: View {
                 securityPrincipleNote
 
                 if let overview {
-                    primaryDeviceCard(overview)
-                    emailCard(overview)
-                    appleCard(overview)
-                    googleCard(overview)
+                    securitySummaryCard(overview)
+                    accountAccessCard(overview)
+                    signInMethodsCard(overview)
+                    trustedDeviceCard(overview)
                     sessionsCard(overview)
                 } else if isLoading {
                     ProgressView()
@@ -58,16 +63,59 @@ struct IumrahAccountSecurityView: View {
             .padding(.bottom, 44)
         }
         .background(Color.iumrahPageBackground)
-        .navigationTitle(tr("Security", "Безопасность", "Xavfsizlik", "Хавфсизлик"))
+        .navigationTitle(tr("Login & Security", "Вход и безопасность", "Kirish va xavfsizlik", "Кириш ва хавфсизлик"))
         .navigationBarTitleDisplayMode(.inline)
         .iumrahInternalNavigation()
         .refreshable { await load() }
         .task { await load() }
-        .sheet(isPresented: $showingPrimarySheet) { primaryDeviceSheet }
-        .sheet(isPresented: $showingEmailSheet, onDismiss: { Task { await load() } }) {
-            IumrahEmailVerificationView(existingEmail: overview?.loginEmail?.email)
+        .sheet(item: $contactKind, onDismiss: { Task { await load() } }) { kind in
+            IumrahAccountContactSecurityView(
+                kind: kind,
+                currentValue: kind == .phone
+                    ? (overview?.loginPhone?.phone ?? account.account?.phone ?? "")
+                    : (overview?.loginEmail?.email ?? account.account?.email ?? "")
+            ) { value in
+                if kind == .phone {
+                    settings.phone = value
+                } else {
+                    settings.email = value
+                }
+                Task { await load() }
+            }
+            .environmentObject(account)
+            .environmentObject(settings)
+        }
+        .sheet(isPresented: $showingTrustDevice) {
+            if let overview {
+                IumrahTrustedDeviceVerificationView(overview: overview) { refreshed in
+                    self.overview = refreshed
+                    errorMessage = nil
+                }
                 .environmentObject(account)
                 .environmentObject(settings)
+            }
+        }
+        .confirmationDialog(
+            tr("Disconnect sign-in method?", "Отключить способ входа?", "Kirish usuli uzilsinmi?", "Кириш усули узилсинми?"),
+            isPresented: Binding(
+                get: { pendingProviderUnlink != nil },
+                set: { if !$0 { pendingProviderUnlink = nil } }
+            ),
+            presenting: pendingProviderUnlink
+        ) { provider in
+            Button(
+                provider == .apple
+                    ? tr("Disconnect Apple", "Отключить Apple", "Apple’ni uzish", "Apple’ни узиш")
+                    : tr("Disconnect Google", "Отключить Google", "Google’ni uzish", "Google’ни узиш"),
+                role: .destructive
+            ) {
+                Task { await unlink(provider) }
+            }
+            Button(tr("Cancel", "Отмена", "Bekor qilish", "Бекор қилиш"), role: .cancel) {}
+        } message: { provider in
+            Text(provider == .apple
+                 ? tr("You can still sign in with your iumrah ID, phone/email and password.", "Вход по iumrah ID, номеру/почте и паролю останется доступен.", "iumrah ID, telefon/email va parol orqali kirish qoladi.", "iumrah ID, телефон/email ва парол орқали кириш қолади.")
+                 : tr("You can still sign in with your iumrah ID, phone/email and password.", "Вход по iumrah ID, номеру/почте и паролю останется доступен.", "iumrah ID, telefon/email va parol orqali kirish qoladi.", "iumrah ID, телефон/email ва парол орқали кириш қолади."))
         }
         .confirmationDialog(
             tr("End this session?", "Завершить этот сеанс?", "Seans tugatilsinmi?", "Сеанс тугатилсинми?"),
@@ -174,12 +222,15 @@ struct IumrahAccountSecurityView: View {
     }
 
     private var securityPrincipleNote: some View {
-        Text(tr(
-            "A new session can end only itself. Only your protected primary device can end other sessions.",
-            "Новый сеанс может завершить только себя. Остальные сеансы может завершать только Ваше защищённое основное устройство.",
-            "Yangi seans faqat o‘zini tugata oladi. Boshqa seanslarni faqat himoyalangan asosiy qurilmangiz tugata oladi.",
-            "Янги сеанс фақат ўзини тугата олади. Бошқа сеансларни фақат ҳимояланган асосий қурилмангиз тугата олади."
-        ))
+        Label(
+            tr(
+                "Sensitive changes use two checks: first the current account owner, then the new phone or email. A code sent only to a new contact can never take over the account.",
+                "Важные изменения проходят две проверки: сначала подтверждается текущий владелец аккаунта, затем новый номер или почта. Одного кода на новый контакт недостаточно для захвата аккаунта.",
+                "Muhim o‘zgarishlar ikki bosqichda tekshiriladi: avval joriy akkaunt egasi, keyin yangi telefon yoki email tasdiqlanadi. Faqat yangi kontaktga yuborilgan kod akkauntni egallash uchun yetarli emas.",
+                "Муҳим ўзгаришлар икки босқичда текширилади: аввал жорий аккаунт эгаси, кейин янги телефон ёки email тасдиқланади. Фақат янги контактга юборилган код аккаунтни эгаллаш учун етарли эмас."
+            ),
+            systemImage: "lock.shield.fill"
+        )
         .font(.subheadline)
         .foregroundStyle(.secondary)
         .fixedSize(horizontal: false, vertical: true)
@@ -187,201 +238,341 @@ struct IumrahAccountSecurityView: View {
         .padding(.horizontal, 4)
     }
 
-    private func primaryDeviceCard(_ value: IumrahSecurityOverview) -> some View {
+    private func securitySummaryCard(_ value: IumrahSecurityOverview) -> some View {
+        let verifiedContacts = (value.loginPhone == nil ? 0 : 1) + (value.loginEmail == nil ? 0 : 1)
+        let connectedProviders = (value.apple.linked ? 1 : 0) + ((value.google?.linked == true) ? 1 : 0)
+
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.iumrahCareLight.opacity(0.14))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "checkmark.shield.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color.iumrahCareLight)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(tr("Account protection", "Защита аккаунта", "Akkaunt himoyasi", "Аккаунт ҳимояси"))
+                        .font(.headline)
+                    Text(tr(
+                        "Verified contacts and trusted sign-in methods protect the same iumrah ID.",
+                        "Подтверждённые контакты и доверенные способы входа защищают один iumrah ID.",
+                        "Tasdiqlangan kontaktlar va ishonchli kirish usullari bitta iumrah ID’ni himoya qiladi.",
+                        "Тасдиқланган контактлар ва ишончли кириш усуллари битта iumrah ID’ни ҳимоя қилади."
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+            }
+
+            HStack(spacing: 8) {
+                securityMetric(
+                    value: "\(verifiedContacts)",
+                    label: tr("contacts", "контакта", "kontakt", "контакт"),
+                    icon: "person.crop.circle.badge.checkmark"
+                )
+                securityMetric(
+                    value: "\(connectedProviders)",
+                    label: tr("sign-ins", "входа", "kirish", "кириш"),
+                    icon: "key.fill"
+                )
+                securityMetric(
+                    value: "\(value.sessions.count)",
+                    label: tr("devices", "устройства", "qurilma", "қурилма"),
+                    icon: "rectangle.stack.badge.person.crop.fill"
+                )
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func securityMetric(value: String, label: String, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3.monospacedDigit().weight(.bold))
+            Text(label)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func accountAccessCard(_ value: IumrahSecurityOverview) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             sectionTitle(
-                icon: value.primaryDeviceProtected ? "checkmark.shield.fill" : "exclamationmark.shield.fill",
-                title: tr("Primary device", "Основное устройство", "Asosiy qurilma", "Асосий қурилма"),
-                tint: value.primaryDeviceProtected ? Color.iumrahCareLight : .orange
+                icon: "person.crop.circle.badge.key.fill",
+                title: tr("Account access", "Доступ к аккаунту", "Akkauntga kirish", "Аккаунтга кириш"),
+                tint: .blue
+            )
+
+            Text(tr(
+                "Your linked phone and email are account credentials, not ordinary profile fields.",
+                "Привязанный номер и почта — это ключи доступа к аккаунту, а не обычные поля профиля.",
+                "Bog‘langan telefon va email oddiy profil maydonlari emas, akkauntga kirish kalitlaridir.",
+                "Боғланган телефон ва email оддий профил майдонлари эмас, аккаунтга кириш калитларидир."
+            ))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            VStack(spacing: 0) {
+                securityActionRow(
+                    icon: "phone.fill",
+                    role: .phone,
+                    title: tr("Phone number", "Номер телефона", "Telefon raqami", "Телефон рақами"),
+                    value: value.loginPhone?.phone ?? account.account?.phone ?? tr("Not linked", "Не привязан", "Bog‘lanmagan", "Боғланмаган"),
+                    status: value.loginPhone == nil
+                        ? tr("Add and verify", "Добавить и подтвердить", "Qo‘shish va tasdiqlash", "Қўшиш ва тасдиқлаш")
+                        : tr("Verified", "Подтверждён", "Tasdiqlangan", "Тасдиқланган"),
+                    statusColor: value.loginPhone == nil ? .orange : Color.iumrahCareLight,
+                    action: { contactKind = .phone }
+                )
+
+                Divider().padding(.leading, 58)
+
+                securityActionRow(
+                    icon: "envelope.fill",
+                    role: .mail,
+                    title: tr("Email", "Электронная почта", "Email", "Email"),
+                    value: value.loginEmail?.email ?? account.account?.email ?? tr("Not linked", "Не привязана", "Bog‘lanmagan", "Боғланмаган"),
+                    status: value.loginEmail == nil
+                        ? tr("Recommended", "Рекомендуется добавить", "Qo‘shish tavsiya etiladi", "Қўшиш тавсия этилади")
+                        : tr("Verified", "Подтверждена", "Tasdiqlangan", "Тасдиқланган"),
+                    statusColor: value.loginEmail == nil ? .orange : Color.iumrahCareLight,
+                    action: { contactKind = .email }
+                )
+
+                Divider().padding(.leading, 58)
+
+                NavigationLink {
+                    IumrahPasswordSecurityView()
+                        .environmentObject(account)
+                        .environmentObject(settings)
+                } label: {
+                    HStack(spacing: 12) {
+                        IumrahIconBadge(systemName: "key.fill", role: .security, size: 42, symbolSize: 16, cornerRadius: 13)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(tr("Password", "Пароль", "Parol", "Парол"))
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(.primary)
+                            Text(tr(
+                                "Change password or recover access",
+                                "Изменить пароль или восстановить доступ",
+                                "Parolni o‘zgartirish yoki kirishni tiklash",
+                                "Паролни ўзгартириш ёки киришни тиклаш"
+                            ))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .iumrahCard()
+    }
+
+    private func securityActionRow(
+        icon: String,
+        role: IumrahIconRole,
+        title: String,
+        value: String,
+        status: String,
+        statusColor: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                IumrahIconBadge(systemName: icon, role: role, size: 42, symbolSize: 16, cornerRadius: 13)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 7) {
+                        Text(title)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.primary)
+                        Text(status)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(statusColor)
+                    }
+                    Text(value)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func signInMethodsCard(_ value: IumrahSecurityOverview) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle(
+                icon: "person.badge.key.fill",
+                title: tr("Sign-in methods", "Способы входа", "Kirish usullari", "Кириш усуллари"),
+                tint: .primary
+            )
+
+            Text(tr(
+                "Apple and Google open this same iumrah account. They never create a second profile after they are connected.",
+                "Apple и Google открывают этот же аккаунт iumrah. После подключения они не создают второй профиль.",
+                "Apple va Google shu iumrah akkauntini ochadi. Ulangandan keyin ular ikkinchi profil yaratmaydi.",
+                "Apple ва Google шу iumrah аккаунтини очади. Улангандан кейин улар иккинчи профил яратмайди."
+            ))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            providerSection(
+                name: "Apple",
+                icon: "apple.logo",
+                linked: value.apple.linked,
+                value: value,
+                provider: .apple
+            )
+
+            Divider()
+
+            providerSection(
+                name: "Google",
+                icon: "person.crop.circle.badge.checkmark",
+                linked: value.google?.linked == true,
+                value: value,
+                provider: .google
+            )
+        }
+        .iumrahCard()
+    }
+
+    @ViewBuilder
+    private func providerSection(name: String, icon: String, linked: Bool, value: IumrahSecurityOverview, provider: SecurityProvider) -> some View {
+        HStack(spacing: 12) {
+            IumrahIconBadge(systemName: icon, role: .security, size: 42, symbolSize: 16, cornerRadius: 13)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name)
+                    .font(.subheadline.weight(.bold))
+                Text(linked
+                     ? tr("Connected to this iumrah ID", "Подключён к этому iumrah ID", "Ushbu iumrah ID’ga ulangan", "Ушбу iumrah ID’га уланган")
+                     : tr("Not connected", "Не подключён", "Ulanmagan", "Уланмаган"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+
+            if linked {
+                Button(role: .destructive) {
+                    if value.currentDeviceIsPrimary {
+                        pendingProviderUnlink = provider
+                    } else {
+                        showingTrustDevice = true
+                    }
+                } label: {
+                    Text(value.currentDeviceIsPrimary
+                         ? tr("Disconnect", "Отключить", "Uzish", "Узиш")
+                         : tr("Verify", "Подтвердить", "Tasdiqlash", "Тасдиқлаш"))
+                        .font(.caption.weight(.bold))
+                }
+                .buttonStyle(.plain)
+            } else {
+                if provider == .apple {
+                    if value.currentDeviceIsPrimary {
+                        SignInWithAppleButton(.continue) { request in
+                            prepareApple(request)
+                        } onCompletion: { result in
+                            completeApple(result)
+                        }
+                        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                        .frame(width: 132, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .disabled(isLinkingApple || isLinkingGoogle)
+                    } else {
+                        Button { showingTrustDevice = true } label: {
+                            Text(tr("Verify device", "Подтвердить", "Tasdiqlash", "Тасдиқлаш"))
+                                .font(.caption.weight(.bold))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } else {
+                    Button {
+                        if value.currentDeviceIsPrimary {
+                            connectGoogle()
+                        } else {
+                            showingTrustDevice = true
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            if isLinkingGoogle { ProgressView().controlSize(.mini) }
+                            Text(value.currentDeviceIsPrimary ? tr("Connect", "Подключить", "Ulash", "Улаш") : tr("Verify device", "Подтвердить", "Tasdiqlash", "Тасдиқлаш"))
+                                .font(.caption.weight(.bold))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isLinkingGoogle || isLinkingApple)
+                }
+            }
+        }
+    }
+
+    private func trustedDeviceCard(_ value: IumrahSecurityOverview) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle(
+                icon: value.currentDeviceIsPrimary ? "checkmark.shield.fill" : "iphone.gen3",
+                title: tr("Protected device", "Защищённое устройство", "Himoyalangan qurilma", "Ҳимояланган қурилма"),
+                tint: value.currentDeviceIsPrimary ? Color.iumrahCareLight : .blue
             )
 
             if value.currentDeviceIsPrimary {
                 statusRow(
-                    icon: "iphone.gen3",
-                    title: tr("This is your primary device", "Это Ваше основное устройство", "Bu asosiy qurilmangiz", "Бу асосий қурилмангиз"),
-                    detail: tr("It can securely manage the other sessions.", "Оно может безопасно управлять остальными сеансами.", "U boshqa seanslarni xavfsiz boshqara oladi.", "У бошқа сеансларни хавфсиз бошқара олади."),
-                    tint: Color.iumrahCareLight
-                )
-            } else if value.primaryDeviceProtected {
-                statusRow(
-                    icon: "lock.fill",
-                    title: tr("Secondary session", "Дополнительный сеанс", "Qo‘shimcha seans", "Қўшимча сеанс"),
-                    detail: tr("This device can end only its own session.", "Это устройство может завершить только свой сеанс.", "Bu qurilma faqat o‘z seansini tugata oladi.", "Бу қурилма фақат ўз сеансини тугата олади."),
-                    tint: .secondary
-                )
-            } else {
-                Text(tr(
-                    "Confirm your current password once to make this iPhone the protected primary device.",
-                    "Один раз подтвердите текущий пароль, чтобы сделать этот iPhone защищённым основным устройством.",
-                    "Ushbu iPhone’ni himoyalangan asosiy qurilma qilish uchun joriy parolni bir marta tasdiqlang.",
-                    "Ушбу iPhone’ни ҳимояланган асосий қурилма қилиш учун жорий паролни бир марта тасдиқланг."
-                ))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Button {
-                    primaryPassword = ""
-                    errorMessage = nil
-                    showingPrimarySheet = true
-                } label: {
-                    Label(tr("Protect this iPhone", "Защитить этот iPhone", "Bu iPhone’ni himoyalash", "Бу iPhone’ни ҳимоялаш"), systemImage: "lock.shield.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(IumrahPrimaryButtonStyle())
-            }
-        }
-        .iumrahCard()
-    }
-
-    private func appleCard(_ value: IumrahSecurityOverview) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            sectionTitle(icon: "apple.logo", title: "Sign in with Apple", tint: .primary)
-
-            if value.apple.linked {
-                statusRow(
                     icon: "checkmark.circle.fill",
-                    title: tr("Apple is connected", "Apple подключён", "Apple ulangan", "Apple уланган"),
+                    title: tr("This device is confirmed", "Это устройство подтверждено", "Bu qurilma tasdiqlangan", "Бу қурилма тасдиқланган"),
                     detail: tr(
-                        "Apple signs in to this same iumrah ID — no second account is created.",
-                        "Apple выполняет вход в этот же iumrah ID — второй аккаунт не создаётся.",
-                        "Apple aynan shu iumrah ID’ga kiradi — ikkinchi akkaunt yaratilmaydi.",
-                        "Apple айнан шу iumrah ID’га киради — иккинчи аккаунт яратилмайди."
+                        "It can manage sessions and sensitive account changes.",
+                        "Оно может управлять сеансами и важными изменениями аккаунта.",
+                        "U seanslar va muhim akkaunt o‘zgarishlarini boshqara oladi.",
+                        "У сеанслар ва муҳим аккаунт ўзгаришларини бошқара олади."
                     ),
                     tint: Color.iumrahCareLight
                 )
             } else {
                 Text(tr(
-                    "Connect Apple to ID \(value.iumrahID). After that you can sign in without typing the eight-digit ID or password.",
-                    "Подключите Apple к ID \(value.iumrahID). После этого можно входить без ввода восьмизначного ID и пароля.",
-                    "Apple’ni \(value.iumrahID) ID’ga ulang. Shundan keyin sakkiz xonali ID va parolsiz kirishingiz mumkin.",
-                    "Apple’ни \(value.iumrahID) ID’га уланг. Шундан кейин саккиз хонали ID ва паролсиз киришингиз мумкин."
+                    "This session is signed in, but sensitive actions need one quick owner verification. You are not blocked even if an old device used to be protected.",
+                    "Вы вошли в аккаунт, но важные действия требуют быстрой повторной проверки владельца. Старое основное устройство больше не создаёт тупик.",
+                    "Akkauntga kirilgansiz, lekin muhim amallar uchun egani tezkor qayta tasdiqlash kerak. Eski asosiy qurilma endi to‘siq bo‘lmaydi.",
+                    "Аккаунтга кирилгансиз, лекин муҳим амаллар учун эгани тезкор қайта тасдиқлаш керак. Эски асосий қурилма энди тўсиқ бўлмайди."
                 ))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                SignInWithAppleButton(.continue) { request in
-                    prepareApple(request)
-                } onCompletion: { result in
-                    completeApple(result)
-                }
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: IumrahDesign.controlHeight)
-                .clipShape(RoundedRectangle(cornerRadius: IumrahDesign.compactRadius, style: .continuous))
-                .disabled(!value.currentDeviceIsPrimary || isLinkingApple || isLinkingGoogle)
-                .opacity(value.currentDeviceIsPrimary ? 1 : 0.48)
-
-                if !value.currentDeviceIsPrimary {
-                    Label(
-                        tr("Only the primary device can connect a new sign-in method.", "Новый способ входа может подключить только основное устройство.", "Yangi kirish usulini faqat asosiy qurilma ulashi mumkin.", "Янги кириш усулини фақат асосий қурилма улаши мумкин."),
-                        systemImage: "lock.fill"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .iumrahCard()
-    }
-
-    private func googleCard(_ value: IumrahSecurityOverview) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            sectionTitle(icon: "person.crop.circle.badge.checkmark", title: "Sign in with Google", tint: .blue)
-
-            if value.google?.linked == true {
-                statusRow(
-                    icon: "checkmark.circle.fill",
-                    title: tr("Google is connected", "Google подключён", "Google ulangan", "Google уланган"),
-                    detail: tr(
-                        "Google signs in to this same iumrah ID — no second account is created.",
-                        "Google выполняет вход в этот же iumrah ID — второй аккаунт не создаётся.",
-                        "Google aynan shu iumrah ID’ga kiradi — ikkinchi akkaunt yaratilmaydi.",
-                        "Google айнан шу iumrah ID’га киради — иккинчи аккаунт яратилмайди."
-                    ),
-                    tint: Color.iumrahCareLight
-                )
-            } else {
-                Text(tr(
-                    "Connect Google to ID \(value.iumrahID). After that you can sign in without typing the eight-digit ID or password.",
-                    "Подключите Google к ID \(value.iumrahID). После этого можно входить без ввода восьмизначного ID и пароля.",
-                    "Google’ni \(value.iumrahID) ID’ga ulang. Shundan keyin sakkiz xonali ID va parolsiz kirishingiz mumkin.",
-                    "Google’ни \(value.iumrahID) ID’га уланг. Шундан кейин саккиз хонали ID ва паролсиз киришингиз мумкин."
-                ))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                IumrahGoogleAuthButton(
-                    title: "Continue with Google",
-                    isDisabled: !value.currentDeviceIsPrimary || isLinkingGoogle || isLinkingApple
-                ) {
-                    connectGoogle()
-                }
-
-                if !value.currentDeviceIsPrimary {
-                    Label(
-                        tr("Only the primary device can connect a new sign-in method.", "Новый способ входа может подключить только основное устройство.", "Yangi kirish usulini faqat asosiy qurilma ulashi mumkin.", "Янги кириш усулини фақат асосий қурилма улаши мумкин."),
-                        systemImage: "lock.fill"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .iumrahCard()
-    }
-
-    private func emailCard(_ value: IumrahSecurityOverview) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            sectionTitle(icon: "envelope.badge.shield.half.filled", title: tr("Email sign-in", "Вход по почте", "Email orqali kirish", "Email орқали кириш"), tint: .blue)
-
-            if let loginEmail = value.loginEmail {
-                statusRow(
-                    icon: "checkmark.circle.fill",
-                    title: loginEmail.email,
-                    detail: tr(
-                        "Verified for sign-in and password recovery.",
-                        "Подтверждена для входа и восстановления пароля.",
-                        "Kirish va parolni tiklash uchun tasdiqlangan.",
-                        "Кириш ва паролни тиклаш учун тасдиқланган."
-                    ),
-                    tint: Color.iumrahCareLight
-                )
-            } else {
-                Text(tr(
-                    "Add and verify an email to sign in without remembering your iumrah ID and to recover your password.",
-                    "Добавьте и подтвердите почту, чтобы входить без запоминания iumrah ID и восстанавливать пароль.",
-                    "iumrah ID ni eslamasdan kirish va parolni tiklash uchun email qo‘shing va tasdiqlang.",
-                    "iumrah ID ни эсламасдан кириш ва паролни тиклаш учун email қўшинг ва тасдиқланг."
-                ))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Button {
-                showingEmailSheet = true
-            } label: {
-                Label(
-                    value.loginEmail == nil
-                        ? tr("Add email", "Добавить почту", "Email qo‘shish", "Email қўшиш")
-                        : tr("Change email", "Изменить почту", "Emailni o‘zgartirish", "Emailни ўзгартириш"),
-                    systemImage: "envelope.arrow.triangle.branch"
-                )
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(IumrahSecondaryButtonStyle())
-            .disabled(!value.currentDeviceIsPrimary)
-            .opacity(value.currentDeviceIsPrimary ? 1 : 0.48)
-
-            if !value.currentDeviceIsPrimary {
-                Label(
-                    tr("Only the primary device can change the sign-in email.", "Почту для входа может изменить только основное устройство.", "Kirish emailini faqat asosiy qurilma o‘zgartira oladi.", "Кириш emailини фақат асосий қурилма ўзгартира олади."),
-                    systemImage: "lock.fill"
-                )
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+                Button { showingTrustDevice = true } label: {
+                    Label(
+                        tr("Confirm this device", "Подтвердить это устройство", "Bu qurilmani tasdiqlash", "Бу қурилмани тасдиқлаш"),
+                        systemImage: "lock.shield.fill"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(IumrahSecondaryButtonStyle())
             }
         }
         .iumrahCard()
@@ -498,10 +689,10 @@ struct IumrahAccountSecurityView: View {
                 Spacer(minLength: 4)
 
                 if session.isPrimary {
-                    Image(systemName: "crown.fill")
+                    Image(systemName: "lock.shield.fill")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.orange)
-                        .accessibilityLabel(tr("Primary device", "Основное устройство", "Asosiy qurilma", "Асосий қурилма"))
+                        .foregroundStyle(Color.iumrahCareLight)
+                        .accessibilityLabel(tr("Protected device", "Защищённое устройство", "Himoyalangan qurilma", "Ҳимояланган қурилма"))
                 }
             }
 
@@ -529,17 +720,27 @@ struct IumrahAccountSecurityView: View {
                 .buttonStyle(.plain)
                 .disabled(workingSessionID != nil || isTerminatingOthers)
             } else {
-                Label(
-                    tr(
-                        "Managed by the primary device",
-                        "Управляется основным устройством",
-                        "Asosiy qurilma orqali boshqariladi",
-                        "Асосий қурилма орқали бошқарилади"
-                    ),
-                    systemImage: "lock.fill"
-                )
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+                Button {
+                    showingTrustDevice = true
+                } label: {
+                    HStack {
+                        Label(
+                            tr(
+                                "Confirm this device to manage the session",
+                                "Подтвердите это устройство для управления сеансом",
+                                "Seansni boshqarish uchun bu qurilmani tasdiqlang",
+                                "Сеансни бошқариш учун бу қурилмани тасдиқланг"
+                            ),
+                            systemImage: "lock.shield.fill"
+                        )
+                        .font(.caption.weight(.semibold))
+                        Spacer(minLength: 6)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
         }
         .iumrahCard()
@@ -565,10 +766,10 @@ struct IumrahAccountSecurityView: View {
     private var privacyNote: some View {
         Label(
             tr(
-                "Email, Apple, Google and your eight-digit iumrah ID are secure keys to one account — never separate profiles.",
-                "Почта, Apple, Google и восьмизначный iumrah ID являются защищёнными ключами к одному аккаунту, а не отдельными профилями.",
-                "Email, Apple, Google va sakkiz xonali iumrah ID bitta akkauntning xavfsiz kalitlaridir — alohida profillar emas.",
-                "Email, Apple, Google ва саккиз хонали iumrah ID битта аккаунтнинг хавфсиз калитларидир — алоҳида профиллар эмас."
+                "Your phone, email, Apple, Google and eight-digit iumrah ID are different keys to one account. iumrah never creates a second profile when you connect another sign-in method.",
+                "Номер, почта, Apple, Google и восьмизначный iumrah ID — разные ключи к одному аккаунту. Подключение нового способа входа не создаёт второй профиль.",
+                "Telefon, email, Apple, Google va sakkiz xonali iumrah ID — bitta akkauntning turli kalitlari. Yangi kirish usulini ulash ikkinchi profil yaratmaydi.",
+                "Телефон, email, Apple, Google ва саккиз хонали iumrah ID — битта аккаунтнинг турли калитлари. Янги кириш усулини улаш иккинчи профил яратмайди."
             ),
             systemImage: "hand.raised.fill"
         )
@@ -576,62 +777,6 @@ struct IumrahAccountSecurityView: View {
         .foregroundStyle(.secondary)
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 4)
-    }
-
-    private var primaryDeviceSheet: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 18) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(Color.iumrahCareLight)
-                Text(tr("Protect this iPhone", "Защитить этот iPhone", "Bu iPhone’ni himoyalash", "Бу iPhone’ни ҳимоялаш"))
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                Text(tr(
-                    "Enter the password for ID \(overview?.iumrahID ?? ""). It is checked only on the server and is not saved on this screen.",
-                    "Введите пароль от ID \(overview?.iumrahID ?? ""). Он проверяется только на сервере и не сохраняется на этом экране.",
-                    "\(overview?.iumrahID ?? "") ID parolini kiriting. U faqat serverda tekshiriladi va bu ekranda saqlanmaydi.",
-                    "\(overview?.iumrahID ?? "") ID паролини киритинг. У фақат серверда текширилади ва бу экранда сақланмайди."
-                ))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                SecureField(tr("Current password", "Текущий пароль", "Joriy parol", "Жорий парол"), text: $primaryPassword)
-                    .textContentType(.password)
-                    .padding(.horizontal, 16)
-                    .frame(height: 56)
-                    .iumrahGlass(in: RoundedRectangle(cornerRadius: 18, style: .continuous), interactive: true)
-
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Button {
-                    Task { await claimPrimary() }
-                } label: {
-                    HStack {
-                        if isClaimingPrimary { ProgressView().tint(.white) }
-                        Label(tr("Confirm and protect", "Подтвердить и защитить", "Tasdiqlash va himoyalash", "Тасдиқлаш ва ҳимоялаш"), systemImage: "checkmark.shield.fill")
-                        Spacer()
-                    }
-                }
-                .buttonStyle(IumrahPrimaryButtonStyle())
-                .disabled(primaryPassword.count < 8 || isClaimingPrimary)
-
-                Spacer()
-            }
-            .padding(IumrahDesign.pagePadding)
-            .background(Color.iumrahPageBackground)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(tr("Close", "Закрыть", "Yopish", "Ёпиш")) { showingPrimarySheet = false }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
     }
 
     private func sectionTitle(icon: String, title: String, tint: Color) -> some View {
@@ -681,22 +826,6 @@ struct IumrahAccountSecurityView: View {
             errorMessage = nil
         } catch {
             errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
-        }
-    }
-
-    @MainActor
-    private func claimPrimary() async {
-        isClaimingPrimary = true
-        defer { isClaimingPrimary = false }
-        do {
-            overview = try await account.claimPrimaryDevice(password: primaryPassword)
-            primaryPassword = ""
-            showingPrimarySheet = false
-            errorMessage = nil
-            IumrahHaptics.success()
-        } catch {
-            errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
-            IumrahHaptics.error()
         }
     }
 
@@ -787,6 +916,25 @@ struct IumrahAccountSecurityView: View {
                 errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
                 IumrahHaptics.error()
             }
+        }
+    }
+
+    @MainActor
+    private func unlink(_ provider: SecurityProvider) async {
+        pendingProviderUnlink = nil
+        errorMessage = nil
+        do {
+            switch provider {
+            case .apple:
+                try await account.unlinkApple()
+            case .google:
+                try await account.unlinkGoogle()
+            }
+            await load()
+            IumrahHaptics.success()
+        } catch {
+            errorMessage = IumrahAccountSecurityCopy.message(for: error, language: settings.language)
+            IumrahHaptics.error()
         }
     }
 
@@ -929,15 +1077,30 @@ enum IumrahAccountSecurityCopy {
             uz = "Apple tasdiqlangan email bermadi. Apple orqali qayta urinib ko‘ring yoki email yoxud iumrah ID bilan kiring."
             cyrl = "Apple тасдиқланган email бермади. Apple орқали қайта уриниб кўринг ёки email ёхуд iumrah ID билан киринг."
         case "PRIMARY_DEVICE_REQUIRED":
-            en = "Only the protected primary device can do this."
-            ru = "Это действие доступно только на защищённом основном устройстве."
-            uz = "Bu amal faqat himoyalangan asosiy qurilmada mavjud."
-            cyrl = "Бу амал фақат ҳимояланган асосий қурилмада мавжуд."
+            en = "Confirm this device before this sensitive action."
+            ru = "Перед этим важным действием подтвердите текущее устройство."
+            uz = "Bu muhim amaldan oldin joriy qurilmani tasdiqlang."
+            cyrl = "Бу муҳим амалдан олдин жорий қурилмани тасдиқланг."
+        case "SECURITY_REAUTH_REQUIRED":
+            en = "For security, confirm the account owner again before changing a linked contact."
+            ru = "Для безопасности снова подтвердите владельца аккаунта перед изменением привязанного контакта."
+            uz = "Xavfsizlik uchun bog‘langan kontaktni o‘zgartirishdan oldin akkaunt egasini yana tasdiqlang."
+            cyrl = "Хавфсизлик учун боғланган контактни ўзгартиришдан олдин аккаунт эгасини яна тасдиқланг."
         case "PRIMARY_DEVICE_ALREADY_PROTECTED":
-            en = "Another primary device is already protecting this account."
-            ru = "Этот аккаунт уже защищён другим основным устройством."
-            uz = "Bu akkaunt boshqa asosiy qurilma bilan himoyalangan."
-            cyrl = "Бу аккаунт бошқа асосий қурилма билан ҳимояланган."
+            en = "Confirm the account owner to move protection to this device."
+            ru = "Подтвердите владельца аккаунта, чтобы перенести защиту на это устройство."
+            uz = "Himoyani bu qurilmaga ko‘chirish uchun akkaunt egasini tasdiqlang."
+            cyrl = "Ҳимояни бу қурилмага кўчириш учун аккаунт эгасини тасдиқланг."
+        case "RECOVERY_METHOD_UNAVAILABLE":
+            en = "This recovery method is not connected to the account yet. Choose another method."
+            ru = "Этот способ восстановления ещё не подключён к аккаунту. Выберите другой способ."
+            uz = "Bu tiklash usuli hali akkauntga ulanmagan. Boshqa usulni tanlang."
+            cyrl = "Бу тиклаш усули ҳали аккаунтга уланмаган. Бошқа усулни танланг."
+        case "RECOVERY_METHOD_INVALID":
+            en = "Choose another account verification method."
+            ru = "Выберите другой способ подтверждения аккаунта."
+            uz = "Akkauntni tasdiqlashning boshqa usulini tanlang."
+            cyrl = "Аккаунтни тасдиқлашнинг бошқа усулини танланг."
         case "INVALID_CREDENTIALS":
             en = "The email, iumrah ID or password is incorrect."
             ru = "Неверная почта, iumrah ID или пароль."
@@ -963,6 +1126,16 @@ enum IumrahAccountSecurityCopy {
             ru = "Слишком много попыток. Повторите через 15 минут."
             uz = "Urinishlar ko‘p. 15 daqiqadan keyin qayta urinib ko‘ring."
             cyrl = "Уринишлар кўп. 15 дақиқадан кейин қайта уриниб кўринг."
+        case "APPLE_REAUTH_MISMATCH":
+            en = "The Apple ID you confirmed is not the Apple ID connected to this iumrah account."
+            ru = "Подтверждённый Apple ID не совпадает с Apple ID, подключённым к этому аккаунту iumrah."
+            uz = "Tasdiqlangan Apple ID ushbu iumrah akkauntiga ulangan Apple ID bilan mos kelmadi."
+            cyrl = "Тасдиқланган Apple ID ушбу iumrah аккаунтига уланган Apple ID билан мос келмади."
+        case "GOOGLE_REAUTH_MISMATCH":
+            en = "The Google account you confirmed is not the Google account connected to this iumrah account."
+            ru = "Подтверждённый Google-аккаунт не совпадает с Google-аккаунтом, подключённым к этому аккаунту iumrah."
+            uz = "Tasdiqlangan Google akkaunti ushbu iumrah akkauntiga ulangan Google akkaunti bilan mos kelmadi."
+            cyrl = "Тасдиқланган Google аккаунти ушбу iumrah аккаунтига уланган Google аккаунти билан мос келмади."
         case "APPLE_ID_CONNECTED_TO_ANOTHER_ACCOUNT":
             en = "This Apple ID is already connected to another iumrah ID."
             ru = "Этот Apple ID уже подключён к другому iumrah ID."

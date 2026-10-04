@@ -93,7 +93,9 @@ test("Google sign-in resolves verified email to one canonical account and return
   assert.match(source, /google_sign_in/);
 });
 
-test("security overview reports Google and Apple as independent keys to the same account", () => {
+test("security overview reports verified contacts plus Google and Apple for one canonical account", () => {
+  assert.match(source, /loginPhone: accountPhone/);
+  assert.match(source, /loginEmail: accountEmail/);
   assert.match(source, /google: \{ linked: Boolean\(google\), linkedAt: google\?\.linked_at \?\? null \}/);
   assert.match(source, /apple: \{ linked: Boolean\(apple\), linkedAt: apple\?\.linked_at \?\? null \}/);
 });
@@ -126,4 +128,75 @@ test("standalone email registration joins the canonical pilgrim model instead of
 test("social sign-in reuses one unclaimed provisional pilgrim when verified email proves ownership", () => {
   const matches = source.match(/reusableProvisionalPilgrim\(db, (?:apple|google)\.email\)/g) ?? [];
   assert.equal(matches.length, 2);
+});
+
+test("stale primary device cannot permanently lock the owner out of sensitive account actions", () => {
+  assert.match(source, /promoteCurrentDevice/);
+  assert.match(source, /SET is_primary=CASE WHEN id=\?1 THEN 1 ELSE 0 END/);
+  assert.match(source, /primary_device_claimed/);
+  assert.doesNotMatch(
+    source,
+    /async function claimPrimary[\s\S]{0,900}PRIMARY_DEVICE_ALREADY_PROTECTED/,
+    "claimPrimary must transfer protection after owner re-authentication instead of dead-ending",
+  );
+});
+
+test("sensitive contact changes require existing-owner proof before verifying the new destination", () => {
+  assert.match(source, /security\/recovery\/start/);
+  assert.match(source, /security\/recovery\/confirm/);
+  assert.match(source, /primary_recovery_phone_started/);
+  assert.match(source, /primary_recovery_email_started/);
+  assert.match(source, /startAccountPhoneVerification/);
+  assert.match(source, /confirmAccountPhoneVerification/);
+  assert.match(source, /startEmailVerification/);
+  assert.match(source, /confirmEmailVerification/);
+});
+
+test("password change revokes other sessions but preserves the current session", () => {
+  assert.match(source, /security\/password\/change/);
+  assert.match(source, /token_hash<>\?3 AND revoked_at IS NULL/);
+  assert.match(source, /password_changed/);
+});
+
+test("connected social sign-in methods can be disconnected only from a protected device", () => {
+  assert.match(source, /apple\/unlink/);
+  assert.match(source, /google\/unlink/);
+  assert.match(source, /async function unlinkApple[\s\S]{0,220}PRIMARY_DEVICE_REQUIRED/);
+  assert.match(source, /async function unlinkGoogle[\s\S]{0,220}PRIMARY_DEVICE_REQUIRED/);
+});
+
+
+test("sensitive contact replacement is bound to a short-lived server proof", () => {
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS iumrah_client_security_proofs/);
+  assert.match(migration, /proof_hash TEXT NOT NULL UNIQUE/);
+  assert.match(migration, /purpose TEXT NOT NULL DEFAULT 'contact_change'/);
+  assert.match(source, /SECURITY_PROOF_TTL_MS = 10 \* 60_000/);
+  assert.match(source, /x-iumrah-security-proof/);
+  assert.match(source, /SECURITY_REAUTH_REQUIRED/);
+  assert.match(source, /authorizeSensitiveActionWithPassword/);
+  assert.match(source, /security\/authorize\/password/);
+});
+
+test("new contact endpoints require and consume the owner proof", () => {
+  assert.match(source, /async function startAccountPhoneVerification[\s\S]{0,260}requireSecurityProof\(request, db, auth, "contact_change"\)/);
+  assert.match(source, /async function confirmAccountPhoneVerification[\s\S]{0,900}requireSecurityProof\(request, db, auth, "contact_change", true\)/);
+  assert.match(source, /async function startEmailVerification[\s\S]{0,260}requireSecurityProof\(request, db, auth, "contact_change"\)/);
+  assert.match(source, /async function confirmEmailVerification[\s\S]{0,800}requireSecurityProof\(request, db, auth, "contact_change", true\)/);
+});
+
+test("connected Apple or Google can re-authorize a sensitive contact change without creating a new account", () => {
+  assert.match(source, /security\/authorize\/apple/);
+  assert.match(source, /security\/authorize\/google/);
+  assert.match(source, /APPLE_REAUTH_MISMATCH/);
+  assert.match(source, /GOOGLE_REAUTH_MISMATCH/);
+  assert.match(source, /WHERE apple_subject=\?1 AND pilgrim_id=\?2 LIMIT 1/);
+  assert.match(source, /WHERE google_subject=\?1 AND pilgrim_id=\?2 LIMIT 1/);
+  assert.match(source, /sensitiveAuthorizationResponse\(db, auth, "apple"\)/);
+  assert.match(source, /sensitiveAuthorizationResponse\(db, auth, "google"\)/);
+});
+
+test("security proof consumption is single-use", () => {
+  assert.match(source, /UPDATE iumrah_client_security_proofs SET consumed_at=\?1/);
+  assert.match(source, /WHERE id=\?2 AND consumed_at IS NULL/);
+  assert.match(source, /consumed\.meta\?\.changes/);
 });
