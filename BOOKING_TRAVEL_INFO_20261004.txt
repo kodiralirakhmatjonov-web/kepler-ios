@@ -1,0 +1,10 @@
+iumrah Booking Travel Info
+
+Adds a production-oriented travel context carousel above Booking / Status / Schedule:
+- Prayer Times for Makkah and Madinah using AlAdhan + Umm al-Qura (method 4), Saudi timezone, per-day persistent cache and next-day Fajr rollover.
+- 7-day weather using MET Norway Locationforecast 2.0 with 30-minute persistent cache and required app User-Agent identification.
+- Dual analog world clocks for selected Saudi holy city and the user's local timezone/city.
+- Native paging, stacked-card presentation, page indicator, haptics, and Makkah/Madinah Liquid Glass selector.
+- Existing small Makkah-time header is removed to avoid duplicated time information.
+
+No backend deployment, WeatherKit entitlement, API key, or project.yml change is required.

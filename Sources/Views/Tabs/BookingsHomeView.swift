@@ -14,7 +14,6 @@ struct BookingsHomeView: View {
     @EnvironmentObject private var chrome: AppChromeStore
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var account: IumrahAccountStore
-    @Environment(\.iumrahAdaptiveLayout) private var adaptiveLayout
 
     @State private var pendingDeleteID: String?
     @State private var deleteError: String?
@@ -110,10 +109,13 @@ struct BookingsHomeView: View {
             LazyVStack(spacing: 0) {
                 IumrahRootPageTitle(
                     title: L10n.text("tab_booking", settings.language),
-                    showsMakkahTime: true,
+                    showsMakkahTime: false,
                     usesBrandLogo: true
                 )
-                .padding(.bottom, 18)
+                .padding(.bottom, 16)
+
+                JourneyTravelInfoView()
+                    .padding(.bottom, 18)
 
                 bookingPanelPicker
                     .padding(.bottom, 12)
@@ -125,48 +127,22 @@ struct BookingsHomeView: View {
                     bookingProgress(session)
                         .padding(.bottom, 38)
                 } else if bookingPanel == .status {
-                    if adaptiveLayout.isWide {
-                        HStack(alignment: .top, spacing: 18) {
-                            VStack(spacing: 0) {
-                                bookingTimerOverview(session)
-                                    .padding(.bottom, 22)
+                    bookingTimerOverview(session)
+                        .padding(.bottom, 28)
 
-                                bookingFulfillmentCenter(session, checkout: activeCheckout)
-                                    .padding(.bottom, 26)
+                    bookingFulfillmentCenter(session, checkout: activeCheckout)
+                        .padding(.bottom, 34)
 
-                                if shouldShowTravelReadyFlights(session) {
-                                    bookingStatusFlights(session)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .top)
-
-                            VStack(spacing: 0) {
-                                tripPlanPreview(session)
-                                    .padding(.bottom, 26)
-
-                                tripManagement(session)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .top)
-                        }
-                        .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
-                    } else {
-                        bookingTimerOverview(session)
-                            .padding(.bottom, 28)
-
-                        bookingFulfillmentCenter(session, checkout: activeCheckout)
+                    if shouldShowTravelReadyFlights(session) {
+                        bookingStatusFlights(session)
                             .padding(.bottom, 34)
-
-                        if shouldShowTravelReadyFlights(session) {
-                            bookingStatusFlights(session)
-                                .padding(.bottom, 34)
-                        }
-
-                        tripPlanPreview(session)
-                            .padding(.bottom, 34)
-
-                        tripManagement(session)
-                            .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
                     }
+
+                    tripPlanPreview(session)
+                        .padding(.bottom, 34)
+
+                    tripManagement(session)
+                        .padding(.bottom, activeSessions.count > 1 ? 36 : 12)
                 } else {
                     BookingItineraryCalendarView(
                         bookingID: session.id,
