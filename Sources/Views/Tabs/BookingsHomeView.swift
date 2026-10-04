@@ -297,63 +297,43 @@ struct BookingsHomeView: View {
     }
 
     private func bookingFulfillmentCenter(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
-        let completed = checkout?.travelers.filter(\.completed).count ?? 0
+        let passportCount = checkout?.travelers.filter(\.hasPassport).count ?? 0
         let total = checkout?.travelers.count ?? session.booking.input.travelers.totalPeople
+        let passportsReady = total > 0 && passportCount == total
 
         return VStack(alignment: .leading, spacing: 15) {
             sectionHeader(title: localized("Что нужно сделать", "What to do next", "Keyingi qadamlar", "Кейинги қадамлар"), trailing: nil)
-            Text(localized("Открывайте карточки по порядку. Все введённые данные сохраняются в бронировании.", "Open the cards in order. Everything you enter is saved with the booking.", "Kartalarni ketma-ket oching. Kiritilgan ma’lumotlar bronda saqlanadi.", "Карталарни кетма-кет очинг. Киритилган маълумотлар бронда сақланади."))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            NavigationLink { IumrahSecurityConfirmationView(bookingID: session.id) } label: {
-                bookingActionCard(
-                    icon: "person.text.rectangle.fill",
-                    role: .security,
-                    title: "KYC · iumrah Security",
-                    body: localized("Подтвердите личность владельца бронирования.", "Confirm the booking holder’s identity.", "Bron egasining shaxsini tasdiqlang.", "Брон эгасининг шахсини тасдиқланг."),
-                    action: localized("Проверить личность", "Confirm identity", "Shaxsni tasdiqlash", "Шахсни тасдиқлаш"),
-                    ready: false
-                )
-            }
-            .buttonStyle(.plain)
+            Text(localized(
+                "Каждый этап открывается тогда, когда он нужен. Сейчас достаточно прикрепить паспорта — без KYC и длинных анкет.",
+                "Each stage opens when it is needed. For now, attaching the passports is enough — no KYC or long forms.",
+                "Har bir bosqich kerak bo‘lganda ochiladi. Hozir pasportlarni biriktirishning o‘zi yetarli — KYC va uzun anketalarsiz.",
+                "Ҳар бир босқич керак бўлганда очилади. Ҳозир паспортларни бириктиришнинг ўзи етарли — KYC ва узун анкеталарсиз."
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
 
             NavigationLink {
-                PilgrimCheckoutView(bookingID: session.id)
+                IumrahBookingPassportsView(bookingID: session.id)
             } label: {
                 bookingActionCard(
-                    icon: "person.2.fill",
-                    role: .profile,
-                    title: localized("Кто едет с Вами", "Who is traveling with you", "Siz bilan kim bormoqda", "Сиз билан ким бормоқда"),
-                    body: localized("Заполнено анкет: \(completed) из \(total). Можно заполнить заранее во время проверки наличия.", "Forms completed: \(completed) of \(total). You can fill them in while availability is checked.", "To‘ldirilgan anketalar: \(completed)/\(total). Mavjudlik tekshirilayotganda oldindan to‘ldirish mumkin.", "Тўлдирилган анкеталар: \(completed)/\(total). Мавжудлик текширилаётганда олдиндан тўлдириш мумкин."),
-                    action: completed == total && total > 0
-                        ? localized("Проверить анкеты", "Review forms", "Anketalarni tekshirish", "Анкеталарни текшириш")
-                        : localized("Заполнить данные заранее", "Complete details in advance", "Ma’lumotlarni oldindan to‘ldirish", "Маълумотларни олдиндан тўлдириш"),
-                    ready: completed == total && total > 0
+                    icon: "passport.fill",
+                    role: .document,
+                    title: localized("Прикрепить паспорт", "Attach passports", "Pasportlarni biriktirish", "Паспортларни бириктириш"),
+                    body: passportsReady
+                        ? localized("Паспорта всех паломников прикреплены. Можно переходить к следующему этапу.", "Every pilgrim passport is attached. You are ready for the next stage.", "Barcha ziyoratchilar pasporti biriktirilgan. Keyingi bosqichga tayyor.", "Барча зиёратчилар паспорти бириктирилган. Кейинги босқичга тайёр.")
+                        : localized("Прикреплено: \(passportCount) из \(total). Для каждого паломника нужна чёткая фотография страницы с данными.", "Attached: \(passportCount) of \(total). Each pilgrim needs a clear photo of the passport information page.", "Biriktirilgan: \(passportCount)/\(total). Har bir ziyoratchi uchun pasport ma’lumotlar sahifasining aniq rasmi kerak.", "Бириктирилган: \(passportCount)/\(total). Ҳар бир зиёратчи учун паспорт маълумотлар саҳифасининг аниқ расми керак."),
+                    action: passportsReady
+                        ? localized("Проверить паспорта", "Review passports", "Pasportlarni tekshirish", "Паспортларни текшириш")
+                        : localized("Прикрепить паспорта", "Attach passports", "Pasportlarni biriktirish", "Паспортларни бириктириш"),
+                    ready: passportsReady
                 )
             }
             .buttonStyle(.plain)
 
             paymentReceiptStatusCard(session, checkout: checkout)
-
             documentReadinessCard(session, checkout: checkout)
-
-            NavigationLink {
-                PilgrimCheckoutView(bookingID: session.id)
-            } label: {
-                HStack(spacing: 10) {
-                    Text(localized("Перейти к бронированию", "Open booking", "Bronni ochish", "Бронни очиш"))
-                    Spacer()
-                    Image(systemName: "arrow.right")
-                }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.iumrahPrimaryButtonText)
-                .padding(.horizontal, 18)
-                .frame(height: 54)
-                .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-            }
-            .buttonStyle(.plain)
+            guideTransferStatusCard(session, checkout: checkout)
 
             NavigationLink {
                 IumrahPolicyDetailView(kind: .refund)
@@ -367,74 +347,133 @@ struct BookingsHomeView: View {
     }
 
     private func paymentReceiptStatusCard(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
+        let locked = session.effectiveStatus.uppercased() == "AVAILABILITY_CHECK"
         let receiptReady = !(checkout?.receipts.isEmpty ?? true)
+
         return NavigationLink {
             PilgrimCheckoutView(bookingID: session.id)
         } label: {
             bookingActionCard(
-                icon: "creditcard.fill",
+                icon: locked ? "lock.fill" : "creditcard.fill",
                 role: .payment,
                 title: localized("Оплата", "Payment", "To‘lov", "Тўлов"),
-                body: session.effectiveStatus.uppercased() == "AVAILABILITY_CHECK"
-                    ? localized("Пока ничего оплачивать не нужно. Оплата откроется после подтверждения наличия.", "No payment is needed yet. It will open after availability is confirmed.", "Hozircha to‘lov kerak emas. Mavjudlik tasdiqlangach ochiladi.", "Ҳозирча тўлов керак эмас. Мавжудлик тасдиқлангач очилади.")
-                    : (receiptReady ? localized("Чек получен и сохранён в бронировании.", "The receipt is received and saved with the booking.", "Chek qabul qilindi va bronda saqlandi.", "Чек қабул қилинди ва бронда сақланди.") : localized("Оплатите по реквизитам и прикрепите чек.", "Pay using the provided details and attach the receipt.", "Rekvizitlar bo‘yicha to‘lang va chekni biriktiring.", "Реквизитлар бўйича тўланг ва чекни бириктиринг.")),
-                action: receiptReady ? localized("Открыть чек", "Open receipt", "Chekni ochish", "Чекни очиш") : localized("Перейти к оплате", "Go to payment", "To‘lovga o‘tish", "Тўловга ўтиш"),
-                ready: receiptReady
+                body: locked
+                    ? localized("Оплата откроется после подтверждения наличия. Пока ничего оплачивать не нужно.", "Payment opens after availability is confirmed. Nothing needs to be paid yet.", "To‘lov mavjudlik tasdiqlangach ochiladi. Hozircha hech narsa to‘lash shart emas.", "Тўлов мавжудлик тасдиқлангач очилади. Ҳозирча ҳеч нарса тўлаш шарт эмас.")
+                    : (receiptReady
+                       ? localized("Оплата получена. Чек сохранён в бронировании.", "Payment received. The receipt is saved with the booking.", "To‘lov qabul qilindi. Chek bronda saqlandi.", "Тўлов қабул қилинди. Чек бронда сақланди.")
+                       : localized("Наличие подтверждено. Откройте реквизиты, оплатите и прикрепите чек.", "Availability is confirmed. Open payment details, pay and attach the receipt.", "Mavjudlik tasdiqlandi. Rekvizitlarni oching, to‘lang va chekni biriktiring.", "Мавжудлик тасдиқланди. Реквизитларни очинг, тўланг ва чекни бириктиринг.")),
+                action: locked
+                    ? localized("Откроется после подтверждения", "Opens after confirmation", "Tasdiqdan keyin ochiladi", "Тасдиқдан кейин очилади")
+                    : (receiptReady ? localized("Открыть оплату", "Open payment", "To‘lovni ochish", "Тўловни очиш") : localized("Перейти к оплате", "Go to payment", "To‘lovga o‘tish", "Тўловга ўтиш")),
+                ready: receiptReady,
+                enabled: !locked
             )
         }
         .buttonStyle(.plain)
+        .disabled(locked)
     }
 
     private func documentReadinessCard(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
-        let ticketKinds = ["ticket", "flight_ticket", "airline_ticket"]
-        let hotelKinds = ["voucher", "hotel_voucher", "hotel_booking", "hotel_confirmation"]
         let documents = checkout?.documents ?? []
-        let ticketReady = documents.contains { ticketKinds.contains($0.documentKind.lowercased()) }
-        let hotelReady = documents.contains { hotelKinds.contains($0.documentKind.lowercased()) }
-        let documentCount = documents.count
-        let essentialsReady = ticketReady && hotelReady
+        let paidOrLater = ["PAID", "BOOKING_CONFIRMED", "DOCUMENTS_READY", "READY_TO_TRAVEL", "IN_TRIP", "COMPLETED"]
+            .contains(session.effectiveStatus.uppercased())
+        let enabled = paidOrLater || !documents.isEmpty
+        let ready = !documents.isEmpty
 
         return NavigationLink {
             PilgrimCheckoutView(bookingID: session.id)
         } label: {
             bookingActionCard(
-                icon: "doc.on.doc.fill",
+                icon: enabled ? "doc.on.doc.fill" : "lock.doc.fill",
                 role: .document,
                 title: localized("Документы поездки", "Travel documents", "Safar hujjatlari", "Сафар ҳужжатлари"),
-                body: documentCount > 0
-                    ? localized("Готово документов: \(documentCount). Каждый файл доступен отдельно.", "Documents ready: \(documentCount). Each file is available separately.", "Tayyor hujjatlar: \(documentCount). Har biri alohida ochiladi.", "Тайёр ҳужжатлар: \(documentCount). Ҳар бири алоҳида очилади.")
-                    : localized("После оплаты здесь появятся авиабилет, отель и остальные готовые документы.", "After payment, your ticket, hotel confirmation and other documents will appear here.", "To‘lovdan keyin aviachipta, mehmonxona tasdig‘i va boshqa hujjatlar shu yerda chiqadi.", "Тўловдан кейин авиачипта, меҳмонхона тасдиғи ва бошқа ҳужжатлар шу ерда чиқади."),
-                action: localized("Посмотреть документы", "View documents", "Hujjatlarni ko‘rish", "Ҳужжатларни кўриш"),
-                ready: essentialsReady
+                body: ready
+                    ? localized("Готово документов: \(documents.count). Авиабилеты, подтверждения отеля и остальные файлы находятся внутри.", "Documents ready: \(documents.count). Tickets, hotel confirmations and the other files are inside.", "Tayyor hujjatlar: \(documents.count). Chiptalar, mehmonxona tasdiqlari va boshqa fayllar shu yerda.", "Тайёр ҳужжатлар: \(documents.count). Чипталар, меҳмонхона тасдиқлари ва бошқа файллар шу ерда.")
+                    : localized("Авиабилеты, виза и номера бронирований будут доступны после оплаты и подтверждения бронирования.", "Airline tickets, visa and booking references become available after payment and booking confirmation.", "Aviachiptalar, viza va bron raqamlari to‘lov hamda bron tasdiqlangach ochiladi.", "Авиачипталар, виза ва брон рақамлари тўлов ҳамда брон тасдиқлангач очилади."),
+                action: enabled
+                    ? localized("Посмотреть документы", "View documents", "Hujjatlarni ko‘rish", "Ҳужжатларни кўриш")
+                    : localized("Откроется после оплаты", "Opens after payment", "To‘lovdan keyin ochiladi", "Тўловдан кейин очилади"),
+                ready: ready,
+                enabled: enabled
             )
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 
-    private func bookingActionCard(icon: String, role: IumrahIconRole, title: String, body: String, action: String, ready: Bool) -> some View {
+    private func guideTransferStatusCard(_ session: StoredBookingSession, checkout: IumrahCheckoutResponse?) -> some View {
+        let unlockedStatuses = ["BOOKING_CONFIRMED", "DOCUMENTS_READY", "READY_TO_TRAVEL", "IN_TRIP", "COMPLETED"]
+        let enabled = session.guide != nil || unlockedStatuses.contains(session.effectiveStatus.uppercased())
+        let ready = session.guide != nil
+
+        return NavigationLink {
+            IumrahGuideTransferView(bookingID: session.id)
+        } label: {
+            bookingActionCard(
+                icon: enabled ? "person.badge.shield.checkmark.fill" : "lock.fill",
+                role: .transfer,
+                title: localized("Гид и трансфер", "Guide & transfer", "Gid va transfer", "Гид ва трансфер"),
+                body: ready
+                    ? localized("Гид назначен. Здесь доступны его контакты, данные трансфера и фото для быстрой встречи в аэропорту.", "Your guide is assigned. Contacts, transfer details and the airport recognition photo are available here.", "Gid tayinlangan. Kontaktlar, transfer ma’lumotlari va aeroportda tezroq topish uchun rasm shu yerda.", "Гид тайинланган. Контактлар, трансфер маълумотлари ва аэропортда тезроқ топиш учун расм шу ерда.")
+                    : localized("Контакты гида и детали встречи откроются после подтверждения бронирования и назначения команды.", "Guide contacts and meeting details open after the booking is confirmed and the team is assigned.", "Gid kontaktlari va kutib olish ma’lumotlari bron tasdiqlanib, jamoa tayinlangach ochiladi.", "Гид контактлари ва кутиб олиш маълумотлари брон тасдиқланиб, жамоа тайинлангач очилади."),
+                action: enabled
+                    ? localized("Открыть данные встречи", "Open meeting details", "Kutib olish ma’lumotlarini ochish", "Кутиб олиш маълумотларини очиш")
+                    : localized("Откроется после подтверждения", "Opens after confirmation", "Tasdiqdan keyin ochiladi", "Тасдиқдан кейин очилади"),
+                ready: ready,
+                enabled: enabled
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+
+    private func bookingActionCard(
+        icon: String,
+        role: IumrahIconRole,
+        title: String,
+        body: String,
+        action: String,
+        ready: Bool,
+        enabled: Bool = true
+    ) -> some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .top, spacing: 13) {
-                IumrahIconBadge(systemName: ready ? "checkmark.circle.fill" : icon, role: ready ? .success : role, size: 54, symbolSize: 21, cornerRadius: 18)
+                IumrahIconBadge(
+                    systemName: ready ? "checkmark.circle.fill" : icon,
+                    role: ready ? .success : role,
+                    size: 54,
+                    symbolSize: 21,
+                    cornerRadius: 18
+                )
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(title).font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(.primary)
-                    Text(body).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(title)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(enabled ? Color.primary : Color.secondary)
+                    Text(body)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
             }
+
             HStack {
                 Text(action)
                 Spacer()
-                Image(systemName: "arrow.right")
+                Image(systemName: enabled ? "arrow.right" : "lock.fill")
             }
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Color.iumrahPrimaryButtonText)
+            .foregroundStyle(enabled ? Color.iumrahPrimaryButtonText : Color.secondary)
             .padding(.horizontal, 16)
             .frame(height: 50)
-            .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .background(
+                enabled ? Color.iumrahPrimaryButtonBackground : Color.iumrahRaisedBackground,
+                in: RoundedRectangle(cornerRadius: 17, style: .continuous)
+            )
         }
         .padding(17)
         .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7) }
+        .opacity(enabled ? 1 : 0.72)
     }
 
     // MARK: - Booking progress

@@ -117,36 +117,18 @@ struct JourneyTravelInfoView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .fill(Color.iumrahCardBackground.opacity(0.48))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 30, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.035), lineWidth: 0.6)
-                    }
-                    .scaleEffect(x: 0.94, y: 0.94)
-                    .offset(y: 13)
+            holyCityPicker
 
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .fill(Color.iumrahCardBackground.opacity(0.68))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 30, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.045), lineWidth: 0.65)
-                    }
-                    .scaleEffect(x: 0.97, y: 0.97)
-                    .offset(y: 7)
-
-                TabView(selection: $page) {
-                    PrayerTimesCard(city: city, day: model.prayers, isRefreshing: model.isRefreshing)
-                        .tag(JourneyInfoPage.prayer)
-                    WeatherForecastCard(city: city, forecast: model.weather, isRefreshing: model.isRefreshing)
-                        .tag(JourneyInfoPage.weather)
-                    DualWorldClockCard(city: city, localCityName: model.localCityName)
-                        .tag(JourneyInfoPage.clocks)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
+            TabView(selection: $page) {
+                PrayerTimesCard(city: city, day: model.prayers, isRefreshing: model.isRefreshing)
+                    .tag(JourneyInfoPage.prayer)
+                WeatherForecastCard(city: city, forecast: model.weather, isRefreshing: model.isRefreshing)
+                    .tag(JourneyInfoPage.weather)
+                DualWorldClockCard(city: city, localCityName: model.localCityName)
+                    .tag(JourneyInfoPage.clocks)
             }
-            .frame(height: 306)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 326)
 
             HStack(spacing: 7) {
                 ForEach(JourneyInfoPage.allCases) { item in
@@ -157,8 +139,6 @@ struct JourneyTravelInfoView: View {
                 }
             }
             .accessibilityHidden(true)
-
-            holyCityPicker
         }
         .task(id: city.rawValue) {
             await model.refresh(city: city)
@@ -172,42 +152,34 @@ struct JourneyTravelInfoView: View {
     }
 
     private var holyCityPicker: some View {
-        HStack(spacing: 0) {
-            ForEach(IumrahHolyCity.allCases) { item in
-                Button {
-                    guard city != item else { return }
+        Picker(
+            tr("Holy city", "Священный город", "Muqaddas shahar", "Муқаддас шаҳар"),
+            selection: Binding(
+                get: { city },
+                set: { newValue in
+                    guard newValue != city else { return }
                     IumrahHaptics.selection()
-                    withAnimation(.snappy(duration: 0.28)) {
-                        selectedCityRaw = item.rawValue
-                    }
-                } label: {
-                    HStack(spacing: 7) {
-                        Image(systemName: item == .makkah ? "building.columns.fill" : "moon.stars.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text(item.title(settings.language))
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .foregroundStyle(city == item ? Color.primary : Color.secondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 42)
-                    .background {
-                        if city == item {
-                            Capsule()
-                                .fill(Color.iumrahCardBackground.opacity(0.88))
-                                .shadow(color: .black.opacity(0.055), radius: 8, y: 3)
-                                .matchedGeometryEffect(id: "city-selection", in: pickerNamespace)
-                        }
+                    withAnimation(.snappy(duration: 0.24)) {
+                        selectedCityRaw = newValue.rawValue
                     }
                 }
-                .buttonStyle(.plain)
-            }
+            )
+        ) {
+            Text(IumrahHolyCity.makkah.title(settings.language)).tag(IumrahHolyCity.makkah)
+            Text(IumrahHolyCity.madinah.title(settings.language)).tag(IumrahHolyCity.madinah)
         }
-        .padding(4)
-        .iumrahGlass(in: Capsule(), interactive: true, allowsStaticGlass: true)
+        .pickerStyle(.segmented)
         .accessibilityElement(children: .contain)
     }
 
-    @Namespace private var pickerNamespace
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch settings.language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
+        }
+    }
 }
 
 // MARK: - Prayer card
@@ -219,8 +191,8 @@ private struct PrayerTimesCard: View {
     let isRefreshing: Bool
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            VStack(alignment: .leading, spacing: 16) {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Label(eyebrow, systemImage: "moon.stars.fill")
@@ -237,7 +209,7 @@ private struct PrayerTimesCard: View {
                             Text(next.title(settings.language))
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(Color.iumrahCareLight)
-                            Text(countdown(to: next.date, now: context.date))
+                            Text(next.time)
                                 .font(.title3.monospacedDigit().weight(.bold))
                         }
                     }
@@ -246,7 +218,7 @@ private struct PrayerTimesCard: View {
                 if let day {
                     HStack(spacing: 6) {
                         ForEach(day.prayers) { prayer in
-                            prayerCell(prayer, now: context.date, nextID: day.nextPrayer(after: context.date)?.id)
+                            prayerCell(prayer, nextID: day.nextPrayer(after: context.date)?.id)
                         }
                     }
                 } else {
@@ -275,16 +247,18 @@ private struct PrayerTimesCard: View {
                 }
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
+
+                if let next = day?.nextPrayer(after: context.date) {
+                    countdownPanel(next: next, now: context.date)
+                }
             }
             .padding(19)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(prayerBackground)
-            .overlay(cardStroke)
-            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .background(prayerBackground, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
         }
     }
 
-    private func prayerCell(_ prayer: IumrahPrayerMoment, now: Date, nextID: String?) -> some View {
+    private func prayerCell(_ prayer: IumrahPrayerMoment, nextID: String?) -> some View {
         let active = prayer.id == nextID
         return VStack(spacing: 9) {
             Image(systemName: prayer.symbol)
@@ -303,24 +277,54 @@ private struct PrayerTimesCard: View {
         .animation(.easeInOut(duration: 0.25), value: active)
     }
 
-    private var prayerBackground: some ShapeStyle {
+    private func countdownPanel(next: IumrahPrayerMoment, now: Date) -> some View {
+        let parts = countdownParts(to: next.date, now: now)
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tr("UNTIL NEXT PRAYER", "ДО СЛЕДУЮЩЕЙ МОЛИТВЫ", "KEYINGI NAMOZGACHA", "КЕЙИНГИ НАМОЗГАЧА"))
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+                Text(next.title(settings.language))
+                    .font(.subheadline.weight(.bold))
+            }
+
+            Spacer(minLength: 8)
+
+            HStack(spacing: 7) {
+                timerUnit(parts.hours, tr("h", "ч", "soat", "с"))
+                Text(":").font(.headline.monospacedDigit()).foregroundStyle(.secondary)
+                timerUnit(parts.minutes, tr("m", "м", "daq", "д"))
+                Text(":").font(.headline.monospacedDigit()).foregroundStyle(.secondary)
+                timerUnit(parts.seconds, tr("s", "с", "son", "с"))
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 54)
+        .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+    }
+
+    private func timerUnit(_ value: Int, _ label: String) -> some View {
+        VStack(spacing: 0) {
+            Text(String(format: "%02d", value))
+                .font(.subheadline.monospacedDigit().weight(.bold))
+            Text(label)
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.secondary)
+        }
+        .frame(minWidth: 27)
+    }
+
+    private func countdownParts(to date: Date, now: Date) -> (hours: Int, minutes: Int, seconds: Int) {
+        let interval = max(0, Int(date.timeIntervalSince(now)))
+        return (interval / 3600, (interval % 3600) / 60, interval % 60)
+    }
+
+    private var prayerBackground: LinearGradient {
         LinearGradient(
             colors: [Color.iumrahCardBackground, Color.iumrahCareLight.opacity(0.055)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
-    }
-
-    private var cardStroke: some View {
-        RoundedRectangle(cornerRadius: 30, style: .continuous)
-            .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.75)
-    }
-
-    private func countdown(to date: Date, now: Date) -> String {
-        let interval = max(0, Int(date.timeIntervalSince(now)))
-        let h = interval / 3600
-        let m = (interval % 3600) / 60
-        return h > 0 ? String(format: "%d:%02d", h, m) : "\(m) min"
     }
 
     private var prayerUnavailableText: String {
@@ -347,6 +351,15 @@ private struct PrayerTimesCard: View {
         case .english: return "Umm al-Qura · Saudi time"
         case .uzbek: return "Umm al-Qura · Saudiya vaqti"
         case .uzbekCyrillic: return "Umm al-Qura · Саудия вақти"
+        }
+    }
+
+    private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
+        switch settings.language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cyrl
         }
     }
 }
@@ -429,10 +442,6 @@ private struct WeatherForecastCard: View {
         .padding(19)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(weatherBackground)
-        .overlay {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.75)
-        }
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 
@@ -509,10 +518,6 @@ private struct DualWorldClockCard: View {
             .padding(19)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(clockBackground)
-            .overlay {
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.065), lineWidth: 0.75)
-            }
             .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         }
     }

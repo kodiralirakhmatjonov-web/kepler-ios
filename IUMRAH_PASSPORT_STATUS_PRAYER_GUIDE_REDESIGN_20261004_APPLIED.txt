@@ -1,0 +1,20 @@
+iumrah booking UX redesign — 2026-10-04
+
+Scope:
+- Rebuilt “Кто едет с Вами” as a native passport-first iOS flow.
+- Passport photo is sufficient; manual fields are explicitly optional and described as a booking accelerator.
+- Added passport preview/replacement and clarity warning before upload.
+- Rebuilt Booking Status hierarchy: passport -> payment -> documents -> guide/transfer; removed visible KYC stage.
+- Payment and documents now communicate their unlock conditions directly on their cards.
+- Added Guide & Transfer page with guide contacts, transfer route, optional traveler face photo sent through existing Care photo delivery.
+- Makkah/Madinah uses native segmented control above the carousel.
+- Removed decorative stacked widget frames.
+- Prayer card now shows an HH:MM:SS countdown to the next prayer.
+
+Validation performed before packaging:
+- swiftc -parse: PASS for all 8 changed Swift files.
+- booking-status-fulfillment-client-contract.test.mjs: PASS (4/4).
+- PackageEngine TypeScript typecheck: PASS.
+- ZIP integrity: verified during packaging.
+
+Note: Swift parser/type contract checks are not a substitute for an Xcode archive build.

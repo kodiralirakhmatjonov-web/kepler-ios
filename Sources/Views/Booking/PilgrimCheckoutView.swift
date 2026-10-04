@@ -221,8 +221,12 @@ struct PilgrimCheckoutView: View {
 
                 if isAvailabilityChecking {
                     availabilityPaymentLockedCard
+                    documentsLockedCard
+                    guideTransferCheckoutCard(enabled: false)
                 } else if isPaymentPending {
                     paymentCard(checkout)
+                    documentsLockedCard
+                    guideTransferCheckoutCard(enabled: false)
                 } else if isPostPaymentStatus(checkout.status) {
                     if let session {
                         IumrahPaidReceiptCard(
@@ -231,10 +235,12 @@ struct PilgrimCheckoutView: View {
                             receipt: checkout.receipts.first(where: { $0.reviewStatus.lowercased() == "approved" }) ?? checkout.receipts.first
                         )
                     }
-                    if shouldShowDocuments { documentsCard(checkout) }
+                    documentsCard(checkout)
+                    guideTransferCheckoutCard(enabled: session?.guide != nil || ["booking_confirmed", "documents_ready", "ready_to_travel", "in_trip", "completed"].contains(checkout.status.lowercased()))
                 } else {
                     paymentCard(checkout)
-                    if shouldShowDocuments { documentsCard(checkout) }
+                    documentsLockedCard
+                    guideTransferCheckoutCard(enabled: false)
                 }
             } else if showExistingAccountLogin {
                 loginCard(checkout)
@@ -260,10 +266,10 @@ struct PilgrimCheckoutView: View {
                     Text(tr("Payment opens after confirmation", "Оплата откроется после подтверждения", "To‘lov tasdiqdan keyin ochiladi", "Тўлов тасдиқдан кейин очилади"))
                         .font(.subheadline.weight(.semibold))
                     Text(tr(
-                        "Complete the pilgrim forms now. Invoice and payment details stay hidden until availability is confirmed.",
-                        "Сейчас заполните анкеты паломников. Инвойс и реквизиты оплаты появятся только после подтверждения наличия.",
-                        "Hozir ziyoratchilar anketalarini to‘ldiring. Invoice va to‘lov rekvizitlari faqat mavjudlik tasdiqlangach ko‘rinadi.",
-                        "Ҳозир зиёратчилар анкеталарини тўлдиринг. Invoice ва тўлов реквизитлари фақат мавжудлик тасдиқлангач кўринади."
+                        "Attach the passport information page for every pilgrim now. Invoice and payment details stay hidden until availability is confirmed.",
+                        "Сейчас прикрепите страницу паспорта с данными для каждого паломника. Инвойс и реквизиты оплаты появятся после подтверждения наличия.",
+                        "Hozir har bir ziyoratchining pasport ma’lumotlar sahifasini biriktiring. Invoice va to‘lov rekvizitlari mavjudlik tasdiqlangach ochiladi.",
+                        "Ҳозир ҳар бир зиёратчининг паспорт маълумотлар саҳифасини бириктиринг. Invoice ва тўлов реквизитлари мавжудлик тасдиқлангач очилади."
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -276,6 +282,71 @@ struct PilgrimCheckoutView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.7)
+        }
+    }
+
+    private var documentsLockedCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                IumrahIconBadge(systemName: "lock.doc.fill", role: .document, size: 44, symbolSize: 17, cornerRadius: 15)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(tr("Travel documents", "Документы поездки", "Safar hujjatlari", "Сафар ҳужжатлари"))
+                        .font(.subheadline.weight(.semibold))
+                    Text(tr(
+                        "Airline tickets, visa and booking references become available after payment and booking confirmation.",
+                        "Авиабилеты, виза и номера бронирований будут доступны после оплаты и подтверждения бронирования.",
+                        "Aviachiptalar, viza va bron raqamlari to‘lov hamda bron tasdiqlangach ochiladi.",
+                        "Авиачипталар, виза ва брон рақамлари тўлов ҳамда брон тасдиқлангач очилади."
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .opacity(0.72)
+    }
+
+    @ViewBuilder
+    private func guideTransferCheckoutCard(enabled: Bool) -> some View {
+        if enabled {
+            NavigationLink {
+                IumrahGuideTransferView(bookingID: bookingID)
+            } label: {
+                HStack(spacing: 13) {
+                    IumrahIconBadge(systemName: "person.badge.shield.checkmark.fill", role: .transfer, size: 46, symbolSize: 18, cornerRadius: 15)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(tr("Guide & transfer", "Гид и трансфер", "Gid va transfer", "Гид ва трансфер"))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(tr("Contacts, transfer details and airport meeting photo.", "Контакты, данные трансфера и фото для встречи в аэропорту.", "Kontaktlar, transfer va aeroportdagi uchrashuv rasmi.", "Контактлар, трансфер ва аэропортдаги учрашув расми."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
+                }
+                .padding(16)
+                .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 13) {
+                IumrahIconBadge(systemName: "lock.fill", role: .transfer, size: 46, symbolSize: 18, cornerRadius: 15)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(tr("Guide & transfer", "Гид и трансфер", "Gid va transfer", "Гид ва трансфер"))
+                        .font(.subheadline.weight(.semibold))
+                    Text(tr("Opens after booking confirmation and team assignment.", "Откроется после подтверждения бронирования и назначения команды.", "Bron tasdiqlanib, jamoa tayinlangach ochiladi.", "Брон тасдиқланиб, жамоа тайинлангач очилади."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(16)
+            .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .opacity(0.72)
         }
     }
 
@@ -295,16 +366,16 @@ struct PilgrimCheckoutView: View {
                         .tracking(-0.5)
                     Text(isAvailabilityChecking
                          ? tr(
-                            "You can safely close the app — we will update the status automatically. Fill in pilgrim and passport details now to move straight to payment after confirmation.",
-                            "Вы можете спокойно закрыть приложение — статус обновится автоматически. Заранее заполните данные паломников и паспортов, чтобы после подтверждения сразу перейти к оплате.",
-                            "Ilovani bemalol yopishingiz mumkin — holat avtomatik yangilanadi. Tasdiqdan keyin darhol to‘lovga o‘tish uchun ziyoratchilar va pasport ma’lumotlarini oldindan kiriting.",
-                            "Иловани бемалол ёпишингиз мумкин — ҳолат автоматик янгиланади. Тасдиқдан кейин дарҳол тўловга ўтиш учун зиёратчилар ва паспорт маълумотларини олдиндан киритинг."
+                            "You can safely close the app — we will update the status automatically. Attach each pilgrim passport now so payment can start immediately after confirmation.",
+                            "Вы можете спокойно закрыть приложение — статус обновится автоматически. Сейчас прикрепите паспорта паломников, чтобы после подтверждения сразу перейти к оплате.",
+                            "Ilovani bemalol yopishingiz mumkin — holat avtomatik yangilanadi. Tasdiqdan keyin darhol to‘lovga o‘tish uchun hozir ziyoratchilar pasportlarini biriktiring.",
+                            "Иловани бемалол ёпишингиз мумкин — ҳолат автоматик янгиланади. Тасдиқдан кейин дарҳол тўловга ўтиш учун ҳозир зиёратчилар паспортларини бириктиринг."
                          )
                          : tr(
-                            "Create your iumrah ID password, complete every pilgrim form and attach the payment receipt.",
-                            "Создайте пароль для iumrah ID, заполните анкеты всех паломников и прикрепите чек оплаты.",
-                            "iumrah ID uchun parol yarating, barcha ziyoratchilar anketasini to‘ldiring va to‘lov chekini biriktiring.",
-                            "iumrah ID учун парол яратинг, барча зиёратчилар анкетасини тўлдиринг ва тўлов чекини бириктиринг."
+                            "Attach the passports, then complete payment when it opens. Manual passport fields remain optional.",
+                            "Прикрепите паспорта, затем оплатите, когда этап откроется. Ручное заполнение паспортных данных остаётся необязательным.",
+                            "Pasportlarni biriktiring, keyin to‘lov ochilganda to‘lang. Pasport ma’lumotlarini qo‘lda kiritish ixtiyoriy.",
+                            "Паспортларни бириктиринг, кейин тўлов очилганда тўланг. Паспорт маълумотларини қўлда киритиш ихтиёрий."
                          ))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -892,72 +963,60 @@ struct PilgrimCheckoutView: View {
     }
 
     private func travelersCard(_ value: IumrahCheckoutResponse) -> some View {
-        VStack(alignment: .leading, spacing: 15) {
-            stageHeader(number: "02", icon: "person.2.fill", title: tr("Pilgrim details", "Данные паломников", "Ziyoratchilar ma’lumotlari", "Зиёратчилар маълумотлари"))
-            Text(tr(
-                isTravelerEditingAllowed ? "One secure form for every traveler in this booking." : "Traveler details stay attached to this booking for the rest of the journey.",
-                isTravelerEditingAllowed ? "Для каждого участника поездки — отдельная защищённая анкета." : "Данные каждого паломника закреплены за этим бронированием до конца поездки.",
-                isTravelerEditingAllowed ? "Har bir sayohatchi uchun alohida himoyalangan anketa." : "Har bir ziyoratchining ma’lumotlari safar oxirigacha shu bronga biriktiriladi.",
-                isTravelerEditingAllowed ? "Ҳар бир саёҳатчи учун алоҳида ҳимояланган анкета." : "Ҳар бир зиёратчининг маълумотлари сафар охиригача шу бронга бириктирилади."
-            ))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+        let attached = value.travelers.filter(\.hasPassport).count
+        let total = value.travelers.count
+        let ready = total > 0 && attached == total
+
+        return VStack(alignment: .leading, spacing: 15) {
+            stageHeader(
+                number: "01",
+                icon: ready ? "checkmark.circle.fill" : "passport.fill",
+                title: tr("Attach passports", "Прикрепить паспорта", "Pasportlarni biriktirish", "Паспортларни бириктириш")
+            )
+
+            Text(ready
+                 ? tr("Every pilgrim passport is attached.", "Паспорта всех паломников прикреплены.", "Barcha ziyoratchilar pasporti biriktirilgan.", "Барча зиёратчилар паспорти бириктирилган.")
+                 : tr("A clear photo of the passport information page is enough. Manual details are optional.", "Достаточно чёткой фотографии страницы паспорта с данными. Ручное заполнение — по желанию.", "Pasport ma’lumotlar sahifasining aniq rasmi yetarli. Qo‘lda to‘ldirish ixtiyoriy.", "Паспорт маълумотлар саҳифасининг аниқ расми етарли. Қўлда тўлдириш ихтиёрий."))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             ForEach(value.travelers) { traveler in
-                VStack(alignment: .leading, spacing: 12) {
-                    Button {
-                        if isTravelerEditingAllowed {
-                            travelerEditor = traveler
-                        }
-                    } label: {
-                        HStack(spacing: 13) {
-                            IumrahIconBadge(
-                                systemName: traveler.completed ? "checkmark" : travelerIcon(traveler.travelerType),
-                                role: traveler.completed ? .success : .profile,
-                                size: 46,
-                                symbolSize: 17,
-                                cornerRadius: 15
-                            )
+                NavigationLink {
+                    IumrahTravelerProfileView(
+                        bookingID: bookingID,
+                        traveler: traveler,
+                        onSaved: { Task { await loadCheckout(showLoader: false) } }
+                    )
+                } label: {
+                    HStack(spacing: 13) {
+                        IumrahIconBadge(
+                            systemName: traveler.hasPassport ? "checkmark.circle.fill" : "passport.fill",
+                            role: traveler.hasPassport ? .success : .document,
+                            size: 48,
+                            symbolSize: 19,
+                            cornerRadius: 16
+                        )
 
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(travelerName(traveler))
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                Text(relationshipTitle(traveler.relationship, position: traveler.position))
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                Text(traveler.completed ? tr("Completed", "Анкета готова", "Anketa tayyor", "Анкета тайёр") : tr("Passport and travel details required", "Нужны данные и паспорт", "Ma’lumot va pasport kerak", "Маълумот ва паспорт керак"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if isTravelerEditingAllowed {
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.tertiary)
-                            } else {
-                                Image(systemName: "lock.fill")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.tertiary)
-                            }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(travelerName(traveler))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(traveler.hasPassport
+                                 ? tr("Passport attached", "Паспорт прикреплён", "Pasport biriktirilgan", "Паспорт бириктирилган")
+                                 : tr("Attach passport photo", "Прикрепите фото паспорта", "Pasport rasmini biriktiring", "Паспорт расмини бириктиринг"))
+                                .font(.caption)
+                                .foregroundStyle(traveler.hasPassport ? Color.green : Color.secondary)
                         }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.tertiary)
                     }
-                    .buttonStyle(.plain)
-
-                    if !isTravelerEditingAllowed {
-                        Divider()
-                        VStack(spacing: 9) {
-                            travelerDetailFact(tr("Date of birth", "Дата рождения", "Tug‘ilgan sana", "Туғилган сана"), traveler.dateOfBirth)
-                            travelerDetailFact(tr("Nationality", "Гражданство", "Fuqarolik", "Фуқаролик"), traveler.nationality)
-                            travelerDetailFact(tr("Passport", "Паспорт", "Pasport", "Паспорт"), traveler.passportNumber)
-                            travelerDetailFact(tr("Passport expiry", "Срок паспорта", "Pasport muddati", "Паспорт муддати"), traveler.passportExpiryDate)
-                            travelerDetailFact(tr("Phone", "Телефон", "Telefon", "Телефон"), traveler.phone)
-                            travelerDetailFact("Email", traveler.email)
-                        }
-                    }
+                    .padding(14)
+                    .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
-                .padding(13)
-                .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), interactive: true)
+                .buttonStyle(.plain)
             }
         }
         .iumrahCard()
@@ -983,7 +1042,7 @@ struct PilgrimCheckoutView: View {
 
     private func paymentCard(_ value: IumrahCheckoutResponse) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            stageHeader(number: "03", icon: "creditcard.fill", title: tr("Payment", "Оплата", "To‘lov", "Тўлов"))
+            stageHeader(number: "02", icon: "creditcard.fill", title: tr("Payment", "Оплата", "To‘lov", "Тўлов"))
 
             if isAvailabilityChecking {
                 VStack(alignment: .leading, spacing: 12) {
@@ -1346,7 +1405,7 @@ struct PilgrimCheckoutView: View {
 
     private func documentsCard(_ value: IumrahCheckoutResponse) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            stageHeader(number: "04", icon: "doc.fill", title: tr("Travel documents", "Документы поездки", "Safar hujjatlari", "Сафар ҳужжатлари"))
+            stageHeader(number: "03", icon: "doc.fill", title: tr("Travel documents", "Документы поездки", "Safar hujjatlari", "Сафар ҳужжатлари"))
             Text(tr("Each document appears here as soon as it is ready.", "Каждый документ появится здесь отдельно сразу после готовности.", "Har bir hujjat tayyor bo‘lishi bilan shu yerda alohida paydo bo‘ladi.", "Ҳар бир ҳужжат тайёр бўлиши билан шу ерда алоҳида пайдо бўлади."))
                 .font(.subheadline).foregroundStyle(.secondary)
 

@@ -86,4 +86,9 @@ extension ChatService {
         let value: IumrahPublicProfilesResponse = try await api.get("/api/catalog/hotels/team")
         return value.members.first(where: { $0.isOwner }) ?? value.members.first
     }
+
+    func loadTeamProfile(id: String) async throws -> IumrahPublicProfile? {
+        let value: IumrahPublicProfilesResponse = try await api.get("/api/catalog/hotels/team")
+        return value.members.first(where: { $0.id == id })
+    }
 }

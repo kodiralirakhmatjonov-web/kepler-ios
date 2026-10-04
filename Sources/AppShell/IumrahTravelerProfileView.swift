@@ -1,9 +1,9 @@
 import PhotosUI
 import SwiftUI
+import UIKit
 
-/// Dedicated editor for one companion from Account → Who is traveling with you.
-/// Emergency contact is intentionally not edited here: it is account-level and
-/// lives in IumrahEmergencyContactView.
+/// Passport-first traveler editor.
+/// A passport photo is sufficient; manual data is optional and only speeds up processing.
 struct IumrahTravelerProfileView: View {
     @EnvironmentObject private var account: IumrahAccountStore
     @EnvironmentObject private var settings: AppSettingsStore
@@ -14,10 +14,15 @@ struct IumrahTravelerProfileView: View {
     var onSaved: (() -> Void)? = nil
 
     @State private var form: IumrahTravelerForm
+    @State private var passportPhoto: PhotosPickerItem?
+    @State private var previewImage: UIImage?
+    @State private var previewData: Data?
+    @State private var showManual = false
     @State private var dateOfBirthInput: String
     @State private var passportExpiryInput: String
-    @State private var passportPhoto: PhotosPickerItem?
-    @State private var isSaving = false
+    @State private var isUploading = false
+    @State private var isSavingManual = false
+    @State private var uploadedInSession = false
     @State private var errorMessage: String?
 
     private let service = IumrahAccountService()
@@ -31,27 +36,25 @@ struct IumrahTravelerProfileView: View {
         _passportExpiryInput = State(initialValue: Self.displayDate(traveler.passportExpiryDate))
     }
 
+    private var passportReady: Bool { traveler.hasPassport || uploadedInSession }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 18) {
-                hero
-                personalCard
+            VStack(alignment: .leading, spacing: 18) {
+                header
                 passportCard
-                contactCard
-                emergencyReuseCard
+                manualCard
 
                 if let errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                         .font(.footnote)
                         .foregroundStyle(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 4)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-
-                saveButton
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, IumrahDesign.pagePadding)
-            .padding(.top, 14)
+            .padding(.top, 12)
             .padding(.bottom, 48)
         }
         .background(Color.iumrahPageBackground.ignoresSafeArea())
@@ -59,459 +62,417 @@ struct IumrahTravelerProfileView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .scrollDismissesKeyboard(.interactively)
-    }
-
-    private var hero: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 14) {
-                IumrahIconBadge(
-                    systemName: relationshipIcon,
-                    role: form.completed ? .success : .profile,
-                    size: 58,
-                    symbolSize: 23,
-                    cornerRadius: 18
-                )
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(relationshipTitle)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    Text(pageTitle)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .lineLimit(2)
-                    Text(tr(
-                        "Separate traveler profile for tickets and hotels",
-                        "Отдельный профиль участника для билетов и отелей",
-                        "Chipta va mehmonxona uchun alohida sayohatchi profili",
-                        "Чипта ва меҳмонхона учун алоҳида саёҳатчи профили"
-                    ))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-
-            HStack(spacing: 8) {
-                statusChip(
-                    icon: nameReady ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
-                    text: nameReady ? tr("Personal data ready", "Личные данные готовы", "Shaxsiy ma’lumotlar tayyor", "Шахсий маълумотлар тайёр") : tr("Personal data", "Личные данные", "Shaxsiy ma’lumotlar", "Шахсий маълумотлар"),
-                    ready: nameReady
-                )
-                statusChip(
-                    icon: passportReady ? "checkmark.circle.fill" : "passport.fill",
-                    text: passportReady ? maskedPassport : tr("Passport", "Паспорт", "Pasport", "Паспорт"),
-                    ready: passportReady
-                )
-            }
+        .onChange(of: passportPhoto) { _, item in
+            guard let item else { return }
+            Task { await preparePreview(item) }
         }
-        .iumrahCard()
     }
 
-    private var personalCard: some View {
-        section(
-            title: tr("Personal details", "Личные данные", "Shaxsiy ma’lumotlar", "Шахсий маълумотлар"),
-            icon: "person.text.rectangle.fill"
-        ) {
-            field(tr("First name", "Имя", "Ism", "Исм"), $form.firstName, contentType: .givenName)
-            field(tr("Middle name", "Отчество / второе имя", "Otasining ismi", "Отасининг исми"), $form.middleName, contentType: .middleName)
-            field(tr("Last name", "Фамилия", "Familiya", "Фамилия"), $form.lastName, contentType: .familyName)
-
-            Menu {
-                Button { form.gender = "male"; IumrahHaptics.selection() } label: {
-                    Label(tr("Male", "Мужской", "Erkak", "Эркак"), systemImage: form.gender == "male" ? "checkmark" : "person.fill")
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Label(tr("Passport", "Паспорт", "Pasport", "Паспорт"), systemImage: "passport.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if passportReady {
+                    Label(tr("Attached", "Прикреплён", "Biriktirilgan", "Бириктирилган"), systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.green)
                 }
-                Button { form.gender = "female"; IumrahHaptics.selection() } label: {
-                    Label(tr("Female", "Женский", "Ayol", "Аёл"), systemImage: form.gender == "female" ? "checkmark" : "person.fill")
-                }
-            } label: {
-                menuRow(
-                    icon: "person.2.fill",
-                    title: tr("Gender", "Пол", "Jins", "Жинс"),
-                    value: genderTitle
-                )
             }
 
-            smartDateField(
-                tr("Date of birth", "Дата рождения", "Tug‘ilgan sana", "Туғилган сана"),
-                text: $dateOfBirthInput
-            )
+            Text(tr("Attach passport", "Прикрепите паспорт", "Pasportni biriktiring", "Паспортни бириктиринг"))
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .tracking(-0.55)
 
-            field(
-                tr("Citizenship", "Гражданство", "Fuqarolik", "Фуқаролик"),
-                $form.nationality,
-                contentType: .countryName
-            )
+            Text(tr(
+                "A clear photo of the information page is enough. Manual entry below is optional.",
+                "Достаточно чёткой фотографии страницы с данными. Заполнять данные вручную ниже не обязательно.",
+                "Ma’lumotlar sahifasining aniq rasmi yetarli. Quyidagi ma’lumotlarni qo‘lda kiritish shart emas.",
+                "Маълумотлар саҳифасининг аниқ расми етарли. Қуйидаги маълумотларни қўлда киритиш шарт эмас."
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private var passportCard: some View {
-        section(
-            title: tr("Passport", "Загранпаспорт", "Pasport", "Паспорт"),
-            icon: "passport.fill"
-        ) {
-            field(
-                tr("Passport number", "Номер паспорта", "Pasport raqami", "Паспорт рақами"),
-                $form.passportNumber,
-                keyboard: .asciiCapable,
-                contentType: .none,
-                capitalization: .characters
-            )
+        VStack(alignment: .leading, spacing: 15) {
+            HStack(alignment: .top, spacing: 12) {
+                IumrahIconBadge(
+                    systemName: passportReady ? "checkmark.circle.fill" : "camera.fill",
+                    role: passportReady ? .success : .document,
+                    size: 50,
+                    symbolSize: 20,
+                    cornerRadius: 17
+                )
 
-            smartDateField(
-                tr("Expiry date", "Срок действия", "Amal qilish muddati", "Амал қилиш муддати"),
-                text: $passportExpiryInput
-            )
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tr("Passport information page", "Страница паспорта с данными", "Pasport ma’lumotlar sahifasi", "Паспорт маълумотлар саҳифаси"))
+                        .font(.headline)
+                    Text(tr(
+                        "The holder photo, passport number, name and dates must all fit in the frame.",
+                        "В кадре должны полностью быть видны фотография владельца, номер паспорта, имя и даты.",
+                        "Kadrda egasining rasmi, pasport raqami, ism va sanalar to‘liq ko‘rinsin.",
+                        "Кадрда эгасининг расми, паспорт рақами, исм ва саналар тўлиқ кўринсин."
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            if let previewImage {
+                Image(uiImage: previewImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 190)
+                    .background(Color.black.opacity(0.035))
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(alignment: .bottomLeading) {
+                        Label(
+                            tr("If the photo is blurry, choose another", "Если фото нечёткое — выберите другое", "Rasm xira bo‘lsa, boshqasini tanlang", "Расм хира бўлса, бошқасини танланг"),
+                            systemImage: "viewfinder"
+                        )
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 38)
+                        .background(.black.opacity(0.62), in: Capsule())
+                        .padding(12)
+                    }
+            } else if passportReady {
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.green)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(tr("Passport received", "Паспорт получен", "Pasport qabul qilindi", "Паспорт қабул қилинди"))
+                            .font(.headline)
+                        Text(tr("You can replace it if you want to send a clearer photo.", "При необходимости можно заменить его более чёткой фотографией.", "Kerak bo‘lsa, aniqroq rasm bilan almashtirishingiz mumkin.", "Керак бўлса, аниқроқ расм билан алмаштиришингиз мумкин."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(15)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+
+            Label {
+                Text(tr(
+                    "Make sure every passport field is visible and readable. These details are used to issue airline tickets, book hotels and prepare the booking documents.",
+                    "Обратите внимание, чтобы все данные паспорта были видны и читались. Они используются для покупки авиабилета, бронирования отеля и оформления документов бронирования.",
+                    "Pasportdagi barcha ma’lumotlar ko‘rinsin va o‘qilsin. Ular aviachipta, mehmonxona va bron hujjatlarini rasmiylashtirish uchun ishlatiladi.",
+                    "Паспортдаги барча маълумотлар кўринсин ва ўқилсин. Улар авиачипта, меҳмонхона ва брон ҳужжатларини расмийлаштириш учун ишлатилади."
+                ))
+                .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.orange)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             PhotosPicker(selection: $passportPhoto, matching: .images) {
-                HStack(spacing: 12) {
-                    IumrahIconBadge(
-                        systemName: passportPhoto != nil || form.hasPassport ? "checkmark.circle.fill" : "camera.fill",
-                        role: passportPhoto != nil || form.hasPassport ? .success : .document,
-                        size: 42,
-                        symbolSize: 17,
-                        cornerRadius: 14
-                    )
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(passportPhoto != nil || form.hasPassport
-                             ? tr("Passport photo attached", "Фото паспорта прикреплено", "Pasport rasmi biriktirilgan", "Паспорт расми бириктирилган")
-                             : tr("Attach passport photo", "Добавить фото паспорта", "Pasport rasmini qo‘shish", "Паспорт расмини қўшиш"))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Text(tr(
-                            "Clear photo of the information page",
-                            "Чёткое фото страницы с данными",
-                            "Ma’lumotlar sahifasining aniq rasmi",
-                            "Маълумотлар саҳифасининг аниқ расми"
-                        ))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 8)
+                HStack(spacing: 10) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                    Text(previewImage == nil
+                         ? (passportReady ? tr("Replace passport photo", "Заменить фото паспорта", "Pasport rasmini almashtirish", "Паспорт расмини алмаштириш") : tr("Choose passport photo", "Выбрать фото паспорта", "Pasport rasmini tanlash", "Паспорт расмини танлаш"))
+                         : tr("Choose another photo", "Выбрать другое фото", "Boshqa rasm tanlash", "Бошқа расм танлаш"))
+                    Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.tertiary)
                 }
-                .padding(.horizontal, 14)
-                .frame(minHeight: 66)
-                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 15)
+                .frame(height: 52)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
             }
             .buttonStyle(.plain)
-        }
-    }
 
-    private var contactCard: some View {
-        section(
-            title: tr("Traveler contacts", "Контакты участника", "Sayohatchi kontaktlari", "Саёҳатчи контактлари"),
-            icon: "phone.fill"
-        ) {
-            field(
-                tr("Phone", "Номер телефона", "Telefon", "Телефон"),
-                $form.phone,
-                keyboard: .phonePad,
-                contentType: .telephoneNumber,
-                capitalization: .never
-            )
-            field(
-                "Email",
-                $form.email,
-                keyboard: .emailAddress,
-                contentType: .emailAddress,
-                capitalization: .never
-            )
-        }
-    }
-
-    private var emergencyReuseCard: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "sos.circle.fill")
-                .font(.system(size: 19, weight: .semibold))
-                .foregroundStyle(.red)
-                .frame(width: 42, height: 42)
-                .background(Color.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(tr("Emergency contact is shared", "Экстренный контакт общий", "Favqulodda kontakt umumiy", "Фавқулодда контакт умумий"))
-                    .font(.headline)
-                Text(tr(
-                    "It is managed once in Who is traveling with you and is not repeated on every traveler profile.",
-                    "Он настраивается один раз в разделе «Кто едет с Вами» и не заполняется заново в каждой карточке участника.",
-                    "U «Siz bilan kim bormoqda» bo‘limida bir marta sozlanadi va har bir sayohatchi profilida qayta kiritilmaydi.",
-                    "У «Сиз билан ким бормоқда» бўлимида бир марта созланади ва ҳар бир саёҳатчи профилида қайта киритилмайди."
-                ))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if previewData != nil {
+                Button {
+                    Task { await uploadPassport() }
+                } label: {
+                    HStack(spacing: 10) {
+                        if isUploading { ProgressView().tint(.white) }
+                        Image(systemName: "arrow.up.doc.fill")
+                        Text(tr("Attach passport", "Прикрепить паспорт", "Pasportni biriktirish", "Паспортни бириктириш"))
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                    }
+                }
+                .buttonStyle(IumrahPrimaryButtonStyle())
+                .disabled(isUploading)
             }
         }
-        .padding(17)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
-        }
-    }
-
-    private var saveButton: some View {
-        Button {
-            Task { await save() }
-        } label: {
-            HStack(spacing: 10) {
-                if isSaving { ProgressView().tint(.white) }
-                Image(systemName: "checkmark.circle.fill")
-                Text(tr("Save traveler details", "Сохранить данные участника", "Sayohatchi ma’lumotlarini saqlash", "Саёҳатчи маълумотларини сақлаш"))
-                Spacer(minLength: 8)
-            }
-        }
-        .buttonStyle(IumrahPrimaryButtonStyle())
-        .disabled(!canSave || isSaving)
-    }
-
-    private func section<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 11) {
-                IumrahIconBadge(systemName: icon, size: 40, symbolSize: 16, cornerRadius: 13)
-                Text(title)
-                    .font(.headline)
-            }
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .iumrahCard()
     }
 
-    private func field(
+    private var manualCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Button {
+                IumrahHaptics.selection()
+                withAnimation(.snappy(duration: 0.24)) { showManual.toggle() }
+            } label: {
+                HStack(alignment: .top, spacing: 12) {
+                    IumrahIconBadge(systemName: "square.and.pencil", role: .profile, size: 46, symbolSize: 18, cornerRadius: 15)
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 8) {
+                            Text(tr("Fill in manually", "Заполнить вручную", "Qo‘lda to‘ldirish", "Қўлда тўлдириш"))
+                                .font(.headline)
+                            Text(tr("Optional", "Не обязательно", "Ixtiyoriy", "Ихтиёрий"))
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 8)
+                                .frame(height: 23)
+                                .background(Color.secondary.opacity(0.10), in: Capsule())
+                        }
+                        Text(tr(
+                            "Manual details are not required, but they help our team process the booking faster.",
+                            "Заполнять вручную не обязательно, но эти данные ускорят оформление бронирования.",
+                            "Qo‘lda to‘ldirish shart emas, lekin bu ma’lumotlar bronni tezroq rasmiylashtirishga yordam beradi.",
+                            "Қўлда тўлдириш шарт эмас, лекин бу маълумотлар бронни тезроқ расмийлаштиришга ёрдам беради."
+                        ))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: showManual ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 4)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showManual {
+                Divider()
+                manualFields
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .iumrahCard()
+    }
+
+    private var manualFields: some View {
+        VStack(spacing: 11) {
+            textField(tr("First name as in passport", "Имя как в паспорте", "Pasportdagi ism", "Паспортдаги исм"), text: $form.firstName, capitalization: .words)
+            textField(tr("Last name as in passport", "Фамилия как в паспорте", "Pasportdagi familiya", "Паспортдаги фамилия"), text: $form.lastName, capitalization: .words)
+            textField(tr("Passport number", "Номер паспорта", "Pasport raqami", "Паспорт рақами"), text: $form.passportNumber, keyboard: .asciiCapable, capitalization: .characters)
+            dateField(tr("Date of birth", "Дата рождения", "Tug‘ilgan sana", "Туғилган сана"), text: $dateOfBirthInput)
+            dateField(tr("Passport expiry", "Срок действия паспорта", "Pasport muddati", "Паспорт муддати"), text: $passportExpiryInput)
+            textField(tr("Citizenship", "Гражданство", "Fuqarolik", "Фуқаролик"), text: $form.nationality, capitalization: .words)
+
+            Menu {
+                Button(tr("Male", "Мужской", "Erkak", "Эркак")) { form.gender = "male" }
+                Button(tr("Female", "Женский", "Ayol", "Аёл")) { form.gender = "female" }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "person.fill").foregroundStyle(.secondary).frame(width: 22)
+                    Text(form.gender.isEmpty ? tr("Gender", "Пол", "Jins", "Жинс") : genderTitle)
+                        .foregroundStyle(form.gender.isEmpty ? Color.secondary : Color.primary)
+                    Spacer()
+                    Image(systemName: "chevron.down").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 15)
+                .frame(height: 54)
+                .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                Task { await saveManualDetails() }
+            } label: {
+                HStack(spacing: 10) {
+                    if isSavingManual { ProgressView().tint(.white) }
+                    Image(systemName: "checkmark")
+                    Text(tr("Save manual details", "Сохранить ручные данные", "Qo‘lda kiritilganlarni saqlash", "Қўлда киритилганларни сақлаш"))
+                    Spacer()
+                }
+            }
+            .buttonStyle(IumrahPrimaryButtonStyle())
+            .disabled(isSavingManual)
+        }
+    }
+
+    private func textField(
         _ title: String,
-        _ text: Binding<String>,
+        text: Binding<String>,
         keyboard: UIKeyboardType = .default,
-        contentType: UITextContentType? = nil,
         capitalization: TextInputAutocapitalization = .words
     ) -> some View {
         TextField(title, text: text)
             .keyboardType(keyboard)
-            .textContentType(contentType)
             .textInputAutocapitalization(capitalization)
-            .autocorrectionDisabled(keyboard == .emailAddress || keyboard == .asciiCapable)
+            .autocorrectionDisabled(keyboard == .asciiCapable)
             .padding(.horizontal, 15)
-            .frame(height: 56)
-            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .frame(height: 54)
+            .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
     }
 
-    private func smartDateField(_ title: String, text: Binding<String>) -> some View {
+    private func dateField(_ title: String, text: Binding<String>) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "calendar")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 22)
+            Image(systemName: "calendar").foregroundStyle(.secondary).frame(width: 22)
             TextField("\(title) · DD.MM.YYYY", text: text)
                 .keyboardType(.numberPad)
                 .onChange(of: text.wrappedValue) { _, raw in
                     let formatted = Self.formatDateInput(raw)
                     if formatted != raw { text.wrappedValue = formatted }
                 }
-            Spacer(minLength: 0)
-            if text.wrappedValue.count == 10 {
-                Image(systemName: Self.isoDate(text.wrappedValue) == nil ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-                    .foregroundStyle(Self.isoDate(text.wrappedValue) == nil ? Color.red : Color.green)
-            }
         }
         .padding(.horizontal, 15)
-        .frame(height: 56)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .frame(height: 54)
+        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
     }
 
-    private func menuRow(icon: String, title: String, value: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundStyle(.secondary)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .foregroundStyle(value.isEmpty ? Color.secondary : Color.primary)
+    @MainActor
+    private func preparePreview(_ item: PhotosPickerItem) async {
+        errorMessage = nil
+        do {
+            guard let raw = try await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: raw),
+                  let jpeg = image.jpegData(compressionQuality: 0.90) else {
+                throw APIError.invalidResponse
             }
-            Spacer()
-            Image(systemName: "chevron.down")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.tertiary)
+            previewImage = image
+            previewData = jpeg
+        } catch {
+            previewImage = nil
+            previewData = nil
+            errorMessage = tr("Could not prepare this photo.", "Не удалось подготовить это фото.", "Bu rasmni tayyorlab bo‘lmadi.", "Бу расмни тайёрлаб бўлмади.")
         }
-        .padding(.horizontal, 15)
-        .frame(height: 58)
-        .background(Color.iumrahRaisedBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func statusChip(icon: String, text: String, ready: Bool) -> some View {
-        Label(text, systemImage: icon)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(ready ? Color.green : Color.secondary)
-            .padding(.horizontal, 10)
-            .frame(height: 32)
-            .background((ready ? Color.green : Color.secondary).opacity(0.09), in: Capsule())
-            .lineLimit(1)
+    @MainActor
+    private func uploadPassport() async {
+        guard let token = account.bearerToken, let data = previewData else {
+            errorMessage = tr("Sign in to attach the passport.", "Войдите в аккаунт, чтобы прикрепить паспорт.", "Pasportni biriktirish uchun akkauntga kiring.", "Паспортни бириктириш учун аккаунтга киринг.")
+            return
+        }
+
+        isUploading = true
+        errorMessage = nil
+        defer { isUploading = false }
+
+        do {
+            try await service.uploadPassport(
+                bookingID: bookingID,
+                position: form.position,
+                data: data,
+                contentType: "image/jpeg",
+                token: token
+            )
+            uploadedInSession = true
+            IumrahHaptics.success()
+            onSaved?()
+        } catch {
+            errorMessage = error.localizedDescription
+            IumrahHaptics.error()
+        }
+    }
+
+    @MainActor
+    private func saveManualDetails() async {
+        guard let token = account.bearerToken else {
+            errorMessage = tr("Sign in to save details.", "Войдите в аккаунт, чтобы сохранить данные.", "Ma’lumotlarni saqlash uchun akkauntga kiring.", "Маълумотларни сақлаш учун аккаунтга киринг.")
+            return
+        }
+
+        var payload = form
+        if !dateOfBirthInput.isEmpty {
+            guard let value = Self.isoDate(dateOfBirthInput) else {
+                errorMessage = tr("Check the date of birth.", "Проверьте дату рождения.", "Tug‘ilgan sanani tekshiring.", "Туғилган санани текширинг.")
+                return
+            }
+            payload.dateOfBirth = value
+        }
+        if !passportExpiryInput.isEmpty {
+            guard let value = Self.isoDate(passportExpiryInput) else {
+                errorMessage = tr("Check the passport expiry date.", "Проверьте срок действия паспорта.", "Pasport muddatini tekshiring.", "Паспорт муддатини текширинг.")
+                return
+            }
+            payload.passportExpiryDate = value
+        }
+        if payload.passportIssuingCountry.isEmpty { payload.passportIssuingCountry = payload.nationality }
+        if payload.residenceCountry.isEmpty { payload.residenceCountry = payload.nationality }
+
+        isSavingManual = true
+        errorMessage = nil
+        defer { isSavingManual = false }
+
+        do {
+            let saved = try await service.saveTraveler(
+                bookingID: bookingID,
+                position: payload.position,
+                form: payload,
+                token: token
+            )
+            form = saved
+            IumrahHaptics.success()
+            onSaved?()
+        } catch {
+            errorMessage = error.localizedDescription
+            IumrahHaptics.error()
+        }
     }
 
     private var pageTitle: String {
-        let values = [form.firstName, form.middleName, form.lastName]
+        let name = [form.firstName, form.lastName]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-        return values.isEmpty
+        return name.isEmpty
             ? tr("Traveler \(form.position)", "Участник \(form.position)", "Sayohatchi \(form.position)", "Саёҳатчи \(form.position)")
-            : values
-    }
-
-    private var relationshipTitle: String {
-        switch form.relationship?.lowercased() {
-        case "spouse": return tr("Spouse", "Муж или жена", "Turmush o‘rtog‘i", "Турмуш ўртоғи")
-        case "mother": return tr("Mother", "Мама", "Ona", "Она")
-        case "father": return tr("Father", "Папа", "Ota", "Ота")
-        case "brother": return tr("Brother", "Брат", "Aka yoki uka", "Ака ёки ука")
-        case "sister": return tr("Sister", "Сестра", "Opa yoki singil", "Опа ёки сингил")
-        case "child": return tr("Child", "Ребёнок", "Farzand", "Фарзанд")
-        case "relative": return tr("Relative", "Родственник", "Qarindosh", "Қариндош")
-        case "friend": return tr("Friend", "Друг или подруга", "Do‘st", "Дўст")
-        default: return tr("Traveler", "Участник поездки", "Sayohatchi", "Саёҳатчи")
-        }
-    }
-
-    private var relationshipIcon: String {
-        switch form.relationship?.lowercased() {
-        case "spouse": return "heart.fill"
-        case "child": return "figure.child"
-        case "mother", "father", "brother", "sister", "relative", "friend": return "person.2.fill"
-        default: return "person.crop.circle.fill"
-        }
+            : name
     }
 
     private var genderTitle: String {
         switch form.gender.lowercased() {
         case "male": return tr("Male", "Мужской", "Erkak", "Эркак")
         case "female": return tr("Female", "Женский", "Ayol", "Аёл")
-        default: return tr("Select", "Выберите", "Tanlang", "Танланг")
-        }
-    }
-
-    private var nameReady: Bool {
-        !form.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !form.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var passportReady: Bool {
-        !form.passportNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        Self.isoDate(passportExpiryInput) != nil &&
-        (form.hasPassport || passportPhoto != nil)
-    }
-
-    private var maskedPassport: String {
-        let clean = form.passportNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard clean.count > 4 else { return clean }
-        return "•••• \(clean.suffix(4))"
-    }
-
-    private var canSave: Bool {
-        nameReady &&
-        Self.isoDate(dateOfBirthInput) != nil &&
-        !form.gender.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !form.nationality.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !form.passportNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        Self.isoDate(passportExpiryInput) != nil
-    }
-
-    @MainActor
-    private func save() async {
-        guard let token = account.bearerToken,
-              let dob = Self.isoDate(dateOfBirthInput),
-              let expiry = Self.isoDate(passportExpiryInput) else { return }
-
-        isSaving = true
-        errorMessage = nil
-        defer { isSaving = false }
-
-        do {
-            var payload = form
-            payload.dateOfBirth = dob
-            payload.passportExpiryDate = expiry
-            payload.passportIssuingCountry = payload.nationality
-
-            // Emergency contact is intentionally centralized in Account. Keep the
-            // current server values unless empty, then fill from the shared profile.
-            if payload.emergencyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                payload.emergencyName = settings.emergencyName
-            }
-            if payload.emergencyPhone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                payload.emergencyPhone = settings.emergencyPhone
-            }
-            if payload.emergencyRelation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                payload.emergencyRelation = settings.emergencyRelation
-            }
-
-            _ = try await service.saveTraveler(
-                bookingID: bookingID,
-                position: payload.position,
-                form: payload,
-                token: token
-            )
-
-            if let passportPhoto,
-               let data = try await passportPhoto.loadTransferable(type: Data.self) {
-                let type = passportPhoto.supportedContentTypes.first?.preferredMIMEType ?? "image/jpeg"
-                try await service.uploadPassport(
-                    bookingID: bookingID,
-                    position: payload.position,
-                    data: data,
-                    contentType: type,
-                    token: token
-                )
-            }
-
-            IumrahHaptics.success()
-            onSaved?()
-            dismiss()
-        } catch {
-            errorMessage = L10n.error(error, settings.language)
-            IumrahHaptics.error()
+        default: return tr("Gender", "Пол", "Jins", "Жинс")
         }
     }
 
     private static func formatDateInput(_ raw: String) -> String {
         let digits = String(raw.filter(\.isNumber).prefix(8))
-        guard digits.count > 2 else { return digits }
-        let day = String(digits.prefix(2))
-        let afterDay = digits.dropFirst(2)
-        guard afterDay.count > 2 else { return day + "." + String(afterDay) }
-        let month = String(afterDay.prefix(2))
-        return day + "." + month + "." + String(afterDay.dropFirst(2))
+        var result = ""
+        for (index, character) in digits.enumerated() {
+            if index == 2 || index == 4 { result.append(".") }
+            result.append(character)
+        }
+        return result
     }
 
-    private static func displayDate(_ raw: String) -> String {
-        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    private static func isoDate(_ value: String) -> String? {
+        let parts = value.split(separator: ".")
+        guard parts.count == 3,
+              let day = Int(parts[0]), let month = Int(parts[1]), let year = Int(parts[2]),
+              (1...31).contains(day), (1...12).contains(month), (1900...2200).contains(year) else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        guard calendar.date(from: DateComponents(year: year, month: month, day: day)) != nil else { return nil }
+        return String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
+    private static func displayDate(_ value: String) -> String {
         let parts = value.split(separator: "-")
         guard parts.count == 3 else { return value }
         return "\(parts[2]).\(parts[1]).\(parts[0])"
     }
 
-    private static func isoDate(_ input: String) -> String? {
-        let parts = input.split(separator: ".")
-        guard parts.count == 3,
-              let day = Int(parts[0]),
-              let month = Int(parts[1]),
-              let year = Int(parts[2]),
-              year >= 1900, year <= 2100,
-              let date = Calendar(identifier: .gregorian).date(from: DateComponents(year: year, month: month, day: day)) else { return nil }
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
-    }
-
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
-        case .english: return en
         case .russian: return ru
+        case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
         }
