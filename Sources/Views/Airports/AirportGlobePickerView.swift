@@ -9,14 +9,17 @@ struct AirportGlobePickerView: View {
     @Binding var fallbackCode: String
     private let onSelectionCommitted: () -> Void
 
-    @State private var position: MapCameraPosition
-    @State private var selectedFeature: MapFeature?
+    @StateObject private var discovery = AirportMapDiscoveryStore()
+    @State private var selectedPoint: AirportMapPoint?
     @State private var resolvedAirport: Airport?
     @State private var isResolving = false
     @State private var resolveFailed = false
     @State private var visibleRegion = Self.worldRegion
+    @State private var cameraDistance: CLLocationDistance = 32_000_000
+    @State private var resetGeneration = 0
+    @State private var resolutionTask: Task<Void, Never>?
 
-    private let airportService = AirportSearchService()
+    private let resolver = AirportMapResolver()
 
     init(
         selection: Binding<Airport?>,
@@ -26,73 +29,47 @@ struct AirportGlobePickerView: View {
         _selection = selection
         _fallbackCode = fallbackCode
         self.onSelectionCommitted = onSelectionCommitted
-
-        let center: CLLocationCoordinate2D
-        if let airport = selection.wrappedValue {
-            center = CLLocationCoordinate2D(latitude: airport.lat, longitude: airport.lon)
-        } else {
-            // Start with the Middle East / Central Asia facing the user. At this
-            // distance MapKit presents its native globe instead of a flat map.
-            center = CLLocationCoordinate2D(latitude: 28.0, longitude: 52.0)
-        }
-
-        _position = State(initialValue: .camera(Self.globeCamera(centeredAt: center)))
     }
 
     var body: some View {
         ZStack {
-            Map(
-                position: $position,
-                interactionModes: .all,
-                selection: $selectedFeature
-            ) {
-                if let current = selection {
-                    Annotation(
-                        current.iata,
-                        coordinate: CLLocationCoordinate2D(latitude: current.lat, longitude: current.lon),
-                        anchor: .bottom
-                    ) {
-                        currentAirportMarker(current)
-                    }
-                }
-            }
-            .mapStyle(
-                .hybrid(
-                    elevation: .realistic,
-                    pointsOfInterest: .including([.airport]),
-                    showsTraffic: false
-                )
+            AirportMapKitCanvas(
+                points: mapPoints,
+                origin: selection,
+                destination: nil,
+                selectedPointID: selectedPoint?.id,
+                initialFocus: selection,
+                resetGeneration: resetGeneration,
+                onSelect: select,
+                onRegionSettled: regionDidSettle
             )
-            .mapFeatureSelectionDisabled { feature in
-                feature.pointOfInterestCategory != .airport
-            }
-            .onMapCameraChange(frequency: .onEnd) { context in
-                visibleRegion = context.region
-            }
-            .onChange(of: selectedFeature) { _, feature in
-                guard let feature, feature.pointOfInterestCategory == .airport else {
-                    if selectedFeature == nil {
-                        resolvedAirport = nil
-                        resolveFailed = false
-                        isResolving = false
-                    }
-                    return
-                }
-                resolve(feature)
-            }
             .ignoresSafeArea()
 
             VStack(spacing: 12) {
                 topBar
-
                 Spacer(minLength: 12)
-
                 bottomPanel
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 8)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
         }
+        .onDisappear {
+            resolutionTask?.cancel()
+        }
+    }
+
+    private var mapPoints: [AirportMapPoint] {
+        let bundled = AirportMapBootstrapCatalog.points
+        let dynamic = discovery.points.filter { candidate in
+            !bundled.contains { bundledPoint in
+                CLLocation(latitude: candidate.latitude, longitude: candidate.longitude)
+                    .distance(from: CLLocation(latitude: bundledPoint.latitude, longitude: bundledPoint.longitude)) < 2_500
+            }
+        }
+        return bundled + dynamic
     }
 
     private var topBar: some View {
@@ -129,8 +106,8 @@ struct AirportGlobePickerView: View {
 
     @ViewBuilder
     private var bottomPanel: some View {
-        if let feature = selectedFeature, feature.pointOfInterestCategory == .airport {
-            selectedAirportPanel(feature)
+        if let selectedPoint {
+            selectedAirportPanel(selectedPoint)
         } else {
             instructionPanel
         }
@@ -155,6 +132,13 @@ struct AirportGlobePickerView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                Spacer(minLength: 0)
+
+                if discovery.isDiscovering {
+                    ProgressView()
+                        .controlSize(.small)
+                }
             }
         }
         .padding(16)
@@ -162,12 +146,16 @@ struct AirportGlobePickerView: View {
         .iumrahGlass(in: RoundedRectangle(cornerRadius: 27, style: .continuous))
     }
 
-    private func selectedAirportPanel(_ feature: MapFeature) -> some View {
+    private func selectedAirportPanel(_ point: AirportMapPoint) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 13) {
                 ZStack {
                     if let resolvedAirport {
                         Text(resolvedAirport.iata)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .monospaced()
+                    } else if let code = point.displayCode {
+                        Text(code)
                             .font(.system(size: 15, weight: .bold, design: .rounded))
                             .monospaced()
                     } else {
@@ -180,27 +168,24 @@ struct AirportGlobePickerView: View {
                 .iumrahGlass(in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(resolvedAirport?.city ?? feature.title ?? L10n.text("airport_map_airport", settings.language))
+                    Text(resolvedAirport?.city ?? point.displayTitle)
                         .font(.system(size: 20, weight: .bold, design: .rounded))
                         .lineLimit(2)
 
-                    if let resolvedAirport {
-                        Text(resolvedAirport.subtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    } else if let title = feature.title {
-                        Text(title)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
+                    Text(resolvedAirport?.subtitle ?? point.name)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
 
                 Spacer(minLength: 0)
 
                 Button {
-                    selectedFeature = nil
+                    resolutionTask?.cancel()
+                    selectedPoint = nil
+                    resolvedAirport = nil
+                    resolveFailed = false
+                    isResolving = false
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .bold))
@@ -213,8 +198,7 @@ struct AirportGlobePickerView: View {
 
             if isResolving {
                 HStack(spacing: 9) {
-                    ProgressView()
-                        .controlSize(.small)
+                    ProgressView().controlSize(.small)
                     Text(L10n.text("airport_map_resolving", settings.language))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -245,126 +229,50 @@ struct AirportGlobePickerView: View {
     }
 
     private var mapHintText: String {
-        let span = max(visibleRegion.span.latitudeDelta, visibleRegion.span.longitudeDelta)
-        return L10n.text(span > 55 ? "airport_map_zoom_hint" : "airport_map_tap_hint", settings.language)
-    }
-
-    private func currentAirportMarker(_ airport: Airport) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: "airplane")
-                .font(.system(size: 18, weight: .bold))
-                .rotationEffect(.degrees(-35))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(Color.blue.gradient, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-                .shadow(color: .black.opacity(0.30), radius: 8, y: 4)
-
-            Text(airport.iata)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.black.opacity(0.68), in: Capsule())
+        if cameraDistance > 5_500_000 {
+            return L10n.text("airport_map_zoom_hint", settings.language)
         }
-        .accessibilityLabel(airport.compactTitle)
+        return L10n.text("airport_map_tap_hint", settings.language)
     }
 
     private func resetToGlobe() {
-        selectedFeature = nil
+        resolutionTask?.cancel()
+        selectedPoint = nil
         resolvedAirport = nil
         resolveFailed = false
         isResolving = false
-
-        let center: CLLocationCoordinate2D
-        if let current = selection {
-            center = CLLocationCoordinate2D(latitude: current.lat, longitude: current.lon)
-        } else {
-            center = CLLocationCoordinate2D(latitude: 28.0, longitude: 52.0)
-        }
-
-        withAnimation(.easeInOut(duration: 0.65)) {
-            position = .camera(Self.globeCamera(centeredAt: center))
-        }
+        discovery.resetRequestThrottle()
+        resetGeneration += 1
         IumrahHaptics.soft()
     }
 
-    private func resolve(_ feature: MapFeature) {
-        resolvedAirport = nil
+    private func select(_ point: AirportMapPoint) {
+        resolutionTask?.cancel()
+        selectedPoint = point
+        resolvedAirport = point.airport
         resolveFailed = false
-        isResolving = true
+        isResolving = point.airport == nil
         IumrahHaptics.selection()
 
-        let featureSnapshot = AirportFeatureSnapshot(feature: feature)
-
-        Task {
-            let airport = await resolveAirport(for: featureSnapshot)
-            guard selectedFeature?.coordinate.latitude == featureSnapshot.coordinate.latitude,
-                  selectedFeature?.coordinate.longitude == featureSnapshot.coordinate.longitude else {
-                return
-            }
-
+        guard point.airport == nil else { return }
+        resolutionTask = Task {
+            let airport = await resolver.resolve(point)
+            guard !Task.isCancelled, selectedPoint?.id == point.id else { return }
             resolvedAirport = airport
             resolveFailed = airport == nil
             isResolving = false
-
-            if airport == nil {
+            if let airport {
+                discovery.rememberResolved(point, airport: airport)
+            } else {
                 IumrahHaptics.error()
             }
         }
     }
 
-    private func resolveAirport(for feature: AirportFeatureSnapshot) async -> Airport? {
-        let location = CLLocation(latitude: feature.coordinate.latitude, longitude: feature.coordinate.longitude)
-        var queries: [String] = []
-
-        if let title = feature.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
-            queries.append(title)
-        }
-
-        // Reverse geocoding is only used to obtain an English city spelling for
-        // the existing iumrah airport API. It does not request the user's location
-        // and therefore does not add a location permission requirement.
-        if let placemark = try? await CLGeocoder().reverseGeocodeLocation(
-            location,
-            preferredLocale: Locale(identifier: "en_US")
-        ).first {
-            if let locality = placemark.locality, !locality.isEmpty {
-                queries.append(locality)
-            }
-            if let subAdministrativeArea = placemark.subAdministrativeArea, !subAdministrativeArea.isEmpty {
-                queries.append(subAdministrativeArea)
-            }
-        }
-
-        var seen = Set<String>()
-        let uniqueQueries = queries.filter { query in
-            let key = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard !key.isEmpty, !seen.contains(key) else { return false }
-            seen.insert(key)
-            return true
-        }
-
-        for query in uniqueQueries {
-            guard !Task.isCancelled else { return nil }
-            guard let airports = try? await airportService.search(query, limit: 12), !airports.isEmpty else {
-                continue
-            }
-
-            if let nearest = nearestAirport(to: location, from: airports), nearest.distance <= 50_000 {
-                return nearest.airport
-            }
-        }
-
-        return nil
-    }
-
-    private func nearestAirport(to location: CLLocation, from airports: [Airport]) -> (airport: Airport, distance: CLLocationDistance)? {
-        airports
-            .map { airport in
-                let airportLocation = CLLocation(latitude: airport.lat, longitude: airport.lon)
-                return (airport: airport, distance: location.distance(from: airportLocation))
-            }
-            .min { $0.distance < $1.distance }
+    private func regionDidSettle(_ region: MKCoordinateRegion, _ distance: CLLocationDistance) {
+        visibleRegion = region
+        cameraDistance = distance
+        discovery.update(region: region, cameraDistance: distance)
     }
 
     private func choose(_ airport: Airport) {
@@ -379,23 +287,4 @@ struct AirportGlobePickerView: View {
         center: CLLocationCoordinate2D(latitude: 28.0, longitude: 52.0),
         span: MKCoordinateSpan(latitudeDelta: 140.0, longitudeDelta: 220.0)
     )
-
-    private static func globeCamera(centeredAt coordinate: CLLocationCoordinate2D) -> MapCamera {
-        MapCamera(
-            centerCoordinate: coordinate,
-            distance: 32_000_000,
-            heading: 0,
-            pitch: 0
-        )
-    }
-}
-
-private struct AirportFeatureSnapshot {
-    let title: String?
-    let coordinate: CLLocationCoordinate2D
-
-    init(feature: MapFeature) {
-        title = feature.title
-        coordinate = feature.coordinate
-    }
 }

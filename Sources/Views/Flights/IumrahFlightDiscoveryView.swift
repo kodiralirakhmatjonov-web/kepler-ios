@@ -27,6 +27,7 @@ struct IumrahFlightDiscoveryView: View {
 
     @State private var originPickerPresented = false
     @State private var destinationPickerPresented = false
+    @State private var routeMapPresented = false
     @State private var calendarPresented = false
     @State private var passengersPresented = false
     @State private var filtersPresented = false
@@ -63,6 +64,15 @@ struct IumrahFlightDiscoveryView: View {
             AirportPickerView(
                 selection: $destinationAirport,
                 fallbackCode: $destinationCode
+            )
+            .environmentObject(settings)
+        }
+        .fullScreenCover(isPresented: $routeMapPresented) {
+            AirportRouteMapPickerView(
+                origin: $journey.trip.originAirport,
+                originCode: $journey.trip.origin,
+                destination: $destinationAirport,
+                destinationCode: $destinationCode
             )
             .environmentObject(settings)
         }
@@ -226,6 +236,14 @@ struct IumrahFlightDiscoveryView: View {
     private var searchControls: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
+                chipButton(
+                    icon: "globe.europe.africa.fill",
+                    title: tr("На карте", "Map", "Xaritada", "Харитада"),
+                    active: false
+                ) {
+                    routeMapPresented = true
+                }
+
                 chipButton(
                     icon: "calendar",
                     title: dateChipTitle,

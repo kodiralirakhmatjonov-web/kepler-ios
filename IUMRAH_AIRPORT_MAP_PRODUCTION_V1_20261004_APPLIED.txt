@@ -1,0 +1,23 @@
+Iumrah Airport Map — production map selection V1
+Date: 2026-10-04
+
+Implemented:
+- Native MKMapView airport canvas with satellite/hybrid globe interaction.
+- Level-of-detail airport rendering: global dots -> compact markers -> airplane + IATA label when zoomed in.
+- Native MapKit clustering with tap-to-zoom clusters.
+- Bundled zero-network priority catalog for Uzbekistan, Saudi Arabia and major connecting hubs.
+- Apple Maps airport POI discovery for the visible region when zoomed in.
+- On-device POI cache (bounded) so discovered airports remain available on repeat visits.
+- Existing iumrah airport API is used only to resolve an Apple Maps POI to a real IATA airport before selection.
+- Single-airport globe picker migrated to the new map engine.
+- New full-screen route map picker for Flights: choose departure and arrival on the same map.
+- Geodesic route line between selected airports.
+- Dedicated From / To selection mode, duplicate-airport protection, haptics, and adaptive iPad-width floating chrome.
+- Flights page gets a new "Map" chip. Committing a route updates the existing flight search bindings, so the existing Aviasales result refresh pipeline continues unchanged.
+- No database migration and no backend deployment required for this patch.
+
+Performance / safety:
+- POI discovery is disabled at very wide camera distances.
+- Visible dynamic points are capped and clustered.
+- Persistent cache is bounded to avoid unbounded growth.
+- Important iumrah airports remain bundled and do not depend on POI discovery.
