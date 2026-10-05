@@ -1,0 +1,10 @@
+IUMRAH ZIYARATS CRASHFIX V11 MANIFEST
+Generated: 2026-10-05
+
+Cumulative base: V10
+Primary modified file: Sources/Ziyarats/ZiyaratViews.swift
+
+SHA256:
+17291fd21de2455d14286803b4f6975fbc3b24130371f659fb62a509874d2e18  Sources/Ziyarats/ZiyaratViews.swift
+8b15bfa69e2017fa50beb5bcc9cd8a9075f1b633ee0c2a3d888c8953f78fe0e6  Sources/Services/ZiyaratService.swift
+f29cf524ec5dc472076f073a8ee31e64561e31be7fb2d23d51c5bc52b15a899e  Sources/Views/Flights/IumrahFlightDiscoveryView.swift

@@ -1,0 +1,17 @@
+IUMRAH ZIYARATS CRASHFIX V11 — 2026-10-05
+
+This is a cumulative patch and includes the previous V10 Flights / Services build fix.
+
+Ziyarats runtime stability changes:
+- Removed eager whole-catalogue image prefetch from ZiyaratJourneyView startup.
+- Prevented concurrent decoding of dozens of full-resolution photos when opening Ziyarats.
+- Remote Ziyarat photos are now downsampled with ImageIO before creating UIImage.
+- Added a 20 MB per-image safety cap for on-demand rendering.
+- Reduced decoded image cache count and memory budget.
+- Reworked ZiyaratImagePrefetcher to warm only one cover image per place, max 6 total.
+- Prefetch is sequential and caches compressed response bytes only; it no longer decodes UIImage.
+- Added cancellation and size guards to prefetch.
+- Preserves V10 coordinate sanitization and MapKit route hardening.
+
+Primary failure mode addressed:
+Opening Ziyarats could trigger up to 36 high-resolution image downloads/decodes concurrently, causing a memory spike and iOS process termination before the page became interactive.

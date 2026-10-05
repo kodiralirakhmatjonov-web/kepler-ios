@@ -1,6 +1,7 @@
 import SwiftUI
 import MapKit
 import UIKit
+import ImageIO
 
 // MARK: - iumrah Ziyarats
 //
@@ -730,9 +731,10 @@ struct ZiyaratJourneyView: View {
         guard routeRequestID == requestID, selectedCity == city else { return }
 
         route = live
-        Task {
-            await ZiyaratImagePrefetcher.shared.prefetch(route: live)
-        }
+        // Do not prefetch the whole Ziyarats photo catalogue when the screen opens.
+        // A route can contain dozens of high-resolution images; eagerly downloading
+        // and decoding them was able to spike memory and terminate the app before
+        // the first frame became interactive. Images now load on demand.
         let validPlaces = live.places.filter(Self.hasUsableCoordinate)
         let targetRegion = validPlaces.isEmpty ? Self.defaultRegion(for: city) : Self.region(for: validPlaces)
         if animateCamera && !reduceMotion {
@@ -1865,8 +1867,8 @@ fileprivate final class ZiyaratRemoteImageLoader: ObservableObject {
 
     fileprivate static let cache: NSCache<NSURL, UIImage> = {
         let cache = NSCache<NSURL, UIImage>()
-        cache.countLimit = 48
-        cache.totalCostLimit = 72 * 1024 * 1024
+        cache.countLimit = 12
+        cache.totalCostLimit = 48 * 1024 * 1024
         return cache
     }()
 
@@ -1896,17 +1898,32 @@ fileprivate final class ZiyaratRemoteImageLoader: ObservableObject {
                     failed = true
                     return
                 }
-                guard let decoded = UIImage(data: data) else {
+                guard data.count <= 20 * 1024 * 1024,
+                      let decoded = Self.downsampledImage(from: data, maxPixelSize: 1600) else {
                     failed = true
                     return
                 }
-                Self.cache.setObject(decoded, forKey: url as NSURL, cost: data.count)
+                let decodedCost = max(1, Int(decoded.size.width * decoded.scale) * Int(decoded.size.height * decoded.scale) * 4)
+                Self.cache.setObject(decoded, forKey: url as NSURL, cost: decodedCost)
                 image = decoded
             } catch {
                 guard !Task.isCancelled else { return }
                 failed = true
             }
         }
+    }
+
+    private static func downsampledImage(from data: Data, maxPixelSize: CGFloat) -> UIImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
+        let options = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ] as CFDictionary
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 
     func cancel() {
@@ -2170,6 +2187,10 @@ private struct ZiyaratBookingCarouselCard: View {
 actor ZiyaratImagePrefetcher {
     static let shared = ZiyaratImagePrefetcher()
 
+    /// Prefetch is deliberately bounded. The full catalogue can contain many
+    /// high-resolution photos, so warming every image in parallel can cause an
+    /// out-of-memory termination. Rendering owns image decoding; prefetch only
+    /// stores a small number of compressed responses in URLCache.
     func prefetch(city: String) async {
         let route = await ZiyaratService.shared.route(city: city)
         await prefetch(route: route)
@@ -2177,34 +2198,39 @@ actor ZiyaratImagePrefetcher {
 
     func prefetch(route: ZiyaratRoute) async {
         let urls = route.places
-            .flatMap(\.images)
+            .sorted { $0.routeOrder < $1.routeOrder }
+            .flatMap { place in
+                place.images
+                    .sorted { $0.position < $1.position }
+                    .prefix(1)
+            }
             .compactMap { image -> URL? in
                 guard image.bundledAssetName == nil else { return nil }
                 return AppConfig.absoluteURL(image.url)
             }
 
-        await withTaskGroup(of: Void.self) { group in
-            for url in urls.prefix(36) {
-                group.addTask { await Self.warm(url) }
-            }
+        // A few cover images are enough to make the catalogue feel instant.
+        // Sequential warming keeps peak networking and memory deterministic.
+        for url in urls.prefix(6) {
+            guard !Task.isCancelled else { return }
+            await Self.warm(url)
         }
     }
 
     private static func warm(_ url: URL) async {
-        var request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 25)
+        var request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 15)
         request.setValue("image/avif,image/webp,image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
         if URLCache.shared.cachedResponse(for: request) != nil { return }
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
-                  let decoded = UIImage(data: data) else { return }
+            guard !Task.isCancelled,
+                  data.count <= 12 * 1024 * 1024,
+                  let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode) else { return }
             URLCache.shared.storeCachedResponse(CachedURLResponse(response: response, data: data), for: request)
-            await MainActor.run {
-                ZiyaratRemoteImageLoader.cache.setObject(decoded, forKey: url as NSURL, cost: data.count)
-            }
         } catch {
-            // Prefetch is intentionally best-effort and must never block Ziyarats.
+            // Best effort only. Ziyarats must remain usable without image prefetch.
         }
     }
 }
