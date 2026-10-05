@@ -602,7 +602,8 @@ struct IumrahFlightDiscoveryView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
-            .frame(width: 174, minHeight: 68)
+            .frame(width: 174)
+            .frame(minHeight: 68)
             .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -1314,7 +1315,7 @@ struct IumrahFlightDiscoveryView: View {
             returnAt: offer.returnAt,
             returnAirline: offer.returnAirlineCode.map { FlightReferenceCatalog.airlineName(code: $0, fallback: $0) },
             returnFlightNumber: {
-                let values = [offer.returnAirlineCode, offer.returnFlightNumber].compactMap { value in
+                let values = [offer.returnAirlineCode, offer.returnFlightNumber].compactMap { value -> String? in
                     guard let value, !value.isEmpty else { return nil }
                     return value
                 }

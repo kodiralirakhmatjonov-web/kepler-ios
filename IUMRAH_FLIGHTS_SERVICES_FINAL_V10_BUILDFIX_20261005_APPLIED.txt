@@ -1,0 +1,20 @@
+IUMRAH Flights / Services FINAL V10 BUILD FIX — 2026-10-05
+
+Cumulative patch. Includes all V9 work plus the simulator compile fix found in GitHub Actions run logs_101098364115.
+
+Fixed exact Xcode errors:
+1) IumrahFlightDiscoveryView.swift:605
+   - Invalid SwiftUI call `.frame(width: 174, minHeight: 68)` replaced with two valid frame modifiers:
+     `.frame(width: 174)` + `.frame(minHeight: 68)`.
+
+2) IumrahFlightDiscoveryView.swift:1317
+   - Added explicit `String?` result type to the round-trip return-flight `compactMap`, resolving
+     `generic parameter 'ElementOfResult' could not be inferred`.
+
+Validation:
+- The uploaded GitHub Actions log contains exactly these two `error:` diagnostics.
+- `swiftc -parse Sources/Views/Flights/IumrahFlightDiscoveryView.swift`: PASS after fix.
+- Backend contract suite from the patch workspace: 116/116 PASS.
+- Backend runtime suite still has the same two pre-existing D1 cache/calendar assertions documented in V9; this build-fix does not touch that unrelated backend behavior.
+
+Patch type: cumulative. V8/V9 do not need to be applied first.
