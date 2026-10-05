@@ -70,6 +70,8 @@ struct IumrahFlightDiscoveryView: View {
                     dataSourceNote
                 }
             } else {
+                tripTypePicker
+                recommendedSearchControls
                 recommendedFlightsSection
             }
         }
@@ -162,8 +164,8 @@ struct IumrahFlightDiscoveryView: View {
                 fallbackReturnDate: tripType == .roundTrip ? returnDate : nil,
                 currency: store.currency,
                 canBuildUmrah: ["JED", "MED"].contains(offer.destination.uppercased()) || ["JED", "MED"].contains(offer.origin.uppercased()),
-                onCheckPrice: { checkCurrentPrice(for: offer) },
-                onBuildUmrah: { stageDiscoveryFlightForUmrah(offer) }
+                onCheckPrice: { currentOffer in checkCurrentPrice(for: currentOffer) },
+                onBuildUmrah: { currentOffer in stageDiscoveryFlightForUmrah(currentOffer) }
             )
         }
         .onChange(of: destinationAirport) { _, airport in
@@ -281,6 +283,8 @@ struct IumrahFlightDiscoveryView: View {
                 .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
             }
             .buttonStyle(.plain)
+            .disabled(searchProgress > 0 && searchProgress < 1)
+            .opacity(searchProgress > 0 && searchProgress < 1 ? 0.92 : 1)
 
             if searchProgress > 0 && searchProgress < 1 {
                 ProgressView(value: searchProgress)
@@ -297,10 +301,10 @@ struct IumrahFlightDiscoveryView: View {
                     Text(tr("Прямые рейсы iumrah", "iumrah non-stop flights", "iumrah to‘g‘ridan-to‘g‘ri reyslari", "iumrah тўғридан-тўғри рейслари"))
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                     Text(tr(
-                        "Рейсы из собственной базы iumrah — тот же источник, который использует конфигуратор пакета.",
-                        "Flights from the iumrah database — the same source used by the package builder.",
-                        "iumrah bazasidagi reyslar — paket konstruktori ishlatadigan ayni manba.",
-                        "iumrah базасидаги рейслар — пакет конструктори ишлатадиган айни манба."
+                        "\(dateChipTitle) · рейсы из собственной базы iumrah — тот же источник, который использует конфигуратор пакета.",
+                        "\(dateChipTitle) · flights from the iumrah database — the same source used by the package builder.",
+                        "\(dateChipTitle) · iumrah bazasidagi reyslar — paket konstruktori ishlatadigan ayni manba.",
+                        "\(dateChipTitle) · iumrah базасидаги рейслар — пакет конструктори ишлатадиган айни манба."
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -474,6 +478,48 @@ struct IumrahFlightDiscoveryView: View {
         }
     }
 
+    private var recommendedSearchControls: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                chipButton(
+                    icon: "calendar",
+                    title: dateChipTitle,
+                    active: false
+                ) {
+                    calendarPresented = true
+                }
+
+                chipButton(
+                    icon: "person.fill",
+                    title: passengerChipTitle,
+                    active: false
+                ) {
+                    passengersPresented = true
+                }
+
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.green)
+                    Text(tr(
+                        "Опубликованные прямые",
+                        "Published non-stop",
+                        "E’lon qilingan to‘g‘ri reyslar",
+                        "Эълон қилинган тўғри рейслар"
+                    ))
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                }
+                .padding(.horizontal, 15)
+                .frame(height: 46)
+                .background(Color.green.opacity(0.09), in: Capsule())
+                .overlay {
+                    Capsule().strokeBorder(Color.green.opacity(0.18), lineWidth: 0.8)
+                }
+            }
+        }
+    }
+
     private func chipButton(icon: String, title: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button {
             IumrahHaptics.soft()
@@ -604,6 +650,8 @@ struct IumrahFlightDiscoveryView: View {
 
             if !hasSearched {
                 preSearchCard
+            } else if searchProgress > 0 && searchProgress < 1 && rankedOffers.isEmpty {
+                searchInProgressCard
             } else if rankedOffers.isEmpty {
                 emptyOffersCard
             } else {
@@ -686,6 +734,43 @@ struct IumrahFlightDiscoveryView: View {
                     }
                 }
             }
+        }
+    }
+
+    private var searchInProgressCard: some View {
+        HStack(spacing: 14) {
+            ProgressView(value: searchProgress)
+                .progressViewStyle(.circular)
+                .controlSize(.regular)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(tr(
+                    "Ищем подходящие авиабилеты",
+                    "Searching for matching flights",
+                    "Mos aviachiptalar qidirilmoqda",
+                    "Мос авиачипталар қидирилмоқда"
+                ))
+                .font(.headline)
+
+                Text(tr(
+                    "Результаты будут появляться постепенно по мере проверки доступных предложений.",
+                    "Results will appear progressively while available fares are checked.",
+                    "Mavjud takliflar tekshirilishi bilan natijalar bosqichma-bosqich chiqadi.",
+                    "Мавжуд таклифлар текширилиши билан натижалар босқичма-босқич чиқади."
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
         }
     }
 
@@ -1019,19 +1104,83 @@ struct IumrahFlightDiscoveryView: View {
     }
 
     private var filteredRecommendedFlights: [CuratedFlightRecommendation] {
-        recommendedFlights.filter { item in
-            let out = item.outbound
-            if item.effectiveJourneyRole == "return" {
-                return out.origin.uppercased() == destinationCode.uppercased() &&
-                    out.destination.uppercased() == originCode
+        recommendedFlights
+            .filter { item in
+                let out = item.outbound
+                let role = item.effectiveJourneyRole
+
+                let routeMatches: Bool
+                if role == "return" {
+                    routeMatches = out.origin.uppercased() == destinationCode.uppercased() &&
+                        out.destination.uppercased() == originCode
+                } else {
+                    routeMatches = out.origin.uppercased() == originCode &&
+                        out.destination.uppercased() == destinationCode.uppercased()
+                }
+                guard routeMatches else { return false }
+
+                // A one-way search should never silently add a round-trip itinerary
+                // or a Saudi -> home return leg. Round-trip mode intentionally keeps
+                // complete pairs and individual published legs so the user can build
+                // a package from two independently published flights when needed.
+                if tripType == .oneWay {
+                    return role != "return" && item.inbound == nil
+                }
+                return true
             }
-            return out.origin.uppercased() == originCode &&
-                out.destination.uppercased() == destinationCode.uppercased()
+            .sorted { lhs, rhs in
+                let leftPriority = recommendationRolePriority(lhs)
+                let rightPriority = recommendationRolePriority(rhs)
+                if leftPriority != rightPriority { return leftPriority < rightPriority }
+
+                let leftDistance = recommendationDateScore(lhs)
+                let rightDistance = recommendationDateScore(rhs)
+                if leftDistance != rightDistance { return leftDistance < rightDistance }
+
+                if lhs.outboundDate != rhs.outboundDate { return lhs.outboundDate < rhs.outboundDate }
+                return lhs.id < rhs.id
+            }
+    }
+
+    private func recommendationRolePriority(_ item: CuratedFlightRecommendation) -> Int {
+        let role = item.effectiveJourneyRole
+        let hasRoundTrip = journey.stagedUmrahFlights.contains(where: { $0.kind == .roundTrip })
+        let hasOutbound = journey.stagedUmrahFlights.contains(where: { $0.kind == .outbound })
+        let hasInbound = journey.stagedUmrahFlights.contains(where: { $0.kind == .inbound })
+
+        if tripType == .roundTrip, hasOutbound, !hasInbound, !hasRoundTrip {
+            return role == "return" ? 0 : (role == "complete" ? 1 : 2)
         }
-        .sorted { lhs, rhs in
-            if lhs.outboundDate != rhs.outboundDate { return lhs.outboundDate < rhs.outboundDate }
-            return lhs.id < rhs.id
+        if tripType == .roundTrip, hasInbound, !hasOutbound, !hasRoundTrip {
+            return role == "outbound" ? 0 : (role == "complete" ? 1 : 2)
         }
+
+        switch role {
+        case "complete": return 0
+        case "outbound": return 1
+        case "return": return 2
+        default: return 3
+        }
+    }
+
+    private func recommendationDateScore(_ item: CuratedFlightRecommendation) -> Int {
+        let role = item.effectiveJourneyRole
+        if role == "return" {
+            return dayDistance(item.outboundDate, from: returnDate)
+        }
+
+        var score = dayDistance(item.outboundDate, from: departureDate)
+        if tripType == .roundTrip, let inboundDate = item.inboundDate {
+            score += dayDistance(inboundDate, from: returnDate)
+        }
+        return score
+    }
+
+    private func dayDistance(_ value: String, from referenceDate: Date) -> Int {
+        guard let date = dayDate(value) else { return 9_999 }
+        let start = Calendar.current.startOfDay(for: referenceDate)
+        let target = Calendar.current.startOfDay(for: date)
+        return abs(Calendar.current.dateComponents([.day], from: start, to: target).day ?? 9_999)
     }
 
     private func resetGlobalSearch() {
@@ -1314,16 +1463,25 @@ private struct IumrahRecommendedFlightCard: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                Text(tr("Прямой", "Non-stop", "To‘g‘ri", "Тўғри"))
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.green)
-                    .padding(.horizontal, 9)
-                    .frame(height: 25)
-                    .background(Color.green.opacity(0.11), in: Capsule())
+                VStack(alignment: .trailing, spacing: 5) {
+                    Text(journeyRoleTitle)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 9)
+                        .frame(height: 25)
+                        .background(Color.primary.opacity(0.07), in: Capsule())
+
+                    Text(tr("Прямой", "Non-stop", "To‘g‘ri", "Тўғри"))
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, 9)
+                        .frame(height: 25)
+                        .background(Color.green.opacity(0.11), in: Capsule())
+                }
             }
 
             routeLine(
-                title: tr("Туда", "Outbound", "Borish", "Бориш"),
+                title: primaryLegTitle,
                 leg: recommendation.outbound
             )
 
@@ -1394,6 +1552,22 @@ private struct IumrahRecommendedFlightCard: View {
                 .font(.caption.monospaced().weight(.semibold))
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var primaryLegTitle: String {
+        recommendation.effectiveJourneyRole == "return"
+            ? tr("Обратно", "Return", "Qaytish", "Қайтиш")
+            : tr("Туда", "Outbound", "Borish", "Бориш")
+    }
+
+    private var journeyRoleTitle: String {
+        if recommendation.inbound != nil || recommendation.effectiveJourneyRole == "complete" {
+            return tr("Туда-обратно", "Round trip", "Borib-kelish", "Бориб-келиш")
+        }
+        if recommendation.effectiveJourneyRole == "return" {
+            return tr("Обратно", "Return", "Qaytish", "Қайтиш")
+        }
+        return tr("Туда", "Outbound", "Borish", "Бориш")
     }
 
     private var outboundFlightNumber: String {
@@ -2617,123 +2791,11 @@ private struct FlightDiscoveryPriceGraphSheet: View {
     }
 }
 
-private struct FlightDiscoveryDirectFlightsSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    let language: AppSettingsStore.Language
-    let origin: String
-    let destination: String
-    let offers: [FlightDiscoveryOffer]
-    let isLoading: Bool
-    let onSelect: (FlightDiscoveryOffer) -> Void
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if isLoading && offers.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if offers.isEmpty {
-                    ContentUnavailableView(
-                        tr("Прямые рейсы не найдены", "No direct flights found", "To‘g‘ridan-to‘g‘ri reys topilmadi", "Тўғридан-тўғри рейс топилмади"),
-                        systemImage: "airplane.circle",
-                        description: Text(tr("Data API показывает только недавно найденные предложения.", "Data API only shows recently found offers.", "Data API faqat yaqinda topilgan takliflarni ko‘rsatadi.", "Data API фақат яқинда топилган таклифларни кўрсатади."))
-                    )
-                } else {
-                    ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 12) {
-                            ForEach(offers.sorted(by: { $0.departureAt < $1.departureAt })) { offer in
-                                Button {
-                                    onSelect(offer)
-                                } label: {
-                                    HStack(spacing: 13) {
-                                        AirlineLogoView(airlineCode: offer.airlineCode, size: 44)
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(dateTime(offer.departureAt))
-                                                .font(.headline)
-                                                .foregroundStyle(.primary)
-                                            Text("\(offer.airlineName) · \(offer.airlineCode) \(offer.flightNumber)")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                                .lineLimit(1)
-                                        }
-                                        Spacer()
-                                        VStack(alignment: .trailing, spacing: 3) {
-                                            Text("$\(Int(offer.price.rounded()))")
-                                                .font(.headline)
-                                                .foregroundStyle(.primary)
-                                            Image(systemName: "chevron.right")
-                                                .font(.caption.weight(.bold))
-                                                .foregroundStyle(.tertiary)
-                                        }
-                                    }
-                                    .padding(16)
-                                    .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(20)
-                    }
-                }
-            }
-            .background(Color.iumrahPageBackground)
-            .navigationTitle(tr("Прямые рейсы", "Direct flights", "To‘g‘ridan-to‘g‘ri", "Тўғридан-тўғри"))
-            .navigationBarTitleDisplayMode(.inline)
-            .safeAreaInset(edge: .top) {
-                Text("\(origin) → \(destination)")
-                    .font(.subheadline.monospaced().weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-                    .background(.ultraThinMaterial)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: { Image(systemName: "xmark") }
-                }
-            }
-        }
-        .presentationDetents([.large])
-    }
-
-    private func dateTime(_ value: String) -> String {
-        guard let date = isoDate(value) else { return String(value.prefix(16)) }
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.setLocalizedDateFormatFromTemplate("dMMM HHmm")
-        return formatter.string(from: date)
-    }
-
-    private var locale: Locale {
-        switch language {
-        case .russian: return Locale(identifier: "ru_RU")
-        case .english: return Locale(identifier: "en_US")
-        case .uzbek: return Locale(identifier: "uz_Latn_UZ")
-        case .uzbekCyrillic: return Locale(identifier: "uz_Cyrl_UZ")
-        }
-    }
-
-    private func isoDate(_ value: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: value) { return date }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: value)
-    }
-
-    private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
-        switch language {
-        case .russian: return ru
-        case .english: return en
-        case .uzbek: return uz
-        case .uzbekCyrillic: return cy
-        }
-    }
-}
-
 private struct FlightDiscoveryOfferDetailView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var favorites = FlightFavoritesStore.shared
     @State private var livePrice: Double?
+    @State private var refreshedOffer: FlightDiscoveryOffer?
     @State private var isRefreshingPrice = false
     @State private var cartAnimationVisible = false
     @State private var cartAnimationDropped = false
@@ -2747,8 +2809,12 @@ private struct FlightDiscoveryOfferDetailView: View {
     let fallbackReturnDate: Date?
     let currency: String
     let canBuildUmrah: Bool
-    let onCheckPrice: () -> Void
-    let onBuildUmrah: () -> Void
+    let onCheckPrice: (FlightDiscoveryOffer) -> Void
+    let onBuildUmrah: (FlightDiscoveryOffer) -> Void
+
+    private var activeOffer: FlightDiscoveryOffer {
+        refreshedOffer ?? offer
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -2766,7 +2832,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                 warningCard
 
                 Button {
-                    onCheckPrice()
+                    onCheckPrice(activeOffer)
                 } label: {
                     HStack {
                         if isRefreshingPrice {
@@ -2789,7 +2855,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                 if canBuildUmrah {
                     Button {
                         animateCartDrop()
-                        onBuildUmrah()
+                        onBuildUmrah(activeOffer)
                     } label: {
                         HStack {
                             Image(systemName: "cart.badge.plus")
@@ -2804,21 +2870,25 @@ private struct FlightDiscoveryOfferDetailView: View {
                         .iumrahGlass(in: RoundedRectangle(cornerRadius: 20, style: .continuous), interactive: true)
                     }
                     .buttonStyle(.plain)
+                    .disabled(cartAnimationVisible)
                 }
             }
             .padding(20)
         }
         .background(Color.iumrahPageBackground)
+        .refreshable {
+            await refreshCurrentFare()
+        }
         .navigationTitle(tr("Авиабилет", "Flight", "Aviachipta", "Авиачипта"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
-                    favorites.toggle(offer, currency: currency, language: language)
+                    favorites.toggle(activeOffer, currency: currency, language: language)
                     IumrahHaptics.soft()
                 } label: {
-                    Image(systemName: favorites.isFavorite(offer) ? "heart.fill" : "heart")
-                        .foregroundStyle(favorites.isFavorite(offer) ? Color.red : Color.primary)
+                    Image(systemName: favorites.isFavorite(activeOffer) ? "heart.fill" : "heart")
+                        .foregroundStyle(favorites.isFavorite(activeOffer) ? Color.red : Color.primary)
                 }
 
                 ShareLink(item: shareText) {
@@ -2829,21 +2899,46 @@ private struct FlightDiscoveryOfferDetailView: View {
         .task {
             await refreshCurrentFare()
         }
-        .overlay(alignment: .topTrailing) {
-            if cartAnimationVisible {
-                Image(systemName: "ticket.fill")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.green)
-                    .padding(13)
-                    .background(.thinMaterial, in: Circle())
-                    .offset(
-                        x: cartAnimationDropped ? -14 : -150,
-                        y: cartAnimationDropped ? 610 : 150
-                    )
-                    .scaleEffect(cartAnimationDropped ? 0.45 : 1)
-                    .opacity(cartAnimationDropped ? 0.15 : 1)
-                    .animation(.spring(response: 0.72, dampingFraction: 0.78), value: cartAnimationDropped)
+        .overlay {
+            GeometryReader { proxy in
+                if cartAnimationVisible {
+                    let targetY = max(190, proxy.size.height - 54)
+
+                    ZStack {
+                        HStack(spacing: 8) {
+                            Image(systemName: "cart.fill")
+                                .font(.system(size: 16, weight: .bold))
+                            Text(tr("Сборка Umrah", "Umrah package", "Umra paketi", "Умра пакети"))
+                                .font(.caption.weight(.bold))
+                        }
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, 14)
+                        .frame(height: 42)
+                        .background(.regularMaterial, in: Capsule())
+                        .overlay {
+                            Capsule().strokeBorder(Color.green.opacity(0.22), lineWidth: 0.8)
+                        }
+                        .position(x: proxy.size.width / 2, y: targetY)
+
+                        Image(systemName: "ticket.fill")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(.green)
+                            .padding(13)
+                            .background(.thinMaterial, in: Circle())
+                            .position(
+                                x: proxy.size.width / 2,
+                                y: cartAnimationDropped ? targetY : max(90, proxy.size.height * 0.17)
+                            )
+                            .rotationEffect(.degrees(cartAnimationDropped ? 8 : -8))
+                            .scaleEffect(cartAnimationDropped ? 0.34 : 1)
+                            .opacity(cartAnimationDropped ? 0.08 : 1)
+                            .animation(
+                                reduceMotion ? .easeOut(duration: 0.18) : .spring(response: 0.72, dampingFraction: 0.78),
+                                value: cartAnimationDropped
+                            )
+                    }
                     .allowsHitTesting(false)
+                }
             }
         }
         .overlay(alignment: .bottom) {
@@ -2858,6 +2953,10 @@ private struct FlightDiscoveryOfferDetailView: View {
                 }
                 .padding(15)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 19, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.8)
+                }
                 .padding(.horizontal, 18)
                 .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -2874,9 +2973,11 @@ private struct FlightDiscoveryOfferDetailView: View {
                 .frame(height: 27)
                 .background((hasReturn ? Color.blue : Color.secondary).opacity(0.11), in: Capsule())
 
-            Text(money(livePrice ?? offer.price))
+            Text(money(livePrice ?? activeOffer.price))
                 .font(.system(size: 48, weight: .bold, design: .rounded))
                 .tracking(-1)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
 
             if let livePrice, abs(livePrice - offer.price) >= 0.5 {
                 Text(tr(
@@ -2898,16 +2999,16 @@ private struct FlightDiscoveryOfferDetailView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 10) {
-                AirlineLogoView(airlineCode: offer.airlineCode, size: 42)
+                AirlineLogoView(airlineCode: activeOffer.airlineCode, size: 42)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(offer.airlineName)
+                    Text(activeOffer.airlineName)
                         .font(.headline)
                     Text(flightNumberText)
                         .font(.caption.monospaced().weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(offer.routeTitle)
+                Text(activeOffer.routeTitle)
                     .font(.subheadline.monospaced().weight(.bold))
                     .foregroundStyle(.secondary)
             }
@@ -2928,7 +3029,7 @@ private struct FlightDiscoveryOfferDetailView: View {
             summaryLeg(
                 icon: "airplane.departure",
                 route: "\(outboundOrigin) → \(outboundDestination)",
-                date: dateOnly(offer.departureAt),
+                date: dateOnly(activeOffer.departureAt),
                 flight: flightNumberText
             )
 
@@ -2973,7 +3074,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                 .font(.title3.bold())
 
             conditionRow(icon: "bag.fill", tint: .green, title: tr("Ручная кладь и багаж", "Cabin & checked baggage", "Qo‘l yuki va bagaj", "Қўл юки ва багаж"), value: tr("Уточняются при проверке тарифа", "Confirmed during live fare check", "Tarif tekshirilganda aniqlanadi", "Тариф текширилганда аниқланади"))
-            conditionRow(icon: offer.isDirect ? "checkmark.circle.fill" : "arrow.triangle.branch", tint: offer.isDirect ? .green : .orange, title: tr("Маршрут", "Route", "Yo‘nalish", "Йўналиш"), value: directText(transfers: offer.transfers))
+            conditionRow(icon: activeOffer.isDirect ? "checkmark.circle.fill" : "arrow.triangle.branch", tint: activeOffer.isDirect ? .green : .orange, title: tr("Маршрут", "Route", "Yo‘nalish", "Йўналиш"), value: directText(transfers: activeOffer.transfers))
             conditionRow(icon: "arrow.uturn.backward.circle", tint: .secondary, title: tr("Обмен и возврат", "Changes & refunds", "Almashtirish va qaytarish", "Алмаштириш ва қайтариш"), value: tr("По правилам тарифа продавца", "According to seller fare rules", "Sotuvchi tarifi qoidalariga ko‘ra", "Сотувчи тарифи қоидаларига кўра"))
 
             if hasReturn {
@@ -2988,11 +3089,11 @@ private struct FlightDiscoveryOfferDetailView: View {
         flightLegCard(
             title: "\(airportCity(outboundOrigin)) — \(airportCity(outboundDestination))",
             subtitle: tr("Перелёт туда", "Outbound flight", "Borish reysi", "Бориш рейси"),
-            departureAt: offer.departureAt,
+            departureAt: activeOffer.departureAt,
             origin: outboundOrigin,
             destination: outboundDestination,
-            duration: offer.durationMinutes,
-            transfers: offer.transfers,
+            duration: activeOffer.durationMinutes,
+            transfers: activeOffer.transfers,
             flightNumber: flightNumberText,
             showAirline: true
         )
@@ -3007,10 +3108,10 @@ private struct FlightDiscoveryOfferDetailView: View {
                 departureAt: returnAt,
                 origin: outboundDestination,
                 destination: outboundOrigin,
-                duration: offer.returnDurationMinutes ?? 0,
-                transfers: offer.returnTransfers ?? 0,
+                duration: activeOffer.returnDurationMinutes ?? 0,
+                transfers: activeOffer.returnTransfers ?? 0,
                 flightNumber: returnFlightNumberText,
-                showAirline: offer.returnAirlineCode != nil
+                showAirline: activeOffer.returnAirlineCode != nil
             )
         } else {
             EmptyView()
@@ -3039,7 +3140,7 @@ private struct FlightDiscoveryOfferDetailView: View {
 
             HStack(spacing: 12) {
                 if showAirline {
-                    AirlineLogoView(airlineCode: subtitle == tr("Обратный перелёт", "Return flight", "Qaytish reysi", "Қайтиш рейси") ? (offer.returnAirlineCode ?? offer.airlineCode) : offer.airlineCode, size: 44)
+                    AirlineLogoView(airlineCode: subtitle == tr("Обратный перелёт", "Return flight", "Qaytish reysi", "Қайтиш рейси") ? (activeOffer.returnAirlineCode ?? activeOffer.airlineCode) : activeOffer.airlineCode, size: 44)
                 } else {
                     Image(systemName: "airplane")
                         .font(.system(size: 18, weight: .bold))
@@ -3051,8 +3152,8 @@ private struct FlightDiscoveryOfferDetailView: View {
                     Text(
                         showAirline
                             ? (subtitle == tr("Обратный перелёт", "Return flight", "Qaytish reysi", "Қайтиш рейси")
-                                ? FlightReferenceCatalog.airlineName(code: offer.returnAirlineCode ?? offer.airlineCode, fallback: offer.returnAirlineCode ?? offer.airlineCode)
-                                : offer.airlineName)
+                                ? FlightReferenceCatalog.airlineName(code: activeOffer.returnAirlineCode ?? activeOffer.airlineCode, fallback: activeOffer.returnAirlineCode ?? activeOffer.airlineCode)
+                                : activeOffer.airlineName)
                             : tr("Обратный рейс", "Return flight", "Qaytish reysi", "Қайтиш рейси")
                     )
                         .font(.headline)
@@ -3116,18 +3217,18 @@ private struct FlightDiscoveryOfferDetailView: View {
 
     private var monitoringCard: some View {
         Button {
-            favorites.toggle(offer, currency: currency, language: language)
+            favorites.toggle(activeOffer, currency: currency, language: language)
             IumrahHaptics.soft()
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: favorites.isFavorite(offer) ? "bell.badge.fill" : "heart")
+                Image(systemName: favorites.isFavorite(activeOffer) ? "bell.badge.fill" : "heart")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(favorites.isFavorite(offer) ? Color.green : Color.red)
+                    .foregroundStyle(favorites.isFavorite(activeOffer) ? Color.green : Color.red)
                     .frame(width: 42, height: 42)
-                    .background((favorites.isFavorite(offer) ? Color.green : Color.red).opacity(0.11), in: Circle())
+                    .background((favorites.isFavorite(activeOffer) ? Color.green : Color.red).opacity(0.11), in: Circle())
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(favorites.isFavorite(offer)
+                    Text(favorites.isFavorite(activeOffer)
                          ? tr("Цена отслеживается", "Price tracking is on", "Narx kuzatilmoqda", "Нарх кузатилмоқда")
                          : tr("Сохранить и следить за ценой", "Save & track price", "Saqlash va narxni kuzatish", "Сақлаш ва нархни кузатиш"))
                         .font(.headline)
@@ -3143,8 +3244,8 @@ private struct FlightDiscoveryOfferDetailView: View {
                     .multilineTextAlignment(.leading)
                 }
                 Spacer()
-                Image(systemName: favorites.isFavorite(offer) ? "checkmark.circle.fill" : "chevron.right")
-                    .foregroundStyle(favorites.isFavorite(offer) ? Color.green : Color.secondary)
+                Image(systemName: favorites.isFavorite(activeOffer) ? "checkmark.circle.fill" : "chevron.right")
+                    .foregroundStyle(favorites.isFavorite(activeOffer) ? Color.green : Color.secondary)
             }
             .padding(16)
             .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -3172,55 +3273,128 @@ private struct FlightDiscoveryOfferDetailView: View {
 
     @MainActor
     private func refreshCurrentFare() async {
+        guard !isRefreshingPrice else { return }
         isRefreshingPrice = true
         defer { isRefreshingPrice = false }
 
-        let departure = String(offer.departureAt.prefix(10))
+        let baseOffer = activeOffer
+        let departure = String(baseOffer.departureAt.prefix(10))
         let returnDay = effectiveReturnAt.map { String($0.prefix(10)) }
+
         do {
             let response = try await AviasalesFlightDiscoveryService().offers(
-                origin: offer.origin,
-                destination: offer.destination,
+                origin: baseOffer.origin,
+                destination: baseOffer.destination,
                 departure: departure,
                 returnAt: returnDay,
-                direct: offer.isDirect,
+                direct: baseOffer.isDirect,
                 limit: 100,
                 currency: currency
             )
-            let sameFlight = response.offers.first {
-                $0.airlineCode.caseInsensitiveCompare(offer.airlineCode) == .orderedSame &&
-                $0.flightNumber.caseInsensitiveCompare(offer.flightNumber) == .orderedSame &&
-                String($0.departureAt.prefix(10)) == departure
-            }
-            let fallback = response.offers
-                .filter { String($0.departureAt.prefix(10)) == departure }
-                .min(by: { $0.price < $1.price })
-            if let current = sameFlight ?? fallback, current.price > 0 {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    livePrice = current.price
+
+            let routeCandidates = response.offers.filter { candidate in
+                guard candidate.origin.caseInsensitiveCompare(baseOffer.origin) == .orderedSame,
+                      candidate.destination.caseInsensitiveCompare(baseOffer.destination) == .orderedSame,
+                      String(candidate.departureAt.prefix(10)) == departure else {
+                    return false
                 }
+
+                if let returnDay {
+                    guard let candidateReturn = candidate.returnAt, !candidateReturn.isEmpty else { return false }
+                    return String(candidateReturn.prefix(10)) == returnDay
+                }
+                return true
+            }
+
+            let sameOutbound = routeCandidates.filter { candidate in
+                flightIdentityMatches(
+                    candidateCode: candidate.airlineCode,
+                    candidateNumber: candidate.flightNumber,
+                    expectedCode: baseOffer.airlineCode,
+                    expectedNumber: baseOffer.flightNumber
+                )
+            }
+
+            let current = sameOutbound.max { lhs, rhs in
+                returnIdentityScore(lhs, comparedTo: baseOffer) < returnIdentityScore(rhs, comparedTo: baseOffer)
+            }
+
+            guard let current, current.price > 0 else { return }
+
+            withAnimation(.easeInOut(duration: 0.25)) {
+                refreshedOffer = current
+                livePrice = current.price
             }
         } catch {
             // Keep the cached fare visible if the live refresh is temporarily unavailable.
         }
     }
 
+    private func flightIdentityMatches(
+        candidateCode: String,
+        candidateNumber: String,
+        expectedCode: String,
+        expectedNumber: String
+    ) -> Bool {
+        let expectedAirline = expectedCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let candidateAirline = candidateCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+        if !expectedAirline.isEmpty && expectedAirline != candidateAirline {
+            return false
+        }
+
+        let expectedFlight = canonicalFlightNumber(expectedNumber, airlineCode: expectedAirline)
+        guard !expectedFlight.isEmpty else { return true }
+
+        let candidateFlight = canonicalFlightNumber(candidateNumber, airlineCode: candidateAirline)
+        return candidateFlight == expectedFlight
+    }
+
+    private func returnIdentityScore(_ candidate: FlightDiscoveryOffer, comparedTo expected: FlightDiscoveryOffer) -> Int {
+        var score = 0
+
+        let expectedCode = expected.returnAirlineCode?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() ?? ""
+        let candidateCode = candidate.returnAirlineCode?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() ?? ""
+        if !expectedCode.isEmpty, expectedCode == candidateCode { score += 2 }
+
+        let expectedNumber = canonicalFlightNumber(expected.returnFlightNumber ?? "", airlineCode: expectedCode)
+        let candidateNumber = canonicalFlightNumber(candidate.returnFlightNumber ?? "", airlineCode: candidateCode)
+        if !expectedNumber.isEmpty, expectedNumber == candidateNumber { score += 4 }
+
+        if candidate.returnAt != nil { score += 1 }
+        return score
+    }
+
+    private func canonicalFlightNumber(_ value: String, airlineCode: String) -> String {
+        var token = value.uppercased().filter { $0.isLetter || $0.isNumber }
+        let code = airlineCode.uppercased().filter { $0.isLetter || $0.isNumber }
+        if !code.isEmpty, token.hasPrefix(code) {
+            token.removeFirst(code.count)
+        }
+        return token
+    }
+
     private func animateCartDrop() {
+        guard !cartAnimationVisible else { return }
+
         cartAnimationVisible = true
         cartAnimationDropped = false
         cartConfirmationVisible = false
         IumrahHaptics.success()
 
-        DispatchQueue.main.async {
+        let dropDelay = reduceMotion ? 0.02 : 0.04
+        let landingDelay = reduceMotion ? 0.22 : 0.78
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + dropDelay) {
             cartAnimationDropped = true
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.78) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + landingDelay) {
             cartAnimationVisible = false
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+            withAnimation(reduceMotion ? .easeOut(duration: 0.16) : .spring(response: 0.35, dampingFraction: 0.82)) {
                 cartConfirmationVisible = true
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.4) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + landingDelay + 2.7) {
             withAnimation(.easeOut(duration: 0.25)) {
                 cartConfirmationVisible = false
             }
@@ -3228,7 +3402,7 @@ private struct FlightDiscoveryOfferDetailView: View {
     }
 
     private var cartConfirmationText: String {
-        if hasReturn {
+        if activeOffer.isRoundTrip {
             return tr(
                 "Билет туда‑обратно добавлен в сборку Umrah. Второй авиабилет выбирать не нужно.",
                 "Round-trip flight added to your Umrah package. You do not need to choose another flight.",
@@ -3236,7 +3410,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                 "Бориб-келиш чиптаси Умра пакетига қўшилди. Бошқа чипта танлаш шарт эмас."
             )
         }
-        if ["JED", "MED"].contains(offer.origin.uppercased()) {
+        if ["JED", "MED"].contains(activeOffer.origin.uppercased()) {
             return tr(
                 "Обратный рейс добавлен в сборку Umrah.",
                 "Return flight added to your Umrah package.",
@@ -3269,17 +3443,17 @@ private struct FlightDiscoveryOfferDetailView: View {
         }
     }
 
-    private var hasReturn: Bool { offer.isRoundTrip || fallbackReturnDate != nil }
+    private var hasReturn: Bool { activeOffer.isRoundTrip || fallbackReturnDate != nil }
 
     private var effectiveReturnAt: String? {
-        if let returnAt = offer.returnAt, !returnAt.isEmpty { return returnAt }
+        if let returnAt = activeOffer.returnAt, !returnAt.isEmpty { return returnAt }
         guard let fallbackReturnDate else { return nil }
         let date = IumrahFlightDiscoveryStore.dayFormatter.string(from: fallbackReturnDate)
         return date + "T12:00:00Z"
     }
 
-    private var outboundOrigin: String { offer.originAirport.isEmpty ? offer.origin : offer.originAirport }
-    private var outboundDestination: String { offer.destinationAirport.isEmpty ? offer.destination : offer.destinationAirport }
+    private var outboundOrigin: String { activeOffer.originAirport.isEmpty ? activeOffer.origin : activeOffer.originAirport }
+    private var outboundDestination: String { activeOffer.destinationAirport.isEmpty ? activeOffer.destination : activeOffer.destinationAirport }
 
     private var tripTypeTitle: String {
         hasReturn
@@ -3301,12 +3475,12 @@ private struct FlightDiscoveryOfferDetailView: View {
     }
 
     private var flightNumberText: String {
-        if offer.airlineCode.isEmpty && offer.flightNumber.isEmpty { return tr("Рейс", "Flight", "Reys", "Рейс") }
-        return [offer.airlineCode, offer.flightNumber].filter { !$0.isEmpty }.joined(separator: " ")
+        if activeOffer.airlineCode.isEmpty && activeOffer.flightNumber.isEmpty { return tr("Рейс", "Flight", "Reys", "Рейс") }
+        return [activeOffer.airlineCode, activeOffer.flightNumber].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     private var returnFlightNumberText: String {
-        let values = [offer.returnAirlineCode, offer.returnFlightNumber]
+        let values = [activeOffer.returnAirlineCode, activeOffer.returnFlightNumber]
             .compactMap { value -> String? in
                 guard let value, !value.isEmpty else { return nil }
                 return value
@@ -3322,7 +3496,7 @@ private struct FlightDiscoveryOfferDetailView: View {
 
     private var shareText: String {
         let returnPart = hasReturn ? " · \(tripTypeTitle)" : ""
-        return "iumrah · \(offer.routeTitle)\(returnPart) · \(offer.airlineName) · \(money(offer.price))"
+        return "iumrah · \(activeOffer.routeTitle)\(returnPart) · \(activeOffer.airlineName) · \(money(activeOffer.price))"
     }
 
     private func directText(transfers: Int) -> String {

@@ -36,7 +36,7 @@ test('traveler flow accepts passport photo first and keeps manual fields optiona
 test('travel info uses native segmented city switch and second-precision prayer timer', () => {
   assert.match(travelInfo, /\.pickerStyle\(\.segmented\)/);
   assert.match(travelInfo, /TimelineView\(\.periodic\(from: \.now, by: 1\)\)/);
-  assert.match(travelInfo, /ДО СЛЕДУЮЩЕЙ МОЛИТВЫ/);
+  assert.match(travelInfo, /СЛЕДУЮЩАЯ МОЛИТВА/);
   assert.doesNotMatch(travelInfo, /scaleEffect\(x: 0\.94/);
 });
 

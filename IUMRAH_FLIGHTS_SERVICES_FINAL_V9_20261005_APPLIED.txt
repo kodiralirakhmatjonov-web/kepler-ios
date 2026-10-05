@@ -1,0 +1,41 @@
+IUMRAH Flights / Services / Ziyarats FINAL V9 — 2026-10-05
+
+Cumulative beta patch for kepler-ios-main. Includes V8 plus final production hardening.
+
+Completed from the requested Flights / Services prompt:
+- Account Services uses its own white card and iumrah Care is removed from that block.
+- iumrah Flights status naming is corrected/localized.
+- Flights partner gateway uses the iumrah Flights artwork, Aviasales CTA and iumrah Flights CTA without date marketing copy.
+- Flights has Global search / iumrah recommends modes.
+- iumrah recommends consumes the same CuratedFlightRecommendationService / published D1 inventory as the package configurator.
+- Published recommendation cards distinguish outbound / return / round-trip and preserve canonical publication IDs.
+- Selected Aviasales result opens as a native full navigation page, not a bottom sheet.
+- Outbound/return dates, airline and flight number are represented on result/detail where returned by Data API.
+- Discovery action controls use a horizontal rectangular carousel.
+- Global search is explicit: selecting airports/dates no longer automatically presents results; Search flights starts a ~7.5 second progressive reveal.
+- Flight detail refreshes the current fare on entry and pull-to-refresh using exact route/date/flight identity matching; no unrelated cheapest-fare fallback.
+- Add-to-Umrah uses a cart action, responsive ticket-to-cart animation, direction-specific confirmation, and staged package state.
+- Package assembly bar is shown above bottom navigation and expands upward to show selected flight components.
+- Round-trip selection is staged as a complete itinerary so a second ticket is not required.
+- iumrah Finance calculator is inline in its card; only the included-components detail remains modal.
+- Finance/package pricing refreshes and uses the published flight source used by the configurator.
+- Existing 2026-10-04 user-provided iumrah PROJECT app icon set is retained.
+
+Final V9 hardening:
+- Ziyarats sanitizes invalid/non-finite/out-of-range coordinates in the service, cache output, MapKit UI and road-routing path before MapKit receives them.
+- Removed unsafe coordinate focus/open behavior and retained safe region construction.
+- Removed the obsolete unused direct-flights sheet/data path to avoid two competing Flights implementations.
+- Cart animation now derives its target from the actual GeometryReader viewport and respects Reduce Motion; no fixed screen-coordinate drop target.
+- Cart confirmation only calls a fare round-trip when the active Data API offer actually contains a return itinerary.
+- Recommended cards explicitly label Outbound / Return / Round trip so independently published return flights are not presented as outbound.
+- Recommended sort prioritizes the missing leg after the user stages one side of a round trip.
+- Search loading/empty states and compact price rendering are hardened for small iPhone widths.
+- Contract tests updated to the current navigation / Find My-style Ziyarats / Flights architecture.
+
+Validation performed in this patch workspace:
+- swiftc -frontend -parse: PASS for all 10 changed Swift source files.
+- Backend TypeScript: npm run typecheck PASS.
+- Node contract suite: 116/116 PASS.
+- Runtime production suite: 18/20; the same two D1 cache/calendar runtime assertions also fail on the untouched incoming baseline and were intentionally not changed by this iOS-focused patch.
+
+Patch type: cumulative. It can be applied directly to the incoming 2026-10-05 repository; applying V8 first is not required.

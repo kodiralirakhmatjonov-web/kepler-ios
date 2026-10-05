@@ -54,7 +54,11 @@ test("Flights storefront uses the dedicated Aviasales discovery experience and k
   assert.match(flightDiscovery, /FlightDiscoveryPriceGraphSheet/);
   assert.match(flightDiscovery, /calendarPresented/);
   assert.match(flightDiscovery, /passengersPresented/);
-  assert.match(flightDiscovery, /directFlightsPresented/);
+  assert.match(flightDiscovery, /FlightDiscoverySearchMode/);
+  assert.match(flightDiscovery, /iumrahRecommended/);
+  assert.match(flightDiscovery, /CuratedFlightRecommendationService/);
+  assert.match(flightDiscovery, /searchProgress/);
+  assert.doesNotMatch(flightDiscovery, /FlightDiscoveryDirectFlightsSheet/);
   assert.match(flightDiscovery, /directOnly/);
   assert.match(flightDiscovery, /recently found Aviasales fares/);
   assert.match(flightDiscovery, /journey\.trip\.flightTripType = \.roundTrip/);

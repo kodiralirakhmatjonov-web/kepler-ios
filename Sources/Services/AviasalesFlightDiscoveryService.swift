@@ -110,14 +110,6 @@ private struct FlightDiscoveryCalendarEnvelope: Decodable {
     let days: [FlightDiscoveryCalendarDay]
 }
 
-struct FlightDiscoverySnapshot: Hashable {
-    let offers: [FlightDiscoveryOffer]
-    let calendar: [FlightDiscoveryCalendarDay]
-    let directOffers: [FlightDiscoveryOffer]
-    let currency: String
-    let generatedAt: String?
-}
-
 struct AviasalesFlightDiscoveryService {
     private let api = APIClient.shared
 
@@ -179,20 +171,16 @@ struct AviasalesFlightDiscoveryService {
 final class IumrahFlightDiscoveryStore: ObservableObject {
     @Published private(set) var offers: [FlightDiscoveryOffer] = []
     @Published private(set) var calendarDays: [FlightDiscoveryCalendarDay] = []
-    @Published private(set) var directOffers: [FlightDiscoveryOffer] = []
     @Published private(set) var currency: String = "usd"
     @Published private(set) var generatedAt: String?
     @Published private(set) var isLoading = false
-    @Published private(set) var isLoadingDirect = false
     @Published private(set) var errorMessage: String?
 
     private let service = AviasalesFlightDiscoveryService()
     private var refreshTask: Task<Void, Never>?
-    private var directTask: Task<Void, Never>?
 
     deinit {
         refreshTask?.cancel()
-        directTask?.cancel()
     }
 
     func refresh(
@@ -307,38 +295,6 @@ final class IumrahFlightDiscoveryStore: ObservableObject {
                 self.offers = []
                 self.errorMessage = error.localizedDescription
                 self.isLoading = false
-            }
-        }
-    }
-
-    func loadDirectFlights(origin: String, destination: String, monthDate: Date) {
-        directTask?.cancel()
-        let origin = origin.uppercased()
-        let destination = destination.uppercased()
-        guard origin.count == 3, destination.count == 3, origin != destination else {
-            directOffers = []
-            return
-        }
-
-        isLoadingDirect = true
-        let month = Self.monthFormatter.string(from: monthDate)
-        directTask = Task { [weak self] in
-            guard let self else { return }
-            do {
-                let result = try await service.offers(
-                    origin: origin,
-                    destination: destination,
-                    departure: month,
-                    direct: true,
-                    limit: 100
-                )
-                guard !Task.isCancelled else { return }
-                self.directOffers = result.offers
-                self.isLoadingDirect = false
-            } catch {
-                guard !Task.isCancelled else { return }
-                self.directOffers = []
-                self.isLoadingDirect = false
             }
         }
     }

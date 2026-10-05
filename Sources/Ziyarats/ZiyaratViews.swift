@@ -660,6 +660,8 @@ struct ZiyaratJourneyView: View {
     }
 
     private func focus(on place: ZiyaratPlace, animated: Bool) {
+        guard Self.hasUsableCoordinate(place) else { return }
+
         let shift: Double
         let span: Double
         if isExpandedPanel {
@@ -696,6 +698,7 @@ struct ZiyaratJourneyView: View {
     }
 
     private func openInMaps(_ place: ZiyaratPlace) {
+        guard Self.hasUsableCoordinate(place) else { return }
         IumrahHaptics.selection()
         let item = MKMapItem(placemark: MKPlacemark(coordinate: place.coordinate))
         item.name = place.localizedContent(locale: settings.language.rawValue).title
@@ -810,10 +813,12 @@ struct ZiyaratJourneyView: View {
     }
 
     private static func hasUsableCoordinate(_ place: ZiyaratPlace) -> Bool {
-        place.latitude.isFinite &&
-        place.longitude.isFinite &&
-        (-90.0...90.0).contains(place.latitude) &&
-        (-180.0...180.0).contains(place.longitude)
+        let coordinate = place.coordinate
+        return place.latitude.isFinite &&
+            place.longitude.isFinite &&
+            CLLocationCoordinate2DIsValid(coordinate) &&
+            (-90.0...90.0).contains(place.latitude) &&
+            (-180.0...180.0).contains(place.longitude)
     }
 
     private static func region(for places: [ZiyaratPlace]) -> MKCoordinateRegion {

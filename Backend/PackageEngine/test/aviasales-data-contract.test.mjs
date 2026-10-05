@@ -17,10 +17,13 @@ assert.match(backend, /path\.startsWith\("\/search\/"\)/);
 assert.ok(!iosService.includes('TRAVELPAYOUTS_API_TOKEN'), 'iOS client must never contain the Travelpayouts token');
 assert.match(iosService, /\/api\/package\/flights\/data/);
 assert.match(flightsView, /IumrahFlightDiscoveryStore/);
-assert.match(flightsView, /Авиабилеты/);
-assert.match(flightsView, /Купить самому на Aviasales/);
+assert.match(flightsView, /Глобальный поиск/);
+assert.match(flightsView, /Рекомендует iumrah/);
+assert.match(flightsView, /Text\("Aviasales"\)/);
 assert.match(flightsView, /FlightDiscoveryTicketCard/);
 assert.match(flightsView, /График цен/);
-assert.match(flightsView, /Прямые рейсы/);
+assert.match(flightsView, /searchProgress/);
+assert.match(flightsView, /navigationDestination\(item: \$selectedOffer\)/);
+assert.match(flightsView, /CuratedFlightRecommendationService\.shared\.load/);
 
 console.log('Aviasales Data API server proxy + iOS discovery surface contract OK');

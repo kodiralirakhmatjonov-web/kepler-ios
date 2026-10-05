@@ -46,13 +46,17 @@ test('Booking status uses the canonical pilgrim details and payment page', () =>
   assert.doesNotMatch(compatibility, /UNAUTHORIZED/);
 });
 
-test('Ziyarats uses system navigation and native sheet detents instead of custom overlay entry', () => {
+test('Ziyarats uses system navigation with a single Find My-style map panel and hardened coordinates', () => {
   const ziyarats = read('Sources/Ziyarats/ZiyaratViews.swift');
+  const service = read('Sources/Services/ZiyaratService.swift');
   const home = read('Sources/Views/Home/HomeDashboardView.swift');
-  assert.match(ziyarats, /\.sheet\(isPresented: \$panelPresented\)/);
-  assert.match(ziyarats, /\.presentationDetents/);
-  assert.match(ziyarats, /\.presentationDragIndicator\(\.visible\)/);
-  assert.match(ziyarats, /toolbar\(\.visible, for: \.navigationBar\)/);
+  assert.match(ziyarats, /Map\(position: \$camera\)/);
+  assert.match(ziyarats, /findMyPanel\(metrics: metrics\)/);
+  assert.match(ziyarats, /private enum ZiyaratPanelLevel/);
+  assert.match(ziyarats, /CLLocationCoordinate2DIsValid/);
+  assert.doesNotMatch(ziyarats, /\.sheet\(isPresented: \$panelPresented\)/);
+  assert.match(service, /sanitizedRoute/);
+  assert.match(service, /CLLocationCoordinate2DIsValid/);
   assert.match(home, /navigationDestination\(isPresented: \$showZiyarats\)/);
 });
 
