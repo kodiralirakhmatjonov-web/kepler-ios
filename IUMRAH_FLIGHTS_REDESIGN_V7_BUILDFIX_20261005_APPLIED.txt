@@ -1,0 +1,4 @@
+Cumulative Flights Redesign v7.
+Fixes Xcode 26.6 compiler error in IumrahFlightDiscoveryView.swift:
+extra argument 'minHeight' in call.
+The invalid combined fixed-width/minHeight frame modifier was split into two valid SwiftUI frame modifiers.

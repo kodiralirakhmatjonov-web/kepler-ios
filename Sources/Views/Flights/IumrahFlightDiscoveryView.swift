@@ -463,7 +463,8 @@ struct IumrahFlightDiscoveryView: View {
                                     }
                                 }
                                 .padding(14)
-                                .frame(width: 142, minHeight: 112, alignment: .leading)
+                                .frame(width: 142, alignment: .leading)
+                                .frame(minHeight: 112, alignment: .leading)
                                 .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 20, style: .continuous)
