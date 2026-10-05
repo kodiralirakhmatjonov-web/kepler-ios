@@ -63,6 +63,11 @@ type AviasalesOffer = {
   flight_number?: string | number;
   departure_at?: string;
   return_at?: string;
+  return_airline?: string;
+  return_airline_code?: string;
+  airline_back?: string;
+  return_flight_number?: string | number;
+  flight_number_back?: string | number;
   transfers?: number;
   return_transfers?: number;
   duration?: number;
@@ -112,6 +117,10 @@ function normalizeOffer(item: AviasalesOffer, index: number) {
     flightNumber: item.flight_number == null ? "" : String(item.flight_number),
     departureAt: String(item.departure_at ?? ""),
     returnAt: typeof item.return_at === "string" && item.return_at.length > 0 ? item.return_at : null,
+    returnAirlineCode: String(item.return_airline_code ?? item.return_airline ?? item.airline_back ?? "").toUpperCase() || null,
+    returnFlightNumber: item.return_flight_number == null && item.flight_number_back == null
+      ? null
+      : String(item.return_flight_number ?? item.flight_number_back),
     transfers: Math.max(0, Number(item.transfers ?? 0)),
     returnTransfers: item.return_transfers == null ? null : Math.max(0, Number(item.return_transfers)),
     durationMinutes: Math.max(0, duration),

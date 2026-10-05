@@ -1,5 +1,28 @@
 import Foundation
 
+
+enum StagedUmrahFlightKind: String, Hashable {
+    case roundTrip
+    case outbound
+    case inbound
+}
+
+struct StagedUmrahFlight: Identifiable, Hashable {
+    let id: String
+    let kind: StagedUmrahFlightKind
+    let origin: String
+    let destination: String
+    let airline: String
+    let flightNumber: String
+    let departureAt: String
+    let returnAt: String?
+    let returnAirline: String?
+    let returnFlightNumber: String?
+    let source: String
+
+    var routeTitle: String { "\(origin.uppercased()) → \(destination.uppercased())" }
+}
+
 enum PackageFlightPath: String, Hashable {
     /// A staff-published direct itinerary chosen before the hotel stage.
     /// Pricing resolves from the curated D1 row and must not trigger Ignav search.

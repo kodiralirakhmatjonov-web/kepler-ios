@@ -1136,7 +1136,7 @@ struct IumrahAccountView: View {
             } label: {
                 settingsRow(
                     icon: "airplane.circle.fill",
-                    title: "Airmora Flights Status",
+                    title: tr("iumrah Flights status", "iumrah Flights статус", "iumrah Flights holati", "iumrah Flights ҳолати"),
                     value: tr(
                         "Live flight status, route and travel updates",
                         "Статус рейса, маршрут и обновления поездки",
@@ -1186,24 +1186,6 @@ struct IumrahAccountView: View {
             Divider().padding(.leading, 54)
 
             NavigationLink {
-                CareHomeView()
-            } label: {
-                settingsRow(
-                    icon: "heart.fill",
-                    title: "iumrah Care",
-                    value: tr(
-                        "Booking help and trip support",
-                        "Помощь по бронированию и сопровождению поездки",
-                        "Bron va safar bo‘yicha yordam",
-                        "Брон ва сафар бўйича ёрдам"
-                    )
-                )
-            }
-            .buttonStyle(.plain)
-
-            Divider().padding(.leading, 54)
-
-            NavigationLink {
                 IumrahGiftCardsView()
             } label: {
                 settingsRow(
@@ -1219,6 +1201,7 @@ struct IumrahAccountView: View {
             }
             .buttonStyle(.plain)
         }
+        .iumrahCard()
     }
 
     private var settingsSection: some View {

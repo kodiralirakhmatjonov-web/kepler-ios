@@ -35,6 +35,10 @@ final class JourneyStore: ObservableObject {
     @Published var selectedPublishedCompleteID: String?
     @Published var selectedPublishedOutboundID: String?
     @Published var selectedPublishedReturnID: String?
+    /// Flights staged from the Flights tab before the user opens the package builder.
+    /// Published iumrah recommendations also keep their canonical D1 IDs above so
+    /// the generator can resolve the exact selected itinerary server-side.
+    @Published var stagedUmrahFlights: [StagedUmrahFlight] = []
 
     // Transfer is a first-class generator stage shared by both flight paths.
     // The base transfer price is package-wide; vehicle class controls the service
@@ -286,6 +290,29 @@ final class JourneyStore: ObservableObject {
         selectedPublishedCompleteID = nil
         selectedPublishedOutboundID = nil
         selectedPublishedReturnID = nil
+    }
+
+    func stageUmrahFlight(_ selection: StagedUmrahFlight) {
+        switch selection.kind {
+        case .roundTrip:
+            stagedUmrahFlights = [selection]
+        case .outbound:
+            stagedUmrahFlights.removeAll { $0.kind == .roundTrip || $0.kind == .outbound }
+            stagedUmrahFlights.append(selection)
+        case .inbound:
+            stagedUmrahFlights.removeAll { $0.kind == .roundTrip || $0.kind == .inbound }
+            stagedUmrahFlights.append(selection)
+        }
+    }
+
+    func clearStagedUmrahFlights() {
+        stagedUmrahFlights = []
+    }
+
+    var hasCompleteStagedFlightSelection: Bool {
+        stagedUmrahFlights.contains(where: { $0.kind == .roundTrip }) ||
+        (stagedUmrahFlights.contains(where: { $0.kind == .outbound }) &&
+         stagedUmrahFlights.contains(where: { $0.kind == .inbound }))
     }
 
     /// Reprices the same hidden Primary Hotel + published-flight package for a solo

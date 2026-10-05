@@ -47,7 +47,9 @@ struct ZiyaratJourneyView: View {
     @State private var closing = false
 
     private var orderedPlaces: [ZiyaratPlace] {
-        route.places.sorted { $0.routeOrder < $1.routeOrder }
+        route.places
+            .filter(Self.hasUsableCoordinate)
+            .sorted { $0.routeOrder < $1.routeOrder }
     }
 
     private var isCompactPanel: Bool { panelLevel == .compact }
@@ -728,19 +730,20 @@ struct ZiyaratJourneyView: View {
         Task {
             await ZiyaratImagePrefetcher.shared.prefetch(route: live)
         }
-        let targetRegion = live.places.isEmpty ? Self.defaultRegion(for: city) : Self.region(for: live.places)
+        let validPlaces = live.places.filter(Self.hasUsableCoordinate)
+        let targetRegion = validPlaces.isEmpty ? Self.defaultRegion(for: city) : Self.region(for: validPlaces)
         if animateCamera && !reduceMotion {
             withAnimation(.easeInOut(duration: 0.52)) { camera = .region(targetRegion) }
         } else {
             camera = .region(targetRegion)
         }
         loadingCatalog = false
-        revealedStopCount = live.places.count
+        revealedStopCount = validPlaces.count
 
         loadingRoute = true
         let routeCity = city
         Task { @MainActor in
-            let lines = await ZiyaratRouteService.shared.roadPolylines(for: live.places)
+            let lines = await ZiyaratRouteService.shared.roadPolylines(for: validPlaces)
             guard !Task.isCancelled, selectedCity == routeCity, routeRequestID == requestID else { return }
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) { polylines = lines }
             loadingRoute = false
@@ -806,17 +809,27 @@ struct ZiyaratJourneyView: View {
         }
     }
 
+    private static func hasUsableCoordinate(_ place: ZiyaratPlace) -> Bool {
+        place.latitude.isFinite &&
+        place.longitude.isFinite &&
+        (-90.0...90.0).contains(place.latitude) &&
+        (-180.0...180.0).contains(place.longitude)
+    }
+
     private static func region(for places: [ZiyaratPlace]) -> MKCoordinateRegion {
-        guard !places.isEmpty else {
+        let valid = places.filter(hasUsableCoordinate)
+        guard !valid.isEmpty else {
             return defaultRegion(for: .madinah)
         }
 
-        let lats = places.map(\.latitude)
-        let lons = places.map(\.longitude)
-        let minLat = lats.min()!
-        let maxLat = lats.max()!
-        let minLon = lons.min()!
-        let maxLon = lons.max()!
+        let lats = valid.map(\.latitude)
+        let lons = valid.map(\.longitude)
+        guard let minLat = lats.min(),
+              let maxLat = lats.max(),
+              let minLon = lons.min(),
+              let maxLon = lons.max() else {
+            return defaultRegion(for: .madinah)
+        }
 
         return MKCoordinateRegion(
             center: CLLocationCoordinate2D(

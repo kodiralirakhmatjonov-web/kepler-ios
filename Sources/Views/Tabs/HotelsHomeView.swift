@@ -15,7 +15,7 @@ struct HotelsHomeView: View {
     @State private var carePresented = false
     @State private var packageShareArtifacts: IumrahPackageShareArtifacts?
     @State private var packageShareError: String?
-    @State private var friendsCalculatorPresented = false
+    @State private var packageAssemblyExpanded = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -49,6 +49,20 @@ struct HotelsHomeView: View {
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)
+        .safeAreaInset(edge: .bottom, spacing: 8) {
+            if board == .flights {
+                IumrahPackageAssemblyBar(
+                    language: settings.language,
+                    selections: journey.stagedUmrahFlights,
+                    isExpanded: $packageAssemblyExpanded,
+                    onContinue: {
+                        IumrahHaptics.selection()
+                        chrome.startNewTrip()
+                    }
+                )
+                .padding(.horizontal, IumrahDesign.pagePadding)
+            }
+        }
         .refreshable {
             await storefront.updateDepartureAirport(journey.trip.originCode)
             await storefront.refresh()
@@ -91,11 +105,6 @@ struct HotelsHomeView: View {
         .sheet(item: $packageShareArtifacts) { artifacts in
             IumrahPackageActivitySheet(artifacts: artifacts)
         }
-        .sheet(isPresented: $friendsCalculatorPresented) {
-            IumrahFriendsCalculatorSheet()
-                .environmentObject(settings)
-                .environmentObject(storefront)
-        }
         .alert(packageShareErrorTitle, isPresented: Binding(
             get: { packageShareError != nil },
             set: { if !$0 { packageShareError = nil } }
@@ -131,10 +140,9 @@ struct HotelsHomeView: View {
                 note: nil
             )
 
-            IumrahFriendsShowcaseCard(language: settings.language) {
-                IumrahHaptics.soft()
-                friendsCalculatorPresented = true
-            }
+            IumrahFriendsCalculatorCard()
+                .environmentObject(settings)
+                .environmentObject(storefront)
 
             hotelCitySection(
                 title: L10n.text("hotels_makkah", settings.language),
@@ -516,6 +524,172 @@ private struct ShowcaseHero: View {
     }
 }
 
+private struct IumrahPackageAssemblyBar: View {
+    let language: AppSettingsStore.Language
+    let selections: [StagedUmrahFlight]
+    @Binding var isExpanded: Bool
+    let onContinue: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    if selections.isEmpty {
+                        HStack(spacing: 10) {
+                            Image(systemName: "tray")
+                                .foregroundStyle(.secondary)
+                            Text(tr("Вы ещё ничего не выбрали.", "You haven’t selected anything yet.", "Hali hech narsa tanlamadingiz.", "Ҳали ҳеч нарса танламадингиз."))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        ForEach(selections) { selection in
+                            flightRow(selection)
+                        }
+
+                        Button(action: onContinue) {
+                            HStack {
+                                Text(tr("Продолжить сборку Umrah", "Continue Umrah package", "Umra paketini davom ettirish", "Умра пакетини давом эттириш"))
+                                Spacer()
+                                Image(systemName: "arrow.right")
+                            }
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Color.iumrahPrimaryButtonText)
+                            .padding(.horizontal, 15)
+                            .frame(height: 48)
+                            .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 15)
+                .padding(.bottom, 6)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+                    isExpanded.toggle()
+                }
+                IumrahHaptics.soft()
+            } label: {
+                HStack(spacing: 11) {
+                    Image(systemName: selections.isEmpty ? "cart" : "cart.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(selections.isEmpty ? Color.secondary : Color.green)
+                        .frame(width: 38, height: 38)
+                        .background((selections.isEmpty ? Color.secondary : Color.green).opacity(0.1), in: Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tr("Сборка Umrah пакета", "Umrah package assembly", "Umra paketini yig‘ish", "Умра пакетини йиғиш"))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.primary)
+                        Text(summaryText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 13)
+                .frame(height: 60)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
+        }
+        .shadow(color: .black.opacity(0.08), radius: 18, y: 7)
+    }
+
+    private func flightRow(_ selection: StagedUmrahFlight) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: selection.kind == .roundTrip ? "arrow.left.arrow.right.circle.fill" : "airplane.circle.fill")
+                .foregroundStyle(.green)
+                .font(.system(size: 21))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(selection.routeTitle)
+                    .font(.subheadline.monospaced().weight(.bold))
+                Text([selection.airline, selection.flightNumber].filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(dateText(selection.departureAt))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let returnAt = selection.returnAt {
+                    Text("↩︎ \(dateText(returnAt))\(returnSuffix(selection))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var summaryText: String {
+        if selections.isEmpty {
+            return tr("Ещё ничего не выбрано", "Nothing selected yet", "Hali hech narsa tanlanmagan", "Ҳали ҳеч нарса танланмаган")
+        }
+        if selections.contains(where: { $0.kind == .roundTrip }) {
+            return tr("Билет туда‑обратно выбран", "Round-trip flight selected", "Borib-kelish chiptasi tanlangan", "Бориб-келиш чиптаси танланган")
+        }
+        let outbound = selections.contains(where: { $0.kind == .outbound })
+        let inbound = selections.contains(where: { $0.kind == .inbound })
+        if outbound && inbound {
+            return tr("Рейсы туда и обратно выбраны", "Outbound and return selected", "Borish va qaytish reyslari tanlangan", "Бориш ва қайтиш рейслари танланган")
+        }
+        return outbound
+            ? tr("Выбран рейс туда", "Outbound selected", "Borish reysi tanlangan", "Бориш рейси танланган")
+            : tr("Выбран обратный рейс", "Return selected", "Qaytish reysi tanlangan", "Қайтиш рейси танланган")
+    }
+
+    private func returnSuffix(_ selection: StagedUmrahFlight) -> String {
+        let parts = [selection.returnAirline, selection.returnFlightNumber]
+            .compactMap { value -> String? in
+                guard let value, !value.isEmpty else { return nil }
+                return value
+            }
+        return parts.isEmpty ? "" : " · " + parts.joined(separator: " · ")
+    }
+
+    private func dateText(_ raw: String) -> String {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = iso.date(from: raw)
+        if date == nil {
+            iso.formatOptions = [.withInternetDateTime]
+            date = iso.date(from: raw)
+        }
+        guard let date else { return String(raw.prefix(10)) }
+        let f = DateFormatter()
+        switch language {
+        case .russian: f.locale = Locale(identifier: "ru_RU")
+        case .english: f.locale = Locale(identifier: "en_US")
+        case .uzbek: f.locale = Locale(identifier: "uz_Latn_UZ")
+        case .uzbekCyrillic: f.locale = Locale(identifier: "uz_Cyrl_UZ")
+        }
+        f.setLocalizedDateFormatFromTemplate("dMMM")
+        return f.string(from: date)
+    }
+
+    private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
+        switch language {
+        case .russian: return ru
+        case .english: return en
+        case .uzbek: return uz
+        case .uzbekCyrillic: return cy
+        }
+    }
+}
+
 private struct IumrahFriendsShowcaseCard: View {
     let language: AppSettingsStore.Language
     let action: () -> Void
@@ -596,8 +770,7 @@ private struct IumrahFriendsShowcaseCard: View {
     }
 }
 
-private struct IumrahFriendsCalculatorSheet: View {
-    @Environment(\.dismiss) private var dismiss
+private struct IumrahFriendsCalculatorCard: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @EnvironmentObject private var storefront: HotelStorefrontStore
 
@@ -617,36 +790,56 @@ private struct IumrahFriendsCalculatorSheet: View {
     private var calculationKey: String { "\(stars)|\(adults)|\(children)|\(storefront.flightPackagePreviews.count)|\(storefront.allHotels.count)" }
 
     var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
-                    headerCard
-                    starPicker
-                    travelersCard
-                    resultCard
-                    includedRow
+        VStack(alignment: .leading, spacing: 16) {
+            Image("IumrahFriendsHotelsCover")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("iumrah Finance")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.green)
+                    Text(titleText)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .tracking(-0.5)
                 }
-                .padding(.horizontal, IumrahDesign.pagePadding)
-                .padding(.top, 12)
-                .padding(.bottom, 34)
+                Spacer()
+                Image(systemName: "calculator")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.green)
+                    .frame(width: 42, height: 42)
+                    .background(Color.green.opacity(0.1), in: Circle())
             }
-            .background(Color.iumrahPageBackground)
-            .navigationTitle("iumrah Friends")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                    }
-                }
-            }
+
+            Text(bodyText)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            starPicker
+            travelersCard
+            resultCard
+            includedRow
         }
-        .presentationDetents([.large])
+        .padding(18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.8)
+        }
+        .shadow(color: .black.opacity(0.05), radius: 18, y: 7)
         .sheet(isPresented: $includesPresented) {
             IumrahFriendsIncludedSheet(language: settings.language)
         }
         .task {
             await storefront.prepareIfNeeded()
+            if storefront.flightPackagePreviews.isEmpty {
+                await storefront.refresh()
+            }
         }
         .task(id: calculationKey) {
             try? await Task.sleep(for: .milliseconds(420))
@@ -949,8 +1142,8 @@ private struct IumrahFriendsCalculatorSheet: View {
     }
 
     private var targetTitle: String { tr("GROUP CALCULATOR", "КАЛЬКУЛЯТОР ГРУППЫ", "GURUH KALKULYATORI", "ГУРУҲ КАЛЬКУЛЯТОРИ") }
-    private var titleText: String { tr("See how traveling together changes the package", "Посмотрите выгоду поездки вместе", "Birga safar narxini ko‘ring", "Бирга сафар нархини кўринг") }
-    private var bodyText: String { tr("Choose hotel stars and your group. iumrah uses current Primary Hotels and a published direct flight pair, then asks the same Package Engine used by the configurator for a live total.", "Выберите звёздность и состав группы. iumrah возьмёт актуальные Primary Hotels и опубликованную пару прямых рейсов, затем рассчитает итог через тот же Package Engine, что используется в конфигураторе.", "Yulduzlar va guruh tarkibini tanlang. iumrah amaldagi Primary Hotels va e’lon qilingan to‘g‘ridan-to‘g‘ri reyslarni olib, konfigurator ishlatadigan Package Engine orqali yakuniy narxni hisoblaydi.", "Юлдузлар ва гуруҳ таркибини танланг. iumrah амалдаги Primary Hotels ва эълон қилинган тўғридан-тўғри рейсларни олиб, конфигуратор ишлатадиган Package Engine орқали якуний нархни ҳисоблайди.") }
+    private var titleText: String { tr("Umrah package calculator", "Калькулятор Umrah-пакета", "Umrah paketi kalkulyatori", "Umrah пакети калькулятори") }
+    private var bodyText: String { tr("Choose hotel class and travelers. The calculator uses the same published iumrah flights and Package Engine as the configurator, then shows the current package total directly on this card.", "Выберите класс отеля и состав группы. Калькулятор использует те же опубликованные рейсы iumrah и Package Engine, что и конфигуратор, и показывает актуальную стоимость прямо на карточке.", "Mehmonxona klassi va sayohatchilarni tanlang. Kalkulyator konfigurator bilan bir xil iumrah reyslari va Package Engine’dan foydalanib, amaldagi paket narxini shu kartaning o‘zida ko‘rsatadi.", "Меҳмонхона класси ва саёҳатчиларни танланг. Калькулятор конфигуратор билан бир хил iumrah рейслари ва Package Engine’дан фойдаланиб, амалдаги пакет нархини шу картанинг ўзида кўрсатади.") }
     private var hotelClassTitle: String { tr("Hotel class", "Класс отеля", "Mehmonxona klassi", "Меҳмонхона класси") }
     private var adultsTitle: String { tr("Adults", "Взрослые", "Kattalar", "Катталар") }
     private var adultsSubtitle: String { tr("1–16 people total", "До 16 человек всего", "Jami 16 kishigacha", "Жами 16 кишигача") }

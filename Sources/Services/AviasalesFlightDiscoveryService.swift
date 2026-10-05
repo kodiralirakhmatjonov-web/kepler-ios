@@ -12,6 +12,8 @@ struct FlightDiscoveryOffer: Codable, Hashable, Identifiable {
     let flightNumber: String
     let departureAt: String
     let returnAt: String?
+    let returnAirlineCode: String?
+    let returnFlightNumber: String?
     let transfers: Int
     let returnTransfers: Int?
     let durationMinutes: Int
@@ -59,6 +61,8 @@ struct FlightDiscoveryCalendarDay: Codable, Hashable, Identifiable {
     let flightNumber: String
     let departureAt: String
     let returnAt: String?
+    let returnAirlineCode: String?
+    let returnFlightNumber: String?
     let transfers: Int
     let returnTransfers: Int?
     let durationMinutes: Int
@@ -77,6 +81,8 @@ struct FlightDiscoveryCalendarDay: Codable, Hashable, Identifiable {
             flightNumber: flightNumber,
             departureAt: departureAt,
             returnAt: returnAt,
+            returnAirlineCode: returnAirlineCode,
+            returnFlightNumber: returnFlightNumber,
             transfers: transfers,
             returnTransfers: returnTransfers,
             durationMinutes: durationMinutes,

@@ -186,7 +186,6 @@ struct IumrahHomeServicesSection: View {
     let onESIM: () -> Void
     let onFlights: () -> Void
     let onZiyarats: () -> Void
-    let onCare: () -> Void
 
     private struct Item: Identifiable {
         let id: String
@@ -253,7 +252,6 @@ struct IumrahHomeServicesSection: View {
                 Item(id: "ziyarat", assets: ["ZiyaratQuba1", "ZiyaratQuba2", "ZiyaratQuba3", "ZiyaratQuba4", "ZiyaratQuba5"], title: "Iumrah Ziyarat", body: "Места Мекки и Медины в одном маршруте. История, навигация и понятный порядок посещения без лишней суеты.", badge: "Маршруты", icon: "map.fill", action: onZiyarats),
                 Item(id: "esim", assets: ["IumrahESIMHomeCard"], title: "Iumrah eSIM", body: "Интернет в Саудовской Аравии готов к подключению сразу после приземления — без поиска SIM-карты в аэропорту.", badge: "Связь", icon: "antenna.radiowaves.left.and.right", action: onESIM),
                 Item(id: "flights", assets: ["IumrahFlightsHomeCard"], title: "Iumrah Flights", body: "Статус Вашего рейса в реальном времени: изменения времени, задержки и важные обновления поездки в одном месте.", badge: "Live status", icon: "airplane", action: onFlights),
-                Item(id: "care", assets: ["IumrahCareShowcaseCard"], title: "Iumrah Care", body: "Человеческая поддержка, когда она действительно нужна: до поездки, в Саудовской Аравии и во время возвращения домой.", badge: "Поддержка", icon: "heart.fill", action: onCare),
             ]
         case .english:
             return [
@@ -261,7 +259,6 @@ struct IumrahHomeServicesSection: View {
                 Item(id: "ziyarat", assets: ["ZiyaratQuba1", "ZiyaratQuba2", "ZiyaratQuba3", "ZiyaratQuba4", "ZiyaratQuba5"], title: "Iumrah Ziyarat", body: "Makkah and Madinah places in one route, with context, navigation and a clear visit sequence.", badge: "Routes", icon: "map.fill", action: onZiyarats),
                 Item(id: "esim", assets: ["IumrahESIMHomeCard"], title: "Iumrah eSIM", body: "Saudi internet ready from arrival, without having to search for a local SIM card at the airport.", badge: "Connectivity", icon: "antenna.radiowaves.left.and.right", action: onESIM),
                 Item(id: "flights", assets: ["IumrahFlightsHomeCard"], title: "Iumrah Flights", body: "Real-time flight status with schedule changes, delays and important journey updates in one place.", badge: "Live status", icon: "airplane", action: onFlights),
-                Item(id: "care", assets: ["IumrahCareShowcaseCard"], title: "Iumrah Care", body: "Human support when it matters — before the trip, in Saudi Arabia and on the way home.", badge: "Support", icon: "heart.fill", action: onCare),
             ]
         case .uzbek:
             return [
@@ -269,7 +266,6 @@ struct IumrahHomeServicesSection: View {
                 Item(id: "ziyarat", assets: ["ZiyaratQuba1", "ZiyaratQuba2", "ZiyaratQuba3", "ZiyaratQuba4", "ZiyaratQuba5"], title: "Iumrah Ziyarat", body: "Makka va Madina ziyorat joylari bitta yo‘nalishda: ma’lumot, navigatsiya va tushunarli tashrif tartibi.", badge: "Yo‘nalishlar", icon: "map.fill", action: onZiyarats),
                 Item(id: "esim", assets: ["IumrahESIMHomeCard"], title: "Iumrah eSIM", body: "Saudiya Arabistonida internet qo‘nganingizdan boshlab tayyor — aeroportda SIM-karta izlash shart emas.", badge: "Internet", icon: "antenna.radiowaves.left.and.right", action: onESIM),
                 Item(id: "flights", assets: ["IumrahFlightsHomeCard"], title: "Iumrah Flights", body: "Parvoz holati real vaqtda: vaqt o‘zgarishi, kechikish va safar uchun muhim yangilanishlar bir joyda.", badge: "Live status", icon: "airplane", action: onFlights),
-                Item(id: "care", assets: ["IumrahCareShowcaseCard"], title: "Iumrah Care", body: "Kerak bo‘lgan paytda insoniy yordam — safardan oldin, Saudiya Arabistonida va uyga qaytishda.", badge: "Yordam", icon: "heart.fill", action: onCare),
             ]
         case .uzbekCyrillic:
             return [
@@ -277,7 +273,6 @@ struct IumrahHomeServicesSection: View {
                 Item(id: "ziyarat", assets: ["ZiyaratQuba1", "ZiyaratQuba2", "ZiyaratQuba3", "ZiyaratQuba4", "ZiyaratQuba5"], title: "Iumrah Ziyarat", body: "Макка ва Мадина зиёрат жойлари битта йўналишда: маълумот, навигация ва тушунарли ташриф тартиби.", badge: "Йўналишлар", icon: "map.fill", action: onZiyarats),
                 Item(id: "esim", assets: ["IumrahESIMHomeCard"], title: "Iumrah eSIM", body: "Саудия Арабистонида интернет қўнганингиздан бошлаб тайёр — аэропортда SIM-карта излаш шарт эмас.", badge: "Интернет", icon: "antenna.radiowaves.left.and.right", action: onESIM),
                 Item(id: "flights", assets: ["IumrahFlightsHomeCard"], title: "Iumrah Flights", body: "Парвоз ҳолати реал вақтда: вақт ўзгариши, кечикиш ва сафар учун муҳим янгиланишлар бир жойда.", badge: "Live status", icon: "airplane", action: onFlights),
-                Item(id: "care", assets: ["IumrahCareShowcaseCard"], title: "Iumrah Care", body: "Керак бўлган пайтда инсоний ёрдам — сафардан олдин, Саудия Арабистонида ва уйга қайтишда.", badge: "Ёрдам", icon: "heart.fill", action: onCare),
             ]
         }
     }

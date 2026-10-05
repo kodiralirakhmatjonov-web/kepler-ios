@@ -1,0 +1,26 @@
+IUMRAH Flights / Services / Ziyarats Stability V8 — 2026-10-05
+
+Cumulative beta patch for the current kepler-ios-main baseline.
+
+Implemented in this patch:
+- Account Services is a white iumrah card; removed iumrah Care from that Services block.
+- Localized service title to iumrah Flights status / iumrah Flights статус.
+- Removed iumrah Care from the Home Services carousel API and item list.
+- Hardened Ziyarats MapKit input against non-finite/out-of-range backend coordinates and removed unsafe region extrema unwraps.
+- Added Flights top mode switch: Global search / iumrah recommends.
+- Added partner gateway card with IumrahFlightsHomeCard, Aviasales and iumrah Flights actions without date marketing copy.
+- Replaced automatic global flight search with explicit Search flights CTA and progressive ~7.5 second reveal.
+- Made flight discovery actions a horizontal rectangular carousel.
+- Added own published direct-flight feed mode using CuratedFlightRecommendationService, shared with the package configurator.
+- Replaced selected flight full-screen cover with NavigationStack navigationDestination full page.
+- Added outbound + return itinerary summary, dates and optional return airline/flight number throughout the Aviasales discovery contract.
+- Refreshes current Aviasales fare when the flight detail page opens.
+- Added staged Umrah flight cart state, cart-drop animation and an expandable package-assembly bar above bottom navigation.
+- Published iumrah selections preserve canonical D1 IDs so the generator can resolve the exact selected itinerary.
+- Moved iumrah Finance calculator inline into its card; only Everything included remains a sheet.
+- Calculator explicitly refreshes the storefront feed if published flight previews are empty and uses the same package-engine source as the configurator.
+
+Already present in the incoming repository and intentionally retained:
+- Hotels / Flights / Weekend three-way segmented board.
+- Flights Redesign V6/V7 result ranking, badges, price chart, airline filter, favorites and sharing.
+- 2026-10-04 user-provided iumrah PROJECT app icon set.

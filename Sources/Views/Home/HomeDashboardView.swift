@@ -118,8 +118,7 @@ struct HomeDashboardView: View {
                     onTransfer: { showTransferService = true },
                     onESIM: { chrome.presentESIM() },
                     onFlights: { showFlightsService = true },
-                    onZiyarats: { showZiyarats = true },
-                    onCare: { chrome.navigate(to: .care) }
+                    onZiyarats: { showZiyarats = true }
                 )
 
                 readyPackagesSection
