@@ -87,6 +87,9 @@ struct BookingsHomeView: View {
         .navigationDestination(isPresented: $chrome.shouldStartTripBuilder) {
             TripBuilderView()
         }
+        .navigationDestination(isPresented: $chrome.shouldStartFlightFirstBuilder) {
+            FlightFirstPackageFlowView()
+        }
         .navigationDestination(isPresented: Binding(
             get: { chrome.requestedBookingID != nil },
             set: { if !$0 { chrome.requestedBookingID = nil } }

@@ -1,0 +1,59 @@
+IUMRAH FLIGHTS + FLIGHT FIRST V13 — CUMULATIVE UPDATE
+Date: 2026-10-06
+
+CUMULATIVE
+- Includes the files from checkpoint V12 (therefore prior V8/V9/V10 changes and Ziyarats crash hardening V11 are preserved).
+- This archive can be applied directly; V12 does not need to be applied first.
+
+FLIGHTS — GLOBAL SEARCH UX
+- Removed the permanent “route not found” partner/Aviasales gateway from the initial screen.
+- Partner gateway is shown only after a completed search when zero or too few matching flights are returned.
+- Removed the separate “Search flights” button.
+- Search starts automatically after a valid route/date/traveler configuration changes.
+- Origin, destination, trip scope, dates and pilgrims are grouped into one configuration card.
+- Added Makkah / Makkah + Madinah scope inside the configuration card.
+- Kept one-way / round-trip selector in Global Search only.
+- Price chart, Direct and Airlines controls remain after the trip-type selector.
+
+IUMRAH RECOMMENDS
+- Removed one-way / round-trip selector from this mode.
+- Published iumrah inventory is treated as one-way inventory.
+- Added separate horizontal carousels for outbound and return flights.
+- Uses the same unified route/date/traveler/scope configuration card.
+- Existing ready-package section stays after the flight discovery surface.
+
+DATA API / FLIGHT DETAIL
+- Restored manual “Refresh price” control and freshness status (“updated just now” style state).
+- Price is refreshed on detail open and can be refreshed manually/pull-to-refresh.
+- Round-trip detail now renders outbound and return carrier/flight identity separately.
+- Backend enriches return airline code and return flight number for round-trip Travelpayouts/Aviasales Data API rows when the source row omitted them.
+- The client does not falsely reuse the outbound carrier as the return carrier when return identity is unavailable.
+
+UMRAH ASSEMBLY CART
+- Round-trip selection is represented as a complete round-trip selection; no second ticket is required.
+- Separate one-way selections require both outbound and return before continuing.
+- Cart is more rounded and separated slightly from the bottom navigation bar.
+- Continue is disabled until the staged flight selection is complete.
+
+FLIGHT FIRST / AV SALES FLOW
+- Added a dedicated Flight First entry path for flights selected from Aviasales Data API or the iumrah flight catalogue.
+- Continue from the flight assembly no longer sends the user back to the generic configurator to choose flights again.
+- Flow begins at Primary Hotels with the already-selected flight(s), traveler count, dates and Makkah/Makkah+Madinah scope preserved.
+- Added package tier/star selector; the existing Primary Hotel engine reloads the appropriate recommendation(s).
+- Makkah+Madinah scope loads Primary Hotels for both cities.
+- Existing downstream production flow is reused: Primary Hotels -> Transfer -> Final package/components/pricing/comparison -> booking.
+- Comfort/Luxury meal options continue to use the existing Package Engine logic.
+
+PACKAGE ENGINE / SECURITY
+- Added an Aviasales-selected flight path to JourneyStore/PackageFlightPath.
+- Aviasales Data API fares selected on-device are re-resolved server-side before the package quote is built; client fare snapshots are not blindly trusted.
+- Round-trip server resolution validates the reverse leg identity as well as outbound inventory.
+
+VALIDATION PERFORMED IN THIS ENVIRONMENT
+- swiftc -parse passed for every changed Swift file.
+- Backend PackageEngine TypeScript typecheck passed (`tsc --noEmit`).
+- Backend contract test suite passed: 116/116 tests.
+- ZIP integrity test performed after packaging.
+
+NOTE
+- A full Xcode/iOS build cannot be executed in this Linux environment. Run the repository’s normal macOS/GitHub Actions build after applying the patch.

@@ -128,6 +128,8 @@ struct TripBuilderView: View {
         switch journey.packageFlightPath {
         case .publishedDirect:
             return journey.hasCompletePublishedFlightSelection
+        case .aviasalesSelected:
+            return journey.hasCompleteStagedFlightSelection
         case .flexibleDates:
             return !journey.trip.isWeekendUmrah
         case .weekend:

@@ -206,6 +206,7 @@ final class IumrahFlightDiscoveryStore: ObservableObject {
 
         isLoading = true
         errorMessage = nil
+        offers = []
 
         refreshTask = Task { [weak self] in
             guard let self else { return }

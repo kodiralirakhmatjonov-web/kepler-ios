@@ -27,6 +27,10 @@ enum PackageFlightPath: String, Hashable {
     /// A staff-published direct itinerary chosen before the hotel stage.
     /// Pricing resolves from the curated D1 row and must not trigger Ignav search.
     case publishedDirect
+    /// A Data API fare selected in the Flights storefront before the hotel stage.
+    /// The Package Engine re-resolves the same Aviasales Data identity server-side
+    /// before it accepts the fare into a package quote.
+    case aviasalesSelected
     /// User-selected dates outside (or instead of) published direct inventory.
     /// After hotel selection the normal Ignav search flow runs for those exact dates.
     case flexibleDates

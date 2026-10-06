@@ -49,18 +49,24 @@ struct HotelsHomeView: View {
             .padding(.bottom, 42)
         }
         .background(Color.iumrahPageBackground)
-        .safeAreaInset(edge: .bottom, spacing: 8) {
+        .safeAreaInset(edge: .bottom, spacing: 2) {
             if board == .flights {
                 IumrahPackageAssemblyBar(
                     language: settings.language,
                     selections: journey.stagedUmrahFlights,
                     isExpanded: $packageAssemblyExpanded,
                     onContinue: {
+                        guard journey.hasCompleteStagedFlightSelection else {
+                            IumrahHaptics.error()
+                            return
+                        }
                         IumrahHaptics.selection()
-                        chrome.startNewTrip()
+                        journey.prepareFlightFirstHotelStage()
+                        chrome.startFlightFirstTrip()
                     }
                 )
                 .padding(.horizontal, IumrahDesign.pagePadding)
+                .padding(.bottom, 2)
             }
         }
         .refreshable {
@@ -550,17 +556,21 @@ private struct IumrahPackageAssemblyBar: View {
 
                         Button(action: onContinue) {
                             HStack {
-                                Text(tr("Продолжить сборку Umrah", "Continue Umrah package", "Umra paketini davom ettirish", "Умра пакетини давом эттириш"))
+                                Text(continueTitle)
                                 Spacer()
-                                Image(systemName: "arrow.right")
+                                Image(systemName: canContinue ? "arrow.right" : "airplane.arrival")
                             }
                             .font(.subheadline.weight(.bold))
-                            .foregroundStyle(Color.iumrahPrimaryButtonText)
+                            .foregroundStyle(canContinue ? Color.iumrahPrimaryButtonText : Color.secondary)
                             .padding(.horizontal, 15)
                             .frame(height: 48)
-                            .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .background(
+                                canContinue ? Color.iumrahPrimaryButtonBackground : Color.primary.opacity(0.06),
+                                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            )
                         }
                         .buttonStyle(.plain)
+                        .disabled(!canContinue)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -602,12 +612,13 @@ private struct IumrahPackageAssemblyBar: View {
             }
             .buttonStyle(.plain)
         }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
         }
         .shadow(color: .black.opacity(0.08), radius: 18, y: 7)
+        .padding(.vertical, 1)
     }
 
     private func flightRow(_ selection: StagedUmrahFlight) -> some View {
@@ -632,6 +643,21 @@ private struct IumrahPackageAssemblyBar: View {
             }
             Spacer(minLength: 0)
         }
+    }
+
+    private var canContinue: Bool {
+        selections.contains(where: { $0.kind == .roundTrip }) ||
+        (selections.contains(where: { $0.kind == .outbound }) && selections.contains(where: { $0.kind == .inbound }))
+    }
+
+    private var continueTitle: String {
+        if canContinue {
+            return tr("Продолжить сборку Umrah", "Continue Umrah package", "Umra paketini davom ettirish", "Умра пакетини давом эттириш")
+        }
+        if selections.contains(where: { $0.kind == .outbound }) {
+            return tr("Сначала выберите обратный рейс", "Select a return flight first", "Avval qaytish reysini tanlang", "Аввал қайтиш рейсини танланг")
+        }
+        return tr("Сначала выберите рейс туда", "Select an outbound flight first", "Avval borish reysini tanlang", "Аввал бориш рейсини танланг")
     }
 
     private var summaryText: String {

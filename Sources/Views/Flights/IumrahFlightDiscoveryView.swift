@@ -55,36 +55,36 @@ struct IumrahFlightDiscoveryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             searchModePicker
-            routeCard
+            flightSearchConfigurationCard
 
             if searchMode == .globalSearch {
-                partnerGatewayCard
                 tripTypePicker
-                searchControls
-                searchButton
                 discoveryActions
                 searchResultsSection
 
-                if hasSearched {
+                if hasSearched && !rankedOffers.isEmpty {
                     nearbyDealsSection
                     dataSourceNote
                 }
             } else {
-                tripTypePicker
-                recommendedSearchControls
                 recommendedFlightsSection
             }
         }
         .task {
             seedFromJourneyIfNeeded()
+            syncSearchConfigurationToJourney()
             await favorites.refreshAllFavorites(language: settings.language)
+        }
+        .task(id: automaticGlobalSearchKey) {
+            guard seededFromJourney, searchMode == .globalSearch else { return }
+            try? await Task.sleep(for: .milliseconds(320))
+            guard !Task.isCancelled else { return }
+            performGlobalSearch()
         }
         .task(id: recommendedRefreshKey) {
             guard searchMode == .iumrahRecommended else { return }
+            syncSearchConfigurationToJourney()
             await loadRecommendedFlights()
-        }
-        .onChange(of: refreshKey) { _, _ in
-            resetGlobalSearch()
         }
         .sheet(isPresented: $originPickerPresented) {
             AirportPickerView(
@@ -103,7 +103,7 @@ struct IumrahFlightDiscoveryView: View {
         .sheet(isPresented: $calendarPresented) {
             FlightDiscoveryCalendarSheet(
                 language: settings.language,
-                tripType: tripType,
+                tripType: calendarTripType,
                 calendarDays: store.calendarDays,
                 departureDate: $departureDate,
                 returnDate: $returnDate
@@ -169,7 +169,10 @@ struct IumrahFlightDiscoveryView: View {
             )
         }
         .onChange(of: destinationAirport) { _, airport in
-            if let airport { destinationCode = airport.iata.uppercased() }
+            if let airport {
+                destinationCode = airport.iata.uppercased()
+                syncDestinationWithJourney()
+            }
         }
         .onChange(of: store.offers) { _, offers in
             favorites.reconcile(offers: offers, currency: store.currency, language: settings.language)
@@ -259,52 +262,17 @@ struct IumrahFlightDiscoveryView: View {
         }
     }
 
-    private var searchButton: some View {
-        VStack(spacing: 9) {
-            Button {
-                performGlobalSearch()
-            } label: {
-                HStack(spacing: 10) {
-                    if searchProgress > 0 && searchProgress < 1 {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(Color.iumrahPrimaryButtonText)
-                    } else {
-                        Image(systemName: "magnifyingglass")
-                    }
-                    Text(tr("Искать билеты", "Search flights", "Chiptalarni izlash", "Чипталарни излаш"))
-                    Spacer()
-                    Image(systemName: "arrow.right")
-                }
-                .font(.headline)
-                .foregroundStyle(Color.iumrahPrimaryButtonText)
-                .padding(.horizontal, 18)
-                .frame(height: 58)
-                .background(Color.iumrahPrimaryButtonBackground, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(searchProgress > 0 && searchProgress < 1)
-            .opacity(searchProgress > 0 && searchProgress < 1 ? 0.92 : 1)
-
-            if searchProgress > 0 && searchProgress < 1 {
-                ProgressView(value: searchProgress)
-                    .progressViewStyle(.linear)
-                    .animation(.linear(duration: 0.25), value: searchProgress)
-            }
-        }
-    }
-
     private var recommendedFlightsSection: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 22) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(tr("Прямые рейсы iumrah", "iumrah non-stop flights", "iumrah to‘g‘ridan-to‘g‘ri reyslari", "iumrah тўғридан-тўғри рейслари"))
+                    Text(tr("Рекомендует iumrah", "iumrah recommends", "iumrah tavsiya qiladi", "iumrah тавсия қилади"))
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                     Text(tr(
-                        "\(dateChipTitle) · рейсы из собственной базы iumrah — тот же источник, который использует конфигуратор пакета.",
-                        "\(dateChipTitle) · flights from the iumrah database — the same source used by the package builder.",
-                        "\(dateChipTitle) · iumrah bazasidagi reyslar — paket konstruktori ishlatadigan ayni manba.",
-                        "\(dateChipTitle) · iumrah базасидаги рейслар — пакет конструктори ишлатадиган айни манба."
+                        "Только опубликованные прямые рейсы из базы iumrah. Выберите рейс туда и обратный рейс отдельно.",
+                        "Only published non-stop flights from the iumrah database. Choose outbound and return separately.",
+                        "Faqat iumrah bazasidagi e’lon qilingan to‘g‘ridan-to‘g‘ri reyslar. Borish va qaytish reyslarini alohida tanlang.",
+                        "Фақат iumrah базасидаги эълон қилинган тўғридан-тўғри рейслар. Бориш ва қайтиш рейсларини алоҳида танланг."
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -313,29 +281,60 @@ struct IumrahFlightDiscoveryView: View {
                 if recommendedLoading { ProgressView().controlSize(.small) }
             }
 
-            if recommendedLoading && filteredRecommendedFlights.isEmpty {
+            recommendedCarousel(
+                title: tr("Рейсы туда", "Outbound flights", "Borish reyslari", "Бориш рейслари"),
+                subtitle: "\(originCode) → \(destinationCode.uppercased()) · \(shortDate(departureDate))",
+                items: recommendedOutboundFlights,
+                emptyText: tr("Нет опубликованных рейсов туда на выбранный маршрут.", "No published outbound flights for this route.", "Tanlangan yo‘nalish uchun borish reyslari yo‘q.", "Танланган йўналиш учун бориш рейслари йўқ.")
+            )
+
+            recommendedCarousel(
+                title: tr("Обратные рейсы", "Return flights", "Qaytish reyslari", "Қайтиш рейслари"),
+                subtitle: "\(recommendedReturnOriginCode) → \(originCode) · \(shortDate(returnDate))",
+                items: recommendedReturnFlights,
+                emptyText: tr("Нет опубликованных обратных рейсов на выбранный маршрут.", "No published return flights for this route.", "Tanlangan yo‘nalish uchun qaytish reyslari yo‘q.", "Танланган йўналиш учун қайтиш рейслари йўқ.")
+            )
+
+            if let recommendedError, recommendedOutboundFlights.isEmpty && recommendedReturnFlights.isEmpty {
+                Text(recommendedError)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func recommendedCarousel(
+        title: String,
+        subtitle: String,
+        items: [CuratedFlightRecommendation],
+        emptyText: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.title3.bold())
+                Text(subtitle)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+            }
+
+            if recommendedLoading && items.isEmpty {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(Color.iumrahCardBackground)
                     .frame(height: 176)
                     .overlay { ProgressView() }
-            } else if filteredRecommendedFlights.isEmpty {
-                VStack(alignment: .leading, spacing: 9) {
-                    Label(
-                        tr("Пока нет опубликованных прямых рейсов по этому маршруту", "No published non-stop flights for this route yet", "Bu yo‘nalish uchun hozircha e’lon qilingan to‘g‘ri reys yo‘q", "Бу йўналиш учун ҳозирча эълон қилинган тўғри рейс йўқ"),
-                        systemImage: "airplane.circle"
-                    )
-                    .font(.headline)
-                    if let recommendedError {
-                        Text(recommendedError).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                .padding(18)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            } else if items.isEmpty {
+                Label(emptyText, systemImage: "airplane.circle")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 12) {
-                        ForEach(filteredRecommendedFlights) { recommendation in
+                        ForEach(items) { recommendation in
                             IumrahRecommendedFlightCard(
                                 language: settings.language,
                                 recommendation: recommendation,
@@ -353,6 +352,119 @@ struct IumrahFlightDiscoveryView: View {
                 .scrollClipDisabled()
             }
         }
+    }
+
+    private var flightSearchConfigurationCard: some View {
+        VStack(spacing: 0) {
+            Button {
+                originPickerPresented = true
+                IumrahHaptics.soft()
+            } label: {
+                routeRow(
+                    eyebrow: tr("Откуда", "From", "Qayerdan", "Қаердан"),
+                    title: airportDisplayName(originCode),
+                    code: originCode,
+                    systemImage: "airplane.departure"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 62)
+
+            Button {
+                destinationPickerPresented = true
+                IumrahHaptics.soft()
+            } label: {
+                routeRow(
+                    eyebrow: tr("Куда", "To", "Qayerga", "Қаерга"),
+                    title: airportDisplayName(destinationCode),
+                    code: destinationCode,
+                    systemImage: "airplane.arrival"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.horizontal, 16)
+
+            VStack(alignment: .leading, spacing: 9) {
+                Text(tr("Маршрут Umrah", "Umrah route", "Umra yo‘nalishi", "Умра йўналиши"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                Picker("", selection: Binding(
+                    get: { journey.trip.scope },
+                    set: { value in
+                        journey.trip.scope = value
+                        if value == .makkahOnly {
+                            journey.trip.arrivalAirport = .jeddah
+                            destinationCode = "JED"
+                            destinationAirport = nil
+                        }
+                        IumrahHaptics.selection()
+                    }
+                )) {
+                    Text(tr("Мекка", "Makkah", "Makka", "Макка")).tag(JourneyScope.makkahOnly)
+                    Text(tr("Мекка + Медина", "Makkah + Madinah", "Makka + Madina", "Макка + Мадина")).tag(JourneyScope.makkahAndMadinah)
+                }
+                .pickerStyle(.segmented)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+
+            Divider().padding(.horizontal, 16)
+
+            HStack(spacing: 0) {
+                Button { calendarPresented = true; IumrahHaptics.soft() } label: {
+                    configurationValue(
+                        icon: "calendar",
+                        eyebrow: tr("Даты", "Dates", "Sanalar", "Саналар"),
+                        value: configurationDateTitle
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Divider().frame(height: 48)
+
+                Button { passengersPresented = true; IumrahHaptics.soft() } label: {
+                    configurationValue(
+                        icon: "person.2.fill",
+                        eyebrow: tr("Паломники", "Pilgrims", "Ziyoratchilar", "Зиёратчилар"),
+                        value: passengerChipTitle
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 8)
+        }
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+        }
+    }
+
+    private func configurationValue(icon: String, eyebrow: String, value: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(.blue)
+                .frame(width: 34, height: 34)
+                .background(Color.blue.opacity(0.1), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(eyebrow.uppercased())
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            Spacer(minLength: 4)
+        }
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private var routeCard: some View {
@@ -649,13 +761,11 @@ struct IumrahFlightDiscoveryView: View {
                 }
             }
 
-            if !hasSearched {
-                preSearchCard
-            } else if searchProgress > 0 && searchProgress < 1 && rankedOffers.isEmpty {
+            if store.isLoading && rankedOffers.isEmpty {
                 searchInProgressCard
-            } else if rankedOffers.isEmpty {
-                emptyOffersCard
-            } else {
+            } else if hasSearched && rankedOffers.isEmpty {
+                partnerGatewayCard
+            } else if !rankedOffers.isEmpty {
                 LazyVStack(spacing: 10) {
                     ForEach(Array(rankedOffers.prefix(visibleOfferCount))) { offer in
                         FlightDiscoveryTicketCard(
@@ -669,6 +779,11 @@ struct IumrahFlightDiscoveryView: View {
                             selectedOffer = offer
                         }
                     }
+                }
+
+                if hasSearched && !store.isLoading && rankedOffers.count < 2 {
+                    partnerGatewayCard
+                        .padding(.top, 4)
                 }
             }
         }
@@ -782,10 +897,10 @@ struct IumrahFlightDiscoveryView: View {
                 Text(tr("Выберите маршрут и даты", "Choose route and dates", "Yo‘nalish va sanalarni tanlang", "Йўналиш ва саналарни танланг"))
                     .font(.headline)
                 Text(tr(
-                    "После выбора нажмите «Искать билеты». Результаты появятся постепенно во время проверки.",
-                    "Then tap Search flights. Results will appear progressively while the search is checked.",
-                    "So‘ng «Chiptalarni izlash» tugmasini bosing. Tekshiruv davomida natijalar bosqichma-bosqich chiqadi.",
-                    "Сўнг «Чипталарни излаш» тугмасини босинг. Текширув давомида натижалар босқичма-босқич чиқади."
+                    "После выбора дат поиск запускается автоматически.",
+                    "Search starts automatically after you choose the dates.",
+                    "Sanalarni tanlaganingizdan keyin qidiruv avtomatik boshlanadi.",
+                    "Саналарни танлаганингиздан кейин қидирув автоматик бошланади."
                 ))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -1095,13 +1210,93 @@ struct IumrahFlightDiscoveryView: View {
 
     private var visibleOfferCount: Int {
         guard hasSearched else { return 0 }
-        guard searchProgress < 1 else { return min(20, rankedOffers.count) }
-        guard !rankedOffers.isEmpty else { return 0 }
-        return min(20, max(1, Int(ceil(Double(rankedOffers.count) * searchProgress))))
+        return min(20, rankedOffers.count)
     }
 
     private var recommendedRefreshKey: String {
-        "\(searchMode.rawValue)|\(originCode)|\(destinationCode.uppercased())"
+        [
+            searchMode.rawValue, originCode, destinationCode.uppercased(), recommendedReturnOriginCode,
+            IumrahFlightDiscoveryStore.dayFormatter.string(from: departureDate),
+            IumrahFlightDiscoveryStore.dayFormatter.string(from: returnDate),
+            journey.trip.scope.rawValue
+        ].joined(separator: "|")
+    }
+
+    private var automaticGlobalSearchKey: String {
+        [searchMode.rawValue, refreshKey, String(adults), String(children), String(infants), journey.trip.scope.rawValue]
+            .joined(separator: "|")
+    }
+
+    private var calendarTripType: FlightDiscoveryTripType {
+        searchMode == .iumrahRecommended ? .roundTrip : tripType
+    }
+
+    private var configurationDateTitle: String {
+        if searchMode == .iumrahRecommended {
+            return "\(shortDate(departureDate)) – \(shortDate(returnDate))"
+        }
+        return dateChipTitle
+    }
+
+    private var recommendedReturnOriginCode: String {
+        guard journey.trip.scope == .makkahAndMadinah else { return "JED" }
+        switch destinationCode.uppercased() {
+        case "MED": return "JED"
+        case "JED": return "MED"
+        default: return destinationCode.uppercased()
+        }
+    }
+
+    private var recommendedOutboundFlights: [CuratedFlightRecommendation] {
+        recommendedFlights
+            .filter { item in
+                item.inbound == nil &&
+                item.effectiveJourneyRole == "outbound" &&
+                item.outbound.origin.uppercased() == originCode &&
+                item.outbound.destination.uppercased() == destinationCode.uppercased()
+            }
+            .sorted { lhs, rhs in
+                let ld = dayDistance(lhs.outboundDate, from: departureDate)
+                let rd = dayDistance(rhs.outboundDate, from: departureDate)
+                return ld == rd ? lhs.outboundDate < rhs.outboundDate : ld < rd
+            }
+    }
+
+    private var recommendedReturnFlights: [CuratedFlightRecommendation] {
+        recommendedFlights
+            .filter { item in
+                item.inbound == nil &&
+                item.effectiveJourneyRole == "return" &&
+                item.outbound.origin.uppercased() == recommendedReturnOriginCode &&
+                item.outbound.destination.uppercased() == originCode
+            }
+            .sorted { lhs, rhs in
+                let ld = dayDistance(lhs.outboundDate, from: returnDate)
+                let rd = dayDistance(rhs.outboundDate, from: returnDate)
+                return ld == rd ? lhs.outboundDate < rhs.outboundDate : ld < rd
+            }
+    }
+
+    private func syncSearchConfigurationToJourney() {
+        journey.trip.adults = max(1, adults)
+        journey.trip.children = max(0, children)
+        journey.trip.infants = max(0, infants)
+        journey.trip.departureDate = departureDate
+        journey.trip.returnDate = max(returnDate, departureDate)
+        if searchMode == .globalSearch {
+            journey.trip.flightTripType = tripType == .roundTrip ? .roundTrip : .oneWay
+        } else {
+            journey.trip.flightTripType = .roundTrip
+        }
+        syncDestinationWithJourney()
+    }
+
+    private func syncDestinationWithJourney() {
+        switch destinationCode.uppercased() {
+        case "MED": journey.trip.arrivalAirport = .madinah
+        case "JED": journey.trip.arrivalAirport = .jeddah
+        default: break
+        }
     }
 
     private var filteredRecommendedFlights: [CuratedFlightRecommendation] {
@@ -1191,22 +1386,11 @@ struct IumrahFlightDiscoveryView: View {
     }
 
     private func performGlobalSearch() {
-        let runID = UUID()
-        searchRunID = runID
+        searchRunID = UUID()
+        searchProgress = 1
         hasSearched = true
-        searchProgress = 0
+        syncSearchConfigurationToJourney()
         refresh()
-        IumrahHaptics.soft()
-
-        Task { @MainActor in
-            for step in 1...30 {
-                try? await Task.sleep(for: .milliseconds(250))
-                guard searchRunID == runID else { return }
-                withAnimation(.linear(duration: 0.24)) {
-                    searchProgress = Double(step) / 30.0
-                }
-            }
-        }
     }
 
     @MainActor
@@ -1231,6 +1415,8 @@ struct IumrahFlightDiscoveryView: View {
     }
 
     private func stageRecommendedFlight(_ recommendation: CuratedFlightRecommendation) {
+        journey.stagedAviasalesOffers = [:]
+        syncSearchConfigurationToJourney()
         let role = recommendation.effectiveJourneyRole
         let kind: StagedUmrahFlightKind
         if recommendation.inbound != nil || role == "complete" {
@@ -1324,7 +1510,9 @@ struct IumrahFlightDiscoveryView: View {
             source: "Aviasales"
         )
         journey.stageUmrahFlight(selection)
-        journey.packageFlightPath = .flexibleDates
+        journey.stageAviasalesOffer(offer, kind: kind)
+        syncSearchConfigurationToJourney()
+        journey.packageFlightPath = .aviasalesSelected
         journey.clearPublishedFlightSelection()
 
         if destinationSaudi {
@@ -2798,6 +2986,7 @@ private struct FlightDiscoveryOfferDetailView: View {
     @State private var livePrice: Double?
     @State private var refreshedOffer: FlightDiscoveryOffer?
     @State private var isRefreshingPrice = false
+    @State private var lastPriceRefreshAt: Date?
     @State private var cartAnimationVisible = false
     @State private var cartAnimationDropped = false
     @State private var cartConfirmationVisible = false
@@ -3000,6 +3189,32 @@ private struct FlightDiscoveryOfferDetailView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 10) {
+                Label(priceRefreshStatusText, systemImage: lastPriceRefreshAt == nil ? "clock" : "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(lastPriceRefreshAt == nil ? Color.secondary : Color.green)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Button {
+                    Task { await refreshCurrentFare() }
+                } label: {
+                    HStack(spacing: 6) {
+                        if isRefreshingPrice {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        Text(tr("Обновить цену", "Refresh price", "Narxni yangilash", "Нархни янгилаш"))
+                    }
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 11)
+                    .frame(height: 34)
+                    .iumrahGlass(in: Capsule(), interactive: true)
+                }
+                .buttonStyle(.plain)
+                .disabled(isRefreshingPrice)
+            }
+
+            HStack(spacing: 10) {
                 AirlineLogoView(airlineCode: activeOffer.airlineCode, size: 42)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(activeOffer.airlineName)
@@ -3031,7 +3246,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                 icon: "airplane.departure",
                 route: "\(outboundOrigin) → \(outboundDestination)",
                 date: dateOnly(activeOffer.departureAt),
-                flight: flightNumberText
+                flight: [activeOffer.airlineName, flightNumberText].filter { !$0.isEmpty }.joined(separator: " · ")
             )
 
             if let returnAt = effectiveReturnAt {
@@ -3040,7 +3255,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                     icon: "airplane.arrival",
                     route: "\(outboundDestination) → \(outboundOrigin)",
                     date: dateOnly(returnAt),
-                    flight: returnFlightNumberText
+                    flight: [returnAirlineName, returnFlightNumberText].filter { !$0.isEmpty }.joined(separator: " · ")
                 )
             }
         }
@@ -3096,7 +3311,8 @@ private struct FlightDiscoveryOfferDetailView: View {
             duration: activeOffer.durationMinutes,
             transfers: activeOffer.transfers,
             flightNumber: flightNumberText,
-            showAirline: true
+            airlineCode: activeOffer.airlineCode,
+            airlineName: activeOffer.airlineName
         )
     }
 
@@ -3112,7 +3328,8 @@ private struct FlightDiscoveryOfferDetailView: View {
                 duration: activeOffer.returnDurationMinutes ?? 0,
                 transfers: activeOffer.returnTransfers ?? 0,
                 flightNumber: returnFlightNumberText,
-                showAirline: activeOffer.returnAirlineCode != nil
+                airlineCode: activeOffer.returnAirlineCode ?? "",
+                airlineName: returnAirlineName
             )
         } else {
             EmptyView()
@@ -3128,7 +3345,8 @@ private struct FlightDiscoveryOfferDetailView: View {
         duration: Int,
         transfers: Int,
         flightNumber: String,
-        showAirline: Bool
+        airlineCode: String,
+        airlineName: String
     ) -> some View {
         VStack(alignment: .leading, spacing: 15) {
             VStack(alignment: .leading, spacing: 3) {
@@ -3140,8 +3358,8 @@ private struct FlightDiscoveryOfferDetailView: View {
             }
 
             HStack(spacing: 12) {
-                if showAirline {
-                    AirlineLogoView(airlineCode: subtitle == tr("Обратный перелёт", "Return flight", "Qaytish reysi", "Қайтиш рейси") ? (activeOffer.returnAirlineCode ?? activeOffer.airlineCode) : activeOffer.airlineCode, size: 44)
+                if !airlineCode.isEmpty {
+                    AirlineLogoView(airlineCode: airlineCode, size: 44)
                 } else {
                     Image(systemName: "airplane")
                         .font(.system(size: 18, weight: .bold))
@@ -3150,13 +3368,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                         .background(Color.blue.opacity(0.1), in: Circle())
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(
-                        showAirline
-                            ? (subtitle == tr("Обратный перелёт", "Return flight", "Qaytish reysi", "Қайтиш рейси")
-                                ? FlightReferenceCatalog.airlineName(code: activeOffer.returnAirlineCode ?? activeOffer.airlineCode, fallback: activeOffer.returnAirlineCode ?? activeOffer.airlineCode)
-                                : activeOffer.airlineName)
-                            : tr("Обратный рейс", "Return flight", "Qaytish reysi", "Қайтиш рейси")
-                    )
+                    Text(airlineName)
                         .font(.headline)
                     Text(flightNumber)
                         .font(.caption)
@@ -3316,7 +3528,12 @@ private struct FlightDiscoveryOfferDetailView: View {
                 )
             }
 
-            let current = sameOutbound.max { lhs, rhs in
+            // Prefer the exact outbound identity. If the provider normalized the
+            // flight number differently on refresh, keep the same route/date and use
+            // the candidate with the best return-leg identity instead of leaving the
+            // stale price on screen.
+            let refreshPool = sameOutbound.isEmpty ? routeCandidates : sameOutbound
+            let current = refreshPool.max { lhs, rhs in
                 returnIdentityScore(lhs, comparedTo: baseOffer) < returnIdentityScore(rhs, comparedTo: baseOffer)
             }
 
@@ -3325,6 +3542,7 @@ private struct FlightDiscoveryOfferDetailView: View {
             withAnimation(.easeInOut(duration: 0.25)) {
                 refreshedOffer = current
                 livePrice = current.price
+                lastPriceRefreshAt = Date()
             }
         } catch {
             // Keep the cached fare visible if the live refresh is temporarily unavailable.
@@ -3475,9 +3693,33 @@ private struct FlightDiscoveryOfferDetailView: View {
         )
     }
 
+    private var priceRefreshStatusText: String {
+        guard let lastPriceRefreshAt else {
+            return tr("Цена ещё не обновлялась", "Price not refreshed yet", "Narx hali yangilanmagan", "Нарх ҳали янгиланмаган")
+        }
+        let seconds = max(0, Int(Date().timeIntervalSince(lastPriceRefreshAt)))
+        if seconds < 60 {
+            return tr("Цена обновлена только что", "Price updated just now", "Narx hozirgina yangilandi", "Нарх ҳозиргина янгиланди")
+        }
+        let minutes = max(1, seconds / 60)
+        return tr(
+            "Цена обновлена \(minutes) мин назад",
+            "Price updated \(minutes)m ago",
+            "Narx \(minutes) daqiqa oldin yangilandi",
+            "Нарх \(minutes) дақиқа олдин янгиланди"
+        )
+    }
+
     private var flightNumberText: String {
         if activeOffer.airlineCode.isEmpty && activeOffer.flightNumber.isEmpty { return tr("Рейс", "Flight", "Reys", "Рейс") }
         return [activeOffer.airlineCode, activeOffer.flightNumber].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    private var returnAirlineName: String {
+        guard let code = activeOffer.returnAirlineCode?.trimmingCharacters(in: .whitespacesAndNewlines), !code.isEmpty else {
+            return tr("Перевозчик уточняется", "Carrier pending", "Aviakompaniya aniqlanmoqda", "Авиакомпания аниқланмоқда")
+        }
+        return FlightReferenceCatalog.airlineName(code: code, fallback: code)
     }
 
     private var returnFlightNumberText: String {

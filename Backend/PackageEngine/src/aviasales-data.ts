@@ -129,6 +129,71 @@ function normalizeOffer(item: AviasalesOffer, index: number) {
   };
 }
 
+
+async function hydrateReturnIdentities(items: AviasalesOffer[], token: string, currency: string): Promise<AviasalesOffer[]> {
+  const cache = new Map<string, AviasalesOffer[]>();
+  const output: AviasalesOffer[] = [];
+
+  for (const original of items) {
+    const item = { ...original };
+    const hasReturn = typeof item.return_at === "string" && item.return_at.length > 0;
+    const currentAirline = String(item.return_airline_code ?? item.return_airline ?? item.airline_back ?? "").trim();
+    const currentNumber = item.return_flight_number ?? item.flight_number_back;
+    if (!hasReturn || (currentAirline && currentNumber != null)) {
+      output.push(item);
+      continue;
+    }
+
+    const origin = normalizedIata(String(item.destination ?? ""));
+    const destination = normalizedIata(String(item.origin ?? ""));
+    const day = String(item.return_at ?? "").slice(0, 10);
+    if (!origin || !destination || !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+      output.push(item);
+      continue;
+    }
+
+    const key = `${origin}|${destination}|${day}`;
+    let rows = cache.get(key);
+    if (!rows) {
+      try {
+        const reverse = new URL("/aviasales/v3/prices_for_dates", API_ORIGIN);
+        reverse.searchParams.set("origin", origin);
+        reverse.searchParams.set("destination", destination);
+        reverse.searchParams.set("departure_at", day);
+        reverse.searchParams.set("currency", currency);
+        reverse.searchParams.set("sorting", "price");
+        reverse.searchParams.set("unique", "false");
+        reverse.searchParams.set("direct", "false");
+        reverse.searchParams.set("one_way", "true");
+        reverse.searchParams.set("limit", "100");
+        reverse.searchParams.set("page", "1");
+        const payload = await travelpayoutsJSON<PricesEnvelope>(reverse, token);
+        rows = payload.data ?? [];
+      } catch {
+        rows = [];
+      }
+      cache.set(key, rows);
+    }
+
+    const targetTime = String(item.return_at ?? "");
+    const exact = rows.find((candidate) => String(candidate.departure_at ?? "") === targetTime);
+    const sameCarrier = rows.find((candidate) =>
+      String(candidate.departure_at ?? "").slice(0, 10) === day &&
+      String(candidate.airline ?? "").toUpperCase() === String(item.airline ?? "").toUpperCase()
+    );
+    const match = exact ?? sameCarrier ?? rows.find((candidate) => String(candidate.departure_at ?? "").slice(0, 10) === day);
+    if (match) {
+      item.return_airline_code = String(match.airline ?? "").toUpperCase() || undefined;
+      item.return_flight_number = match.flight_number;
+      if (item.duration_back == null) item.duration_back = Number(match.duration_to ?? match.duration ?? 0);
+      if (item.return_transfers == null) item.return_transfers = Number(match.transfers ?? 0);
+    }
+    output.push(item);
+  }
+
+  return output;
+}
+
 async function travelpayoutsJSON<T>(url: URL, token: string): Promise<T> {
   const response = await fetch(url, {
     headers: {
@@ -220,7 +285,11 @@ export async function publicAviasalesData(url: URL, env: Env): Promise<Response>
       return json({ ok: false, error: payload.error ?? "AVIASALES_DATA_ERROR" }, 502);
     }
 
-    const rows = (payload.data ?? [])
+    const enriched = returnAt
+      ? await hydrateReturnIdentities(payload.data ?? [], token, payload.currency ?? currency)
+      : (payload.data ?? []);
+
+    const rows = enriched
       .map((item, index) => normalizeOffer(item, index))
       .filter((item) => item.price > 0 && item.departureAt.length > 0)
       .sort((a, b) => a.price - b.price);

@@ -25,6 +25,7 @@ final class AppChromeStore: ObservableObject {
     @Published var requestedTab: AppTab?
     @Published var currentTab: AppTab = .home
     @Published var shouldStartTripBuilder = false
+    @Published var shouldStartFlightFirstBuilder = false
     @Published var requestedBookingID: String?
     @Published var requestedHotelID: String?
     @Published var requestedHotelConfiguratorID: String?
@@ -82,6 +83,15 @@ final class AppChromeStore: ObservableObject {
 
     func startNewTrip() {
         shouldStartTripBuilder = true
+        shouldStartFlightFirstBuilder = false
+        currentTab = .booking
+        requestedTab = .booking
+        IumrahHaptics.selection()
+    }
+
+    func startFlightFirstTrip() {
+        shouldStartTripBuilder = false
+        shouldStartFlightFirstBuilder = true
         currentTab = .booking
         requestedTab = .booking
         IumrahHaptics.selection()

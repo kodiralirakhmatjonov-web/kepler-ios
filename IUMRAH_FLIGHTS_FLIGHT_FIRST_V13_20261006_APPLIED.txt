@@ -1,0 +1,4 @@
+IUMRAH Flights + Flight First V13 applied
+Date: 2026-10-06
+
+This cumulative patch contains the earlier V8-V12 updates, including the Ziyarats V11 crash hardening, plus the Flights/Flight First work described in the V13 manifest.

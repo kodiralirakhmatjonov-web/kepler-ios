@@ -39,6 +39,11 @@ final class JourneyStore: ObservableObject {
     /// Published iumrah recommendations also keep their canonical D1 IDs above so
     /// the generator can resolve the exact selected itinerary server-side.
     @Published var stagedUmrahFlights: [StagedUmrahFlight] = []
+    /// Original Data API records for Flight First. The compact staged model powers
+    /// the cart UI; these records preserve the server-recheck identity needed by
+    /// the Package Engine after the user reaches Primary Hotels.
+    @Published var stagedAviasalesOffers: [StagedUmrahFlightKind: FlightDiscoveryOffer] = [:]
+    @Published private(set) var flightFirstHotelStagePrepared = false
 
     // Transfer is a first-class generator stage shared by both flight paths.
     // The base transfer price is package-wide; vehicle class controls the service
@@ -293,6 +298,7 @@ final class JourneyStore: ObservableObject {
     }
 
     func stageUmrahFlight(_ selection: StagedUmrahFlight) {
+        flightFirstHotelStagePrepared = false
         switch selection.kind {
         case .roundTrip:
             stagedUmrahFlights = [selection]
@@ -307,6 +313,50 @@ final class JourneyStore: ObservableObject {
 
     func clearStagedUmrahFlights() {
         stagedUmrahFlights = []
+        stagedAviasalesOffers = [:]
+        flightFirstHotelStagePrepared = false
+    }
+
+    /// Starts the dedicated Flight First hotel stage without throwing the user back
+    /// into the generic flight configurator. This reset is performed once per staged
+    /// flight selection so a previous package draft cannot leak a stale hotel/room or
+    /// transfer into the new AV Sales flow, while navigating back/forward preserves
+    /// choices already made in the current Flight First session.
+    func prepareFlightFirstHotelStage() {
+        guard !flightFirstHotelStagePrepared else { return }
+        flightFirstHotelStagePrepared = true
+
+        selectedHotel = nil
+        selectedRoom = nil
+        selectedRoomCategory = nil
+        hotels = []
+        selectedMadinahHotel = nil
+        selectedMadinahRoom = nil
+        selectedMadinahRoomCategory = nil
+        madinahHotels = []
+        selectedOutbound = nil
+        selectedInbound = nil
+        quote = nil
+        hotelPriceSnapshot = nil
+        cancelHotelPricePrefetch()
+        pricingMakkahRoomID = nil
+        pricingMadinahRoomID = nil
+        resetTransferSelection()
+    }
+
+    func stageAviasalesOffer(_ offer: FlightDiscoveryOffer, kind: StagedUmrahFlightKind) {
+        switch kind {
+        case .roundTrip:
+            stagedAviasalesOffers = [.roundTrip: offer]
+        case .outbound:
+            stagedAviasalesOffers.removeValue(forKey: .roundTrip)
+            stagedAviasalesOffers[.outbound] = offer
+        case .inbound:
+            stagedAviasalesOffers.removeValue(forKey: .roundTrip)
+            stagedAviasalesOffers[.inbound] = offer
+        }
+        packageFlightPath = .aviasalesSelected
+        clearPublishedFlightSelection()
     }
 
     var hasCompleteStagedFlightSelection: Bool {
@@ -432,6 +482,199 @@ final class JourneyStore: ObservableObject {
             haramainFareClass: .economy,
             haramainTicketCount: 0
         )
+    }
+
+    /// Resolves a flight selected in the public Aviasales Data storefront into the
+    /// normal generator contract. The iOS snapshot is used only for presentation;
+    /// PackageEngine re-queries Travelpayouts by route/date/flight identity before
+    /// accepting the fare into a quote.
+    @discardableResult
+    func prepareAviasalesSelectedQuote() async -> Bool {
+        guard packageFlightPath == .aviasalesSelected, hasCompleteStagedFlightSelection else {
+            errorMessage = "Aviasales Flight First selection is incomplete."
+            quote = nil
+            return false
+        }
+
+        guard let pair = makeAviasalesFlightPair() else {
+            errorMessage = "Selected Aviasales flight could not be prepared."
+            quote = nil
+            return false
+        }
+
+        chooseOutboundFlight(pair.outbound)
+        if let inbound = pair.inbound { chooseInboundFlight(inbound) }
+        scheduleHotelPricePrefetch()
+        await buildQuote()
+        return hasFinalGeneratorQuote
+    }
+
+    private func makeAviasalesFlightPair() -> (outbound: FlightOffer, inbound: FlightOffer?)? {
+        if let roundTrip = stagedAviasalesOffers[.roundTrip] {
+            guard let outboundDeparture = aviasalesDate(roundTrip.departureAt) else { return nil }
+            let outboundDuration = max(45, roundTrip.durationMinutes)
+            let providerID = aviasalesProviderIdentity(roundTrip: roundTrip)
+            let outbound = makeAviasalesFlightOffer(
+                id: "av-out-\(roundTrip.id)",
+                direction: .outbound,
+                origin: roundTrip.origin,
+                destination: roundTrip.destination,
+                airlineCode: roundTrip.airlineCode,
+                flightNumber: roundTrip.flightNumber,
+                departure: outboundDeparture,
+                durationMinutes: outboundDuration,
+                stops: roundTrip.transfers,
+                price: roundTrip.price,
+                currency: "USD",
+                bookingURL: roundTrip.bookingUrl,
+                providerID: providerID
+            )
+
+            guard trip.isRoundTripFlight else { return (outbound, nil) }
+            guard let returnRaw = roundTrip.returnAt, let inboundDeparture = aviasalesDate(returnRaw) else { return nil }
+            guard let returnCode = roundTrip.returnAirlineCode?.trimmingCharacters(in: .whitespacesAndNewlines), !returnCode.isEmpty,
+                  let returnNumber = roundTrip.returnFlightNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !returnNumber.isEmpty else {
+                // Never silently reuse the outbound carrier/flight number for the
+                // return leg. The public Data endpoint hydrates the real reverse
+                // identity; if it is temporarily unavailable the user can refresh
+                // the fare instead of building a package from fabricated metadata.
+                return nil
+            }
+            let inbound = makeAviasalesFlightOffer(
+                id: "av-in-\(roundTrip.id)",
+                direction: .inbound,
+                origin: roundTrip.destination,
+                destination: roundTrip.origin,
+                airlineCode: returnCode,
+                flightNumber: returnNumber,
+                departure: inboundDeparture,
+                durationMinutes: max(45, roundTrip.returnDurationMinutes ?? roundTrip.durationMinutes),
+                stops: max(0, roundTrip.returnTransfers ?? 0),
+                price: roundTrip.price,
+                currency: "USD",
+                bookingURL: roundTrip.bookingUrl,
+                providerID: providerID
+            )
+            return (outbound, inbound)
+        }
+
+        guard let outboundSource = stagedAviasalesOffers[.outbound],
+              let outboundDeparture = aviasalesDate(outboundSource.departureAt) else { return nil }
+        let inboundSource = stagedAviasalesOffers[.inbound]
+        let providerID = aviasalesProviderIdentity(outbound: outboundSource, inbound: inboundSource)
+        let outbound = makeAviasalesFlightOffer(
+            id: "av-out-\(outboundSource.id)",
+            direction: .outbound,
+            origin: outboundSource.origin,
+            destination: outboundSource.destination,
+            airlineCode: outboundSource.airlineCode,
+            flightNumber: outboundSource.flightNumber,
+            departure: outboundDeparture,
+            durationMinutes: max(45, outboundSource.durationMinutes),
+            stops: outboundSource.transfers,
+            price: outboundSource.price,
+            currency: "USD",
+            bookingURL: outboundSource.bookingUrl,
+            providerID: providerID
+        )
+
+        guard trip.isRoundTripFlight else { return (outbound, nil) }
+        guard let inboundSource, let inboundDeparture = aviasalesDate(inboundSource.departureAt) else { return nil }
+        let inbound = makeAviasalesFlightOffer(
+            id: "av-in-\(inboundSource.id)",
+            direction: .inbound,
+            origin: inboundSource.origin,
+            destination: inboundSource.destination,
+            airlineCode: inboundSource.airlineCode,
+            flightNumber: inboundSource.flightNumber,
+            departure: inboundDeparture,
+            durationMinutes: max(45, inboundSource.durationMinutes),
+            stops: inboundSource.transfers,
+            price: inboundSource.price,
+            currency: "USD",
+            bookingURL: inboundSource.bookingUrl,
+            providerID: providerID
+        )
+        return (outbound, inbound)
+    }
+
+    private func makeAviasalesFlightOffer(
+        id: String,
+        direction: FlightDirection,
+        origin: String,
+        destination: String,
+        airlineCode: String,
+        flightNumber: String,
+        departure: Date,
+        durationMinutes: Int,
+        stops: Int,
+        price: Double,
+        currency: String,
+        bookingURL: String?,
+        providerID: String
+    ) -> FlightOffer {
+        let normalizedCode = airlineCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let normalizedNumber = flightNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        return FlightOffer(
+            id: id,
+            direction: direction,
+            airline: FlightReferenceCatalog.airlineName(code: normalizedCode, fallback: normalizedCode),
+            flightNumber: [normalizedCode, normalizedNumber].filter { !$0.isEmpty }.joined(separator: " "),
+            origin: origin,
+            destination: destination,
+            departureAt: departure,
+            arrivalAt: departure.addingTimeInterval(TimeInterval(max(45, durationMinutes) * 60)),
+            stops: max(0, stops),
+            durationMinutes: max(45, durationMinutes),
+            totalPackagePrice: Decimal(max(0, price)),
+            currency: currency.uppercased(),
+            sourceLabel: "Aviasales Data",
+            airlineCode: normalizedCode.isEmpty ? nil : normalizedCode,
+            fareAmount: Decimal(max(0, price)),
+            fareScope: .perPassenger,
+            fareObservedAt: Date(),
+            fareSourceURL: bookingURL,
+            providerItineraryID: providerID,
+            cabinClass: trip.effectiveFlightFilters.cabinClass.rawValue
+        )
+    }
+
+    private func aviasalesProviderIdentity(roundTrip offer: FlightDiscoveryOffer) -> String {
+        [
+            "aviasales", "rt", token(offer.origin), token(offer.destination),
+            String(offer.departureAt.prefix(10)), String((offer.returnAt ?? "-").prefix(10)),
+            token(offer.airlineCode), token(offer.flightNumber),
+            token(offer.returnAirlineCode ?? "-"), token(offer.returnFlightNumber ?? "-")
+        ].joined(separator: ":")
+    }
+
+    private func aviasalesProviderIdentity(outbound: FlightDiscoveryOffer, inbound: FlightDiscoveryOffer?) -> String {
+        [
+            "aviasales", inbound == nil ? "ow" : "pair", token(outbound.origin), token(outbound.destination),
+            String(outbound.departureAt.prefix(10)), inbound.map { String($0.departureAt.prefix(10)) } ?? "-",
+            token(outbound.airlineCode), token(outbound.flightNumber),
+            token(inbound?.airlineCode ?? "-"), token(inbound?.flightNumber ?? "-")
+        ].joined(separator: ":")
+    }
+
+    private func token(_ value: String) -> String {
+        let clean = value.uppercased().filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
+        return clean.isEmpty ? "-" : clean
+    }
+
+    private func aviasalesDate(_ raw: String) -> Date? {
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let value = withFraction.date(from: raw) { return value }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+        if let value = iso.date(from: raw) { return value }
+        let day = DateFormatter()
+        day.calendar = Calendar(identifier: .gregorian)
+        day.locale = Locale(identifier: "en_US_POSIX")
+        day.timeZone = TimeZone(secondsFromGMT: 0)
+        day.dateFormat = "yyyy-MM-dd"
+        return day.date(from: String(raw.prefix(10)))
     }
 
     /// Converts the selected D1-published direct itinerary into verified FlightOffer

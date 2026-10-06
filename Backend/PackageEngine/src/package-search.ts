@@ -137,6 +137,294 @@ async function resolveCuratedFare(providerItineraryId: string, travelerCount: nu
   };
 }
 
+
+type AviasalesIdentity = {
+  mode: "ow" | "rt" | "pair";
+  origin: string;
+  destination: string;
+  departureDate: string;
+  returnDate: string | null;
+  airlineCode: string | null;
+  flightNumber: string | null;
+  returnAirlineCode: string | null;
+  returnFlightNumber: string | null;
+};
+
+type AviasalesDataRow = {
+  origin?: string;
+  destination?: string;
+  price?: number;
+  airline?: string;
+  flight_number?: string | number;
+  departure_at?: string;
+  return_at?: string;
+  return_airline?: string;
+  return_airline_code?: string;
+  airline_back?: string;
+  return_flight_number?: string | number;
+  flight_number_back?: string | number;
+  transfers?: number;
+  return_transfers?: number;
+  duration?: number;
+  duration_to?: number;
+  duration_back?: number;
+};
+
+type AviasalesPricesEnvelope = {
+  success?: boolean;
+  data?: AviasalesDataRow[];
+  currency?: string;
+};
+
+type ResolvedAviasalesSelection = {
+  outbound: { origin: string; destination: string; departureAt: string; arrivalAt: string };
+  inbound: { origin: string; destination: string; departureAt: string; arrivalAt: string } | null;
+  perTravelerUsd: number;
+  observedAt: string;
+};
+
+function cleanFlightToken(value: unknown): string {
+  return String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function nullableIdentityToken(value: string): string | null {
+  const clean = cleanFlightToken(value);
+  return clean && clean !== "-" ? clean : null;
+}
+
+function parseAviasalesIdentity(providerItineraryId: string): AviasalesIdentity {
+  const parts = providerItineraryId.split(":");
+  if (parts.length !== 10 || parts[0] !== "aviasales") throw new Error("AVIASALES_IDENTITY_INVALID");
+  const mode = parts[1] as AviasalesIdentity["mode"];
+  if (!(["ow", "rt", "pair"] as string[]).includes(mode)) throw new Error("AVIASALES_IDENTITY_INVALID");
+  const origin = parts[2].toUpperCase();
+  const destination = parts[3].toUpperCase();
+  const departureDate = parts[4];
+  const returnDate = parts[5] === "-" ? null : parts[5];
+  if (!IATA.test(origin) || !IATA.test(destination) || origin === destination || !DATE.test(departureDate)) {
+    throw new Error("AVIASALES_IDENTITY_INVALID");
+  }
+  if (returnDate && !DATE.test(returnDate)) throw new Error("AVIASALES_IDENTITY_INVALID");
+  if (mode !== "ow" && !returnDate) throw new Error("AVIASALES_RETURN_REQUIRED");
+  return {
+    mode,
+    origin,
+    destination,
+    departureDate,
+    returnDate,
+    airlineCode: nullableIdentityToken(parts[6]),
+    flightNumber: nullableIdentityToken(parts[7]),
+    returnAirlineCode: nullableIdentityToken(parts[8]),
+    returnFlightNumber: nullableIdentityToken(parts[9]),
+  };
+}
+
+function travelpayoutsDateURL(identity: AviasalesIdentity, origin: string, destination: string, day: string, returnDay: string | null): URL {
+  const url = new URL("https://api.travelpayouts.com/aviasales/v3/prices_for_dates");
+  url.searchParams.set("origin", origin);
+  url.searchParams.set("destination", destination);
+  url.searchParams.set("departure_at", day);
+  url.searchParams.set("currency", "usd");
+  url.searchParams.set("sorting", "price");
+  url.searchParams.set("unique", "false");
+  url.searchParams.set("direct", "false");
+  url.searchParams.set("one_way", returnDay ? "false" : "true");
+  url.searchParams.set("limit", "100");
+  url.searchParams.set("page", "1");
+  if (returnDay) url.searchParams.set("return_at", returnDay);
+  return url;
+}
+
+async function fetchAviasalesRows(url: URL, env: Env): Promise<AviasalesDataRow[]> {
+  const token = env.TRAVELPAYOUTS_API_TOKEN?.trim();
+  if (!token) throw new Error("TRAVELPAYOUTS_API_TOKEN_NOT_CONFIGURED");
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "X-Access-Token": token,
+      "User-Agent": "iumrah-package-engine/flight-first-v1",
+    },
+  });
+  if (!response.ok) throw new Error(`TRAVELPAYOUTS_${response.status}`);
+  const payload = await response.json() as AviasalesPricesEnvelope;
+  if (payload.success === false) throw new Error("AVIASALES_DATA_ERROR");
+  return Array.isArray(payload.data) ? payload.data : [];
+}
+
+function rowMatchesFlight(row: AviasalesDataRow, airlineCode: string | null, flightNumber: string | null): boolean {
+  const rowAirline = cleanFlightToken(row.airline);
+  const rowFlight = cleanFlightToken(row.flight_number);
+  if (airlineCode && rowAirline && rowAirline !== airlineCode) return false;
+  if (flightNumber && rowFlight && rowFlight !== flightNumber && `${rowAirline}${rowFlight}` !== flightNumber) return false;
+  return true;
+}
+
+function rowDepartureDay(row: AviasalesDataRow): string {
+  return String(row.departure_at ?? "").slice(0, 10);
+}
+
+function addMinutes(iso: string, minutes: number): string {
+  const value = Date.parse(iso);
+  const safeMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : 60;
+  return Number.isFinite(value) ? new Date(value + safeMinutes * 60_000).toISOString() : iso;
+}
+
+function pickAviasalesRow(
+  rows: AviasalesDataRow[],
+  day: string,
+  airlineCode: string | null,
+  flightNumber: string | null,
+): AviasalesDataRow | null {
+  const exact = rows.filter((row) => rowDepartureDay(row) === day && Number(row.price ?? 0) > 0);
+  const identity = exact.filter((row) => rowMatchesFlight(row, airlineCode, flightNumber));
+  const candidates = identity.length ? identity : exact;
+  return candidates.sort((a, b) => Number(a.price ?? 0) - Number(b.price ?? 0))[0] ?? null;
+}
+
+function pickAviasalesReturnRow(
+  rows: AviasalesDataRow[],
+  day: string,
+  departureAt: string,
+  airlineCode: string | null,
+  flightNumber: string | null,
+): AviasalesDataRow | null {
+  const sameDay = rows.filter((row) => rowDepartureDay(row) === day && Number(row.price ?? 0) > 0);
+  const exactTime = sameDay.filter((row) => String(row.departure_at ?? "") === departureAt);
+  const exactIdentity = exactTime.filter((row) => rowMatchesFlight(row, airlineCode, flightNumber));
+  if (exactIdentity.length) return exactIdentity[0];
+  if (exactTime.length && !airlineCode && !flightNumber) return exactTime[0];
+
+  const identity = sameDay.filter((row) => rowMatchesFlight(row, airlineCode, flightNumber));
+  return identity[0] ?? null;
+}
+
+async function resolveAviasalesSelection(providerItineraryId: string, env: Env): Promise<ResolvedAviasalesSelection> {
+  const identity = parseAviasalesIdentity(providerItineraryId);
+  const observedAt = new Date().toISOString();
+
+  if (identity.mode === "rt") {
+    const rows = await fetchAviasalesRows(
+      travelpayoutsDateURL(identity, identity.origin, identity.destination, identity.departureDate, identity.returnDate),
+      env,
+    );
+    const row = pickAviasalesRow(rows, identity.departureDate, identity.airlineCode, identity.flightNumber);
+    if (!row) throw new Error("AVIASALES_FARE_NOT_FOUND");
+    const perTravelerUsd = Number(row.price ?? 0);
+    if (!Number.isFinite(perTravelerUsd) || perTravelerUsd <= 0) throw new Error("INVALID_FLIGHT_FARE");
+    const departureAt = String(row.departure_at ?? "");
+    const returnAt = String(row.return_at ?? "");
+    if (!Number.isFinite(Date.parse(departureAt)) || !Number.isFinite(Date.parse(returnAt))) {
+      throw new Error("AVIASALES_SCHEDULE_UNAVAILABLE");
+    }
+
+    // Travelpayouts' round-trip Data row commonly identifies the outbound flight
+    // but omits the reverse carrier/flight number. Re-resolve the reverse one-way
+    // inventory by the exact return timestamp and selected identity. This prevents
+    // the package quote from silently treating the outbound carrier as the return.
+    const reverseRows = await fetchAviasalesRows(
+      travelpayoutsDateURL(identity, identity.destination, identity.origin, identity.returnDate!, null),
+      env,
+    );
+    const reverse = pickAviasalesReturnRow(
+      reverseRows,
+      identity.returnDate!,
+      returnAt,
+      identity.returnAirlineCode,
+      identity.returnFlightNumber,
+    );
+    if (!reverse) throw new Error("AVIASALES_RETURN_NOT_FOUND");
+    const verifiedReturnAt = String(reverse.departure_at ?? returnAt);
+    if (!Number.isFinite(Date.parse(verifiedReturnAt))) throw new Error("AVIASALES_SCHEDULE_UNAVAILABLE");
+
+    return {
+      outbound: {
+        origin: identity.origin,
+        destination: identity.destination,
+        departureAt,
+        arrivalAt: addMinutes(departureAt, Number(row.duration_to ?? row.duration ?? 0)),
+      },
+      inbound: {
+        origin: identity.destination,
+        destination: identity.origin,
+        departureAt: verifiedReturnAt,
+        arrivalAt: addMinutes(verifiedReturnAt, Number(reverse.duration_to ?? reverse.duration ?? row.duration_back ?? row.duration ?? 0)),
+      },
+      perTravelerUsd,
+      observedAt,
+    };
+  }
+
+  const outboundRows = await fetchAviasalesRows(
+    travelpayoutsDateURL(identity, identity.origin, identity.destination, identity.departureDate, null),
+    env,
+  );
+  const outbound = pickAviasalesRow(outboundRows, identity.departureDate, identity.airlineCode, identity.flightNumber);
+  if (!outbound) throw new Error("AVIASALES_OUTBOUND_NOT_FOUND");
+  const outboundPrice = Number(outbound.price ?? 0);
+  const outboundAt = String(outbound.departure_at ?? "");
+  if (!Number.isFinite(outboundPrice) || outboundPrice <= 0 || !Number.isFinite(Date.parse(outboundAt))) {
+    throw new Error("INVALID_FLIGHT_FARE");
+  }
+
+  if (identity.mode === "ow") {
+    return {
+      outbound: {
+        origin: identity.origin,
+        destination: identity.destination,
+        departureAt: outboundAt,
+        arrivalAt: addMinutes(outboundAt, Number(outbound.duration_to ?? outbound.duration ?? 0)),
+      },
+      inbound: null,
+      perTravelerUsd: outboundPrice,
+      observedAt,
+    };
+  }
+
+  const returnDate = identity.returnDate!;
+  const returnRows = await fetchAviasalesRows(
+    travelpayoutsDateURL(identity, identity.destination, identity.origin, returnDate, null),
+    env,
+  );
+  const inbound = pickAviasalesRow(returnRows, returnDate, identity.returnAirlineCode, identity.returnFlightNumber);
+  if (!inbound) throw new Error("AVIASALES_RETURN_NOT_FOUND");
+  const inboundPrice = Number(inbound.price ?? 0);
+  const inboundAt = String(inbound.departure_at ?? "");
+  if (!Number.isFinite(inboundPrice) || inboundPrice <= 0 || !Number.isFinite(Date.parse(inboundAt))) {
+    throw new Error("INVALID_FLIGHT_FARE");
+  }
+  return {
+    outbound: {
+      origin: identity.origin,
+      destination: identity.destination,
+      departureAt: outboundAt,
+      arrivalAt: addMinutes(outboundAt, Number(outbound.duration_to ?? outbound.duration ?? 0)),
+    },
+    inbound: {
+      origin: identity.destination,
+      destination: identity.origin,
+      departureAt: inboundAt,
+      arrivalAt: addMinutes(inboundAt, Number(inbound.duration_to ?? inbound.duration ?? 0)),
+    },
+    perTravelerUsd: outboundPrice + inboundPrice,
+    observedAt,
+  };
+}
+
+async function resolveAviasalesFare(providerItineraryId: string, travelerCount: number, env: Env): Promise<VerifiedJourneyFare> {
+  const resolved = await resolveAviasalesSelection(providerItineraryId, env);
+  const total = Math.round(resolved.perTravelerUsd * travelerCount * 100) / 100;
+  return {
+    candidateId: providerItineraryId,
+    amount: total,
+    currency: "USD",
+    fareScope: "totalParty",
+    providerId: "Aviasales Data",
+    observedAt: resolved.observedAt,
+    travelDate: resolved.outbound.departureAt.slice(0, 10),
+    normalizedGroupUsd: total,
+  };
+}
+
 async function resolveIgnavFare(request: QuoteRequest, travelers: { adults: number; children: number; infants: number }, env: Env): Promise<VerifiedJourneyFare> {
   if (!env.HOTELS_DB) throw new Error("HOTELS_DB_NOT_CONFIGURED");
   const flight = request.flight;
@@ -193,6 +481,7 @@ async function resolveIgnavFare(request: QuoteRequest, travelers: { adults: numb
 async function resolveJourneyFare(request: QuoteRequest, travelerCount: number, travelers: { adults: number; children: number; infants: number }, env: Env) {
   const providerID = text(request.flight?.providerItineraryId, 220);
   if (providerID.startsWith("curated:")) return resolveCuratedFare(providerID, travelerCount, env);
+  if (providerID.startsWith("aviasales:")) return resolveAviasalesFare(providerID, travelerCount, env);
   return resolveIgnavFare(request, travelers, env);
 }
 
@@ -233,6 +522,14 @@ async function resolveCuratedSchedule(providerItineraryId: string, env: Env): Pr
   return { outbound, inbound };
 }
 
+async function resolveAviasalesSchedule(providerItineraryId: string, env: Env): Promise<VerifiedFlightSchedule | null> {
+  const resolved = await resolveAviasalesSelection(providerItineraryId, env);
+  return {
+    outbound: resolved.outbound,
+    inbound: resolved.inbound ?? undefined,
+  };
+}
+
 async function resolveIgnavSchedule(request: QuoteRequest, travelers: { adults: number; children: number; infants: number }, env: Env): Promise<VerifiedFlightSchedule | null> {
   if (!env.HOTELS_DB || !request.flight) return null;
   const providerItineraryId = text(request.flight.providerItineraryId, 220);
@@ -265,6 +562,7 @@ async function resolveJourneySchedule(request: QuoteRequest, travelers: { adults
   try {
     const providerID = text(request.flight?.providerItineraryId, 220);
     if (providerID.startsWith("curated:")) return await resolveCuratedSchedule(providerID, env);
+    if (providerID.startsWith("aviasales:")) return await resolveAviasalesSchedule(providerID, env);
     return await resolveIgnavSchedule(request, travelers, env);
   } catch {
     // Schedule enrichment must never make an otherwise valid quote unavailable.

@@ -1,6 +1,11 @@
 import Foundation
 import SwiftUI
 
+enum PrimaryHotelEntryMode {
+    case standard
+    case flightFirst
+}
+
 struct PrimaryHotelView: View {
     @EnvironmentObject private var journey: JourneyStore
     @EnvironmentObject private var settings: AppSettingsStore
@@ -8,6 +13,8 @@ struct PrimaryHotelView: View {
     @State private var showTransfer = false
     @State private var isPreparingPublishedPackage = false
     @State private var publishedPackageError: String?
+
+    var entryMode: PrimaryHotelEntryMode = .standard
 
     private var requiresMadinah: Bool { journey.trip.scope == .makkahAndMadinah }
     private var canContinue: Bool {
@@ -27,9 +34,13 @@ struct PrimaryHotelView: View {
                     IumrahGeneratorHeader(stage: .hotel)
 
                     heading
+                    if entryMode == .flightFirst {
+                        flightFirstContextCard
+                        flightFirstTierSelector
+                    }
                     hotelContent
 
-                    if journey.packageFlightPath == .publishedDirect {
+                    if journey.packageFlightPath == .publishedDirect || journey.packageFlightPath == .aviasalesSelected {
                         Button {
                             Task { await continuePublishedDirectPackage() }
                         } label: {
@@ -94,13 +105,173 @@ struct PrimaryHotelView: View {
         publishedPackageError = nil
         defer { isPreparingPublishedPackage = false }
 
-        let ready = await journey.preparePublishedDirectQuote()
+        let ready: Bool
+        if journey.packageFlightPath == .aviasalesSelected {
+            ready = await journey.prepareAviasalesSelectedQuote()
+        } else {
+            ready = await journey.preparePublishedDirectQuote()
+        }
         if ready {
             IumrahHaptics.success()
             showTransfer = true
         } else {
             IumrahHaptics.error()
             publishedPackageError = journey.errorMessage ?? publishedFallbackError
+        }
+    }
+
+
+    private var flightFirstContextCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "airplane.circle.fill")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.blue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(flightFirstTitle)
+                        .font(.headline)
+                    Text(flightFirstSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+            }
+
+            if !journey.stagedUmrahFlights.isEmpty {
+                Divider()
+                ForEach(journey.stagedUmrahFlights) { flight in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: flight.kind == .roundTrip ? "arrow.left.arrow.right" : "airplane")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(flight.routeTitle)
+                                .font(.subheadline.monospaced().weight(.bold))
+                            Text([flight.airline, flight.flightNumber].filter { !$0.isEmpty }.joined(separator: " · "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let returnAt = flight.returnAt {
+                                Text("↩︎ \(String(returnAt.prefix(10)))" + ((flight.returnAirline ?? flight.returnFlightNumber) == nil ? "" : " · " + [flight.returnAirline, flight.returnFlightNumber].compactMap { $0 }.joined(separator: " · ")))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                    }
+                }
+            }
+
+            Divider()
+            HStack(spacing: 14) {
+                Label("\(max(1, journey.trip.travelerCount))", systemImage: "person.2.fill")
+                Label(journey.trip.scope.title(settings.language), systemImage: "mappin.and.ellipse")
+                Spacer(minLength: 0)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.8)
+        }
+    }
+
+
+    private var flightFirstTierSelector: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(flightFirstHotelLevelTitle)
+                    .font(.headline)
+                Text(flightFirstHotelLevelSubtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(PackageTier.allCases) { tier in
+                        let selected = journey.trip.packageTier == tier
+                        Button {
+                            guard !selected else { return }
+                            IumrahHaptics.selection()
+                            journey.selectPackageTier(tier)
+                            Task {
+                                await journey.loadMakkahHotels()
+                                if requiresMadinah { await journey.loadMadinahHotels() }
+                            }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("\(tier.primaryHotelStars)★")
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                Text(tier.title(settings.language))
+                                    .font(.caption.weight(.semibold))
+                                    .lineLimit(1)
+                            }
+                            .foregroundStyle(selected ? Color.iumrahPrimaryButtonText : Color.primary)
+                            .padding(.horizontal, 15)
+                            .frame(width: 116, height: 66, alignment: .leading)
+                            .background(
+                                selected ? Color.iumrahPrimaryButtonBackground : Color.iumrahRaisedBackground,
+                                in: RoundedRectangle(cornerRadius: 19, style: .continuous)
+                            )
+                            .overlay {
+                                if !selected {
+                                    RoundedRectangle(cornerRadius: 19, style: .continuous)
+                                        .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .scrollClipDisabled()
+        }
+        .padding(16)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+        }
+    }
+
+    private var flightFirstHotelLevelTitle: String {
+        switch settings.language {
+        case .russian: return "Уровень отеля"
+        case .english: return "Hotel level"
+        case .uzbek: return "Mehmonxona darajasi"
+        case .uzbekCyrillic: return "Меҳмонхона даражаси"
+        }
+    }
+
+    private var flightFirstHotelLevelSubtitle: String {
+        switch settings.language {
+        case .russian: return "Выберите звёздность — iumrah автоматически подберёт Primary Hotel для нужных городов."
+        case .english: return "Choose the hotel level and iumrah will automatically resolve the Primary Hotel for each required city."
+        case .uzbek: return "Yulduz darajasini tanlang — iumrah kerakli shaharlardagi Primary Hotel’ni avtomatik tavsiya qiladi."
+        case .uzbekCyrillic: return "Юлдуз даражасини танланг — iumrah керакли шаҳарлардаги Primary Hotel’ни автоматик тавсия қилади."
+        }
+    }
+
+    private var flightFirstTitle: String {
+        switch settings.language {
+        case .russian: return "Flight First · авиабилет выбран"
+        case .english: return "Flight First · flight selected"
+        case .uzbek: return "Flight First · aviachipta tanlangan"
+        case .uzbekCyrillic: return "Flight First · авиачипта танланган"
+        }
+    }
+
+    private var flightFirstSubtitle: String {
+        switch settings.language {
+        case .russian: return "Теперь выберите Primary Hotels. После этого flow продолжится к трансферу и итоговому сравнению пакета."
+        case .english: return "Choose Primary Hotels next. The flow then continues to transfer and final package comparison."
+        case .uzbek: return "Endi Primary Hotels’ni tanlang. Keyin flow transfer va yakuniy paket taqqoslashiga o‘tadi."
+        case .uzbekCyrillic: return "Энди Primary Hotels’ни танланг. Кейин flow трансфер ва якуний пакет таққослашига ўтади."
         }
     }
 

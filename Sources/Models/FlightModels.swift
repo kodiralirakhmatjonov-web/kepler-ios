@@ -324,6 +324,19 @@ struct FlightOffer: Identifiable, Hashable, Codable {
     /// itinerary/fare contract without any airline-bot registry dependency.
     var isVerifiedForBooking: Bool {
         let source = sourceLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        if providerItineraryID?.hasPrefix("aviasales:") == true {
+            let age = fareObservedAt.map { Date().timeIntervalSince($0) }
+            return source == "Aviasales Data" &&
+                airline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
+                (fareAmount ?? 0) > 0 &&
+                fareScope != nil && fareScope != .unknown &&
+                age.map { $0 >= -5 * 60 && $0 <= 30 * 60 } == true &&
+                currency.uppercased().range(of: "^[A-Z]{3}$", options: .regularExpression) != nil &&
+                origin.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil &&
+                destination.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil &&
+                origin != destination && departureAt < arrivalAt && durationMinutes > 0 && stops >= 0
+        }
+
         let lowerSource = source.lowercased()
         let age = fareObservedAt.map { Date().timeIntervalSince($0) }
         guard !source.isEmpty,

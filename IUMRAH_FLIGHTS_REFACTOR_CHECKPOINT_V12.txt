@@ -1,0 +1,19 @@
+IUMRAH FLIGHTS REFACTOR CHECKPOINT V12
+Created: 2026-10-06
+
+This checkpoint contains the latest cumulative code state available before starting the new Flights UX / Flight First configurator refactor requested on 2026-10-06.
+
+Included:
+- All cumulative changes from Flights/Services V8-V10
+- Ziyarats crash hardening V11
+
+Not yet implemented in this checkpoint:
+- New Flights search-card layout requested on 2026-10-06
+- Conditional "route not found" card behavior
+- Restored automatic results after date selection / removal of Search button
+- Separate outbound/return carousels in iumrah Recommended
+- Restored manual price refresh UI/status
+- Round-trip return airline/flight display rework
+- Redesigned floating Umrah build cart spacing/rounding
+- Dedicated Flight First / AV Sales configurator flow starting at Primary Hotels
+- Makkah / Makkah + Madinah selector integrated into trip input card
