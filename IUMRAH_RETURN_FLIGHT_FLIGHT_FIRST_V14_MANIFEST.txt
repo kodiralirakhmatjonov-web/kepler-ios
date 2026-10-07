@@ -1,0 +1,71 @@
+iumrah beta cumulative update V14 — 2026-10-07
+=============================================
+
+This is a cumulative patch. Includes previous V8-V13 files plus V14 corrections.
+Apply the ZIP to the repository root via the existing iumrah Beta auto-unpacker.
+Do not add a kepler-ios-main/ path prefix.
+
+Issue-specific changes
+----------------------
+1. Data API outbound + return detail:
+   - Show return airline / flight number when the source provides them or an exact
+     return-time reverse leg can be resolved in Travelpayouts' cached inventory.
+   - Match return timestamps as actual UTC instants (handles different ISO offsets).
+   - Never infer the return flight from an unrelated same-day ticket and never
+     assume return non-stop when return-transfer data is absent.
+   - Keep the return leg visible even if carrier/number are genuinely absent;
+     disclose the missing identity before the traveler purchases.
+   - Render scheduled departure and arrival using each airport's time zone.
+
+2. Flight First / selected AV Sales ticket:
+   - Round-trip leg construction no longer fails merely because cached Data API
+     omits the reverse carrier/flight number.
+   - Check the outbound+inbound association by shared provider identity and
+     matching route/time, rather than legacy Ignav pairedLeg-only metadata.
+   - Server re-queries the selected *complete round-trip* cached fare, and no
+     longer requires a separate one-way reverse cache row to price that fare.
+   - When an exact named return leg cannot be confirmed, fail closed instead
+     of quietly substituting a different flight.
+   - A missing duration no longer invents a one-hour flight in server schedule.
+
+3. Published/curated Flight First:
+   - Preserve the actual chosen return origin JED or MED regardless of the
+     hotel-scope default, fixing valid mixed-airport TAS->JED / MED->TAS pairs
+     that previously caused CURATED_ROUTE_MISMATCH.
+   - Recommendation return carousel accepts published flights from the actual
+     eligible Saudi airports in the selected scope.
+
+4. Flight detail, graph and Primary Hotels layout:
+   - Both outward and reverse fare graphs are reachable with a trip-leg picker.
+   - Price labels have enough horizontal room and clarify the underlying cached
+     calendar represents one-way fares, not the complete RT package price.
+   - Flight First star tiers use an adaptive grid rather than a clipped strip.
+   - Hotel step has extra bottom scrolling room above floating navigation.
+
+Validation completed in the patch workspace
+-------------------------------------------
+- Swift parser: all five edited Swift files pass `swiftc -frontend -parse`.
+- Package Engine TypeScript: `tsc --noEmit` passes.
+- Package Engine contract tests: 116/116 passed.
+- Package Engine runtime tests: 23/23 passed (including reverse flight identity,
+  cache absence, route/identity rejects, and explicit timezone offset variation).
+- ZIP structure and integrity verified before release.
+
+Still requires integration validation
+-------------------------------------
+- Full iOS compilation and TestFlight QA must run in the macOS GitHub Actions
+  pipeline. Swift parsing is not a substitute for an Xcode compile.
+- Travelpayouts Data API sometimes does not return reverse airline/flight number.
+  There is no reliable identity to display in such cases without a booking-level
+  provider response. It is intentionally shown as unconfirmed, not fabricated.
+- A Data API fare is cached information, NOT guaranteed live sale inventory.
+  Confirm exact itinerary and live price with the seller before purchase.
+
+Deployment
+----------
+- No *new* SQL migrations or schema changes in V14.
+- Deploy iOS via normal pipeline AND explicitly run the manual GitHub Actions
+  workflow "Deploy iumrah Package Engine" (workflow_dispatch) after applying
+  V14, so the updated Data API and quote logic reach Cloudflare.
+- The current existing backend deployment workflow re-applies some historical
+  idempotent SQL migration files; no V14 migration was added.

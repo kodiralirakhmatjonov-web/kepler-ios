@@ -176,12 +176,18 @@ async function hydrateReturnIdentities(items: AviasalesOffer[], token: string, c
     }
 
     const targetTime = String(item.return_at ?? "");
-    const exact = rows.find((candidate) => String(candidate.departure_at ?? "") === targetTime);
-    const sameCarrier = rows.find((candidate) =>
-      String(candidate.departure_at ?? "").slice(0, 10) === day &&
-      String(candidate.airline ?? "").toUpperCase() === String(item.airline ?? "").toUpperCase()
-    );
-    const match = exact ?? sameCarrier ?? rows.find((candidate) => String(candidate.departure_at ?? "").slice(0, 10) === day);
+    const targetInstant = Date.parse(targetTime);
+    const exact = rows.find((candidate) => {
+      const candidateInstant = Date.parse(String(candidate.departure_at ?? ""));
+      // The same instant can be represented in UTC or with an airport offset;
+      // compare instants, not unnormalized ISO strings or just flight dates.
+      return Number.isFinite(targetInstant) && Number.isFinite(candidateInstant) &&
+        Math.abs(candidateInstant - targetInstant) < 60_000;
+    });
+    // The Data API return timestamp may be all it gives us. A same-day
+    // reverse fare belongs to an unrelated itinerary unless its timestamp
+    // matches; never invent a carrier/flight number to fill the UI.
+    const match = exact;
     if (match) {
       item.return_airline_code = String(match.airline ?? "").toUpperCase() || undefined;
       item.return_flight_number = match.flight_number;

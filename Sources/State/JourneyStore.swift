@@ -314,6 +314,7 @@ final class JourneyStore: ObservableObject {
     func clearStagedUmrahFlights() {
         stagedUmrahFlights = []
         stagedAviasalesOffers = [:]
+        trip.selectedReturnAirport = nil
         flightFirstHotelStagePrepared = false
     }
 
@@ -532,14 +533,12 @@ final class JourneyStore: ObservableObject {
 
             guard trip.isRoundTripFlight else { return (outbound, nil) }
             guard let returnRaw = roundTrip.returnAt, let inboundDeparture = aviasalesDate(returnRaw) else { return nil }
-            guard let returnCode = roundTrip.returnAirlineCode?.trimmingCharacters(in: .whitespacesAndNewlines), !returnCode.isEmpty,
-                  let returnNumber = roundTrip.returnFlightNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !returnNumber.isEmpty else {
-                // Never silently reuse the outbound carrier/flight number for the
-                // return leg. The public Data endpoint hydrates the real reverse
-                // identity; if it is temporarily unavailable the user can refresh
-                // the fare instead of building a package from fabricated metadata.
-                return nil
-            }
+            // Data API's cached round-trip row can omit the operating carrier
+            // of the return flight. Server-side quote validation will recheck the
+            // *complete* RT fare; the iOS display must mark the missing identity
+            // unconfirmed rather than block the whole hotel selection flow.
+            let returnCode = roundTrip.returnAirlineCode?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let returnNumber = roundTrip.returnFlightNumber?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             let inbound = makeAviasalesFlightOffer(
                 id: "av-in-\(roundTrip.id)",
                 direction: .inbound,
@@ -618,7 +617,8 @@ final class JourneyStore: ObservableObject {
         return FlightOffer(
             id: id,
             direction: direction,
-            airline: FlightReferenceCatalog.airlineName(code: normalizedCode, fallback: normalizedCode),
+            airline: normalizedCode.isEmpty ? "Return carrier not confirmed" :
+                FlightReferenceCatalog.airlineName(code: normalizedCode, fallback: normalizedCode),
             flightNumber: [normalizedCode, normalizedNumber].filter { !$0.isEmpty }.joined(separator: " "),
             origin: origin,
             destination: destination,
@@ -1107,7 +1107,7 @@ final class JourneyStore: ObservableObject {
         if trip.isRoundTripFlight {
             guard let value = selectedInbound,
                   value.isVerifiedForBooking,
-                  returnOffer(value, matches: outbound),
+                  returnPairMatches(value, outbound: outbound),
                   value.providerItineraryID != nil else {
                 errorMessage = LocalPricingError.invalidFlightFare.localizedDescription
                 quote = nil
@@ -1275,7 +1275,7 @@ final class JourneyStore: ObservableObject {
         if trip.isRoundTripFlight {
             guard let value = selectedInbound,
                   value.isVerifiedForBooking,
-                  returnOffer(value, matches: outbound),
+                  returnPairMatches(value, outbound: outbound),
                   value.providerItineraryID != nil else { return nil }
             inbound = value
             pricingOffer = value
@@ -1475,6 +1475,27 @@ final class JourneyStore: ObservableObject {
             .split(whereSeparator: \.isWhitespace)
             .joined(separator: " ")
             .lowercased()
+    }
+
+    /// The Ignav path relies on a `pairedLeg` attached to its complete provider
+    /// itinerary. Flight First deliberately makes separate FlightOffer display
+    /// models for the *same* round-trip Data row; they have no pairedLeg. Their
+    /// actual identity is server-revalidated and never priced from the client.
+    private func returnPairMatches(_ inbound: FlightOffer, outbound: FlightOffer) -> Bool {
+        if packageFlightPath == .aviasalesSelected || packageFlightPath == .publishedDirect {
+            guard let outboundID = outbound.providerItineraryID,
+                  let inboundID = inbound.providerItineraryID,
+                  !outboundID.isEmpty, outboundID == inboundID,
+                  outbound.origin.uppercased() == inbound.destination.uppercased(),
+                  inbound.departureAt > outbound.departureAt else { return false }
+            if packageFlightPath == .aviasalesSelected {
+                return outboundID.hasPrefix("aviasales:") &&
+                    outbound.destination.uppercased() == inbound.origin.uppercased()
+            }
+            return outboundID.hasPrefix("curated:") &&
+                ["JED", "MED"].contains(inbound.origin.uppercased())
+        }
+        return returnOffer(inbound, matches: outbound)
     }
 
     private func returnOffer(_ inbound: FlightOffer, matches outbound: FlightOffer) -> Bool {

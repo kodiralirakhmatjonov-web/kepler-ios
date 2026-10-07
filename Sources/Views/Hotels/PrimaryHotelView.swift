@@ -75,7 +75,7 @@ struct PrimaryHotelView: View {
                 .frame(width: contentWidth, alignment: .leading)
                 .padding(.horizontal, IumrahDesign.pagePadding)
                 .padding(.top, 10)
-                .padding(.bottom, 44)
+                .padding(.bottom, 140) // leave enough scroll reach above the persistent tab bar
             }
             .frame(width: viewport.size.width)
         }
@@ -163,6 +163,15 @@ struct PrimaryHotelView: View {
                 }
             }
 
+            if journey.packageFlightPath == .aviasalesSelected,
+               let roundTrip = journey.stagedAviasalesOffers[.roundTrip],
+               (roundTrip.returnAirlineCode?.isEmpty != false || roundTrip.returnFlightNumber?.isEmpty != false) {
+                Label(unverifiedReturnFlightNote, systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Divider()
             HStack(spacing: 14) {
                 Label("\(max(1, journey.trip.travelerCount))", systemImage: "person.2.fill")
@@ -191,8 +200,10 @@ struct PrimaryHotelView: View {
                     .foregroundStyle(.secondary)
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: adaptiveLayout.isWide ? 4 : 2),
+                spacing: 10
+            ) {
                     ForEach(PackageTier.allCases) { tier in
                         let selected = journey.trip.packageTier == tier
                         Button {
@@ -213,7 +224,8 @@ struct PrimaryHotelView: View {
                             }
                             .foregroundStyle(selected ? Color.iumrahPrimaryButtonText : Color.primary)
                             .padding(.horizontal, 15)
-                            .frame(width: 116, height: 66, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(height: 66, alignment: .leading)
                             .background(
                                 selected ? Color.iumrahPrimaryButtonBackground : Color.iumrahRaisedBackground,
                                 in: RoundedRectangle(cornerRadius: 19, style: .continuous)
@@ -227,15 +239,22 @@ struct PrimaryHotelView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                }
             }
-            .scrollClipDisabled()
         }
         .padding(16)
         .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+        }
+    }
+
+    private var unverifiedReturnFlightNote: String {
+        switch settings.language {
+        case .russian: return "Data API не указал авиакомпанию или номер обратного рейса. Проверьте эти данные у продавца до покупки билета."
+        case .english: return "Data API did not provide the return carrier or flight number. Confirm these with the seller before buying."
+        case .uzbek: return "Data API qaytish aviakompaniyasi yoki reys raqamini bermagan. Xarid qilishdan oldin sotuvchidan tekshiring."
+        case .uzbekCyrillic: return "Data API қайтиш авиакомпанияси ёки рейс рақамини бермаган. Харид қилишдан олдин сотувчидан текширинг."
         }
     }
 

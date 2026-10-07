@@ -265,8 +265,16 @@ function rowDepartureDay(row: AviasalesDataRow): string {
 
 function addMinutes(iso: string, minutes: number): string {
   const value = Date.parse(iso);
-  const safeMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : 60;
+  // Missing flight duration is not evidence for a one-hour flight. An equal
+  // departure/arrival timestamp is rejected by schedule normalization later.
+  const safeMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : 0;
   return Number.isFinite(value) ? new Date(value + safeMinutes * 60_000).toISOString() : iso;
+}
+
+function sameFlightInstant(a: string, b: string): boolean {
+  const left = Date.parse(a);
+  const right = Date.parse(b);
+  return Number.isFinite(left) && Number.isFinite(right) && Math.abs(left - right) < 60_000;
 }
 
 function pickAviasalesRow(
@@ -277,7 +285,9 @@ function pickAviasalesRow(
 ): AviasalesDataRow | null {
   const exact = rows.filter((row) => rowDepartureDay(row) === day && Number(row.price ?? 0) > 0);
   const identity = exact.filter((row) => rowMatchesFlight(row, airlineCode, flightNumber));
-  const candidates = identity.length ? identity : exact;
+  // A flight's price may change; its carrier/number must not change without
+  // the traveler explicitly choosing a new fare.
+  const candidates = airlineCode || flightNumber ? identity : exact;
   return candidates.sort((a, b) => Number(a.price ?? 0) - Number(b.price ?? 0))[0] ?? null;
 }
 
@@ -289,16 +299,14 @@ function pickAviasalesReturnRow(
   flightNumber: string | null,
 ): AviasalesDataRow | null {
   const sameDay = rows.filter((row) => rowDepartureDay(row) === day && Number(row.price ?? 0) > 0);
-  const exactTime = sameDay.filter((row) => String(row.departure_at ?? "") === departureAt);
+  const exactTime = sameDay.filter((row) => sameFlightInstant(String(row.departure_at ?? ""), departureAt));
+  // Only accept a matching carrier/number when provided, or matching exact
+  // departure timestamp otherwise. Never attach an arbitrary same-day flight.
   const exactIdentity = exactTime.filter((row) => rowMatchesFlight(row, airlineCode, flightNumber));
-  if (exactIdentity.length) return exactIdentity[0];
-  if (exactTime.length && !airlineCode && !flightNumber) return exactTime[0];
-
-  const identity = sameDay.filter((row) => rowMatchesFlight(row, airlineCode, flightNumber));
-  return identity[0] ?? null;
+  return exactIdentity[0] ?? null;
 }
 
-async function resolveAviasalesSelection(providerItineraryId: string, env: Env): Promise<ResolvedAviasalesSelection> {
+export async function resolveAviasalesSelection(providerItineraryId: string, env: Env): Promise<ResolvedAviasalesSelection> {
   const identity = parseAviasalesIdentity(providerItineraryId);
   const observedAt = new Date().toISOString();
 
@@ -307,7 +315,12 @@ async function resolveAviasalesSelection(providerItineraryId: string, env: Env):
       travelpayoutsDateURL(identity, identity.origin, identity.destination, identity.departureDate, identity.returnDate),
       env,
     );
-    const row = pickAviasalesRow(rows, identity.departureDate, identity.airlineCode, identity.flightNumber);
+    const row = pickAviasalesRow(
+      rows.filter((candidate) => String(candidate.return_at ?? "").slice(0, 10) === identity.returnDate),
+      identity.departureDate,
+      identity.airlineCode,
+      identity.flightNumber,
+    );
     if (!row) throw new Error("AVIASALES_FARE_NOT_FOUND");
     const perTravelerUsd = Number(row.price ?? 0);
     if (!Number.isFinite(perTravelerUsd) || perTravelerUsd <= 0) throw new Error("INVALID_FLIGHT_FARE");
@@ -321,19 +334,28 @@ async function resolveAviasalesSelection(providerItineraryId: string, env: Env):
     // but omits the reverse carrier/flight number. Re-resolve the reverse one-way
     // inventory by the exact return timestamp and selected identity. This prevents
     // the package quote from silently treating the outbound carrier as the return.
-    const reverseRows = await fetchAviasalesRows(
-      travelpayoutsDateURL(identity, identity.destination, identity.origin, identity.returnDate!, null),
-      env,
-    );
-    const reverse = pickAviasalesReturnRow(
-      reverseRows,
-      identity.returnDate!,
-      returnAt,
-      identity.returnAirlineCode,
-      identity.returnFlightNumber,
-    );
-    if (!reverse) throw new Error("AVIASALES_RETURN_NOT_FOUND");
-    const verifiedReturnAt = String(reverse.departure_at ?? returnAt);
+    let reverse: AviasalesDataRow | null = null;
+    try {
+      const reverseRows = await fetchAviasalesRows(
+        travelpayoutsDateURL(identity, identity.destination, identity.origin, identity.returnDate!, null),
+        env,
+      );
+      reverse = pickAviasalesReturnRow(
+        reverseRows,
+        identity.returnDate!,
+        returnAt,
+        identity.returnAirlineCode,
+        identity.returnFlightNumber,
+      );
+    } catch {
+      // Reverse one-way cached inventory is supplemental: the round-trip row
+      // itself still carries the full RT fare + dated return leg.
+    }
+    if ((identity.returnAirlineCode || identity.returnFlightNumber) && !reverse) {
+      // The user chose a *named* return flight but it could not be verified.
+      throw new Error("AVIASALES_RETURN_IDENTITY_UNVERIFIED");
+    }
+    const verifiedReturnAt = String(reverse?.departure_at ?? returnAt);
     if (!Number.isFinite(Date.parse(verifiedReturnAt))) throw new Error("AVIASALES_SCHEDULE_UNAVAILABLE");
 
     return {
@@ -347,7 +369,7 @@ async function resolveAviasalesSelection(providerItineraryId: string, env: Env):
         origin: identity.destination,
         destination: identity.origin,
         departureAt: verifiedReturnAt,
-        arrivalAt: addMinutes(verifiedReturnAt, Number(reverse.duration_to ?? reverse.duration ?? row.duration_back ?? row.duration ?? 0)),
+        arrivalAt: addMinutes(verifiedReturnAt, Number(reverse?.duration_to ?? reverse?.duration ?? row.duration_back ?? 0)),
       },
       perTravelerUsd,
       observedAt,

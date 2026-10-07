@@ -34,7 +34,7 @@ struct FlightDiscoveryOffer: Codable, Hashable, Identifiable {
     }
 
     var isDirect: Bool {
-        transfers == 0 && (returnTransfers ?? 0) == 0
+        transfers == 0 && (!isRoundTrip || returnTransfers == 0)
     }
 
     var monitorKey: String {

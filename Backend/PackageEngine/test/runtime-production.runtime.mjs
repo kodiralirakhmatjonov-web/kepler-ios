@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../.runtime-dist/index.js';
+import { publicAviasalesData } from '../.runtime-dist/aviasales-data.js';
+import { resolveAviasalesSelection } from '../.runtime-dist/package-search.js';
 import { curatedPrimaryHotel } from '../.runtime-dist/generator-components.js';
 import { searchIgnavFlightsForCuration } from '../.runtime-dist/ignav-flights.js';
 import { resolvePublicCuratedFlightRecommendation, saveCuratedFlightAdmin } from '../.runtime-dist/curated-flights.js';
@@ -95,8 +97,8 @@ test('server package quote route is active and rejects malformed input without w
 function searchBody(overrides = {}) {
   return {
     legs: [
-      { origin: 'TAS', destination: 'JED', departure_date: '2026-10-03', max_stops: 1, departure_time_range: { earliest_hour: 6, latest_hour: 17 } },
-      { origin: 'MED', destination: 'TAS', departure_date: '2026-10-10', max_stops: 1, departure_time_range: { earliest_hour: 6, latest_hour: 23 } },
+      { origin: 'TAS', destination: 'JED', departure_date: '2027-03-03', max_stops: 1, departure_time_range: { earliest_hour: 6, latest_hour: 17 } },
+      { origin: 'MED', destination: 'TAS', departure_date: '2027-03-10', max_stops: 1, departure_time_range: { earliest_hour: 6, latest_hour: 23 } },
     ],
     adults: 2,
     children: 1,
@@ -129,19 +131,19 @@ function segment({ carrier, number, origin, destination, departureLocal, departu
   };
 }
 
-function validIgnavItinerary({ id = '5e4fcd2f1dc340649eb19f6ee2afb57a', amount = 612, status = 'verified', firstDepartureUTC = '2026-10-03T03:10:00Z' } = {}) {
+function validIgnavItinerary({ id = '5e4fcd2f1dc340649eb19f6ee2afb57a', amount = 612, status = 'verified', firstDepartureUTC = '2027-03-03T03:10:00Z' } = {}) {
   return {
     price: { amount, currency: 'USD', status },
     legs: [
       {
         carrier: 'Uzbekistan Airways',
         duration_minutes: 410,
-        segments: [segment({ carrier: 'HY', number: '337', origin: 'TAS', destination: 'JED', departureLocal: '2026-10-03T08:10:00', departureZone: 'Asia/Tashkent', departureUTC: firstDepartureUTC, arrivalLocal: '2026-10-03T11:00:00', arrivalZone: 'Asia/Riyadh', arrivalUTC: '2026-10-03T08:00:00Z', duration: 410 })],
+        segments: [segment({ carrier: 'HY', number: '337', origin: 'TAS', destination: 'JED', departureLocal: '2027-03-03T08:10:00', departureZone: 'Asia/Tashkent', departureUTC: firstDepartureUTC, arrivalLocal: '2027-03-03T11:00:00', arrivalZone: 'Asia/Riyadh', arrivalUTC: '2027-03-03T08:00:00Z', duration: 410 })],
       },
       {
         carrier: 'flydubai',
         duration_minutes: 555,
-        segments: [segment({ carrier: 'FZ', number: '1942', origin: 'MED', destination: 'TAS', departureLocal: '2026-10-10T10:20:00', departureZone: 'Asia/Riyadh', departureUTC: '2026-10-10T07:20:00Z', arrivalLocal: '2026-10-10T18:35:00', arrivalZone: 'Asia/Tashkent', arrivalUTC: '2026-10-10T13:35:00Z', duration: 555 })],
+        segments: [segment({ carrier: 'FZ', number: '1942', origin: 'MED', destination: 'TAS', departureLocal: '2027-03-10T10:20:00', departureZone: 'Asia/Riyadh', departureUTC: '2027-03-10T07:20:00Z', arrivalLocal: '2027-03-10T18:35:00', arrivalZone: 'Asia/Tashkent', arrivalUTC: '2027-03-10T13:35:00Z', duration: 555 })],
       },
     ],
     cabin_class: 'economy',
@@ -154,8 +156,8 @@ function validIgnavItinerary({ id = '5e4fcd2f1dc340649eb19f6ee2afb57a', amount =
 function validIgnavResponse(itineraries = [validIgnavItinerary()]) {
   return {
     legs: [
-      { origin: 'TAS', destination: 'JED', departure_date: '2026-10-03' },
-      { origin: 'MED', destination: 'TAS', departure_date: '2026-10-10' },
+      { origin: 'TAS', destination: 'JED', departure_date: '2027-03-03' },
+      { origin: 'MED', destination: 'TAS', departure_date: '2027-03-10' },
     ],
     itineraries,
   };
@@ -217,7 +219,7 @@ test('Ignav proxy uses one flexible open-jaw request and returns multiple comple
     assert.equal(body.itineraries[0].legs[1].flight_number, 'FZ 1942');
     assert.equal(body.itineraries[0].fare_scope, 'total_party');
     assert.equal(body.itineraries[0].price.amount, 612);
-    assert.equal(body.itineraries[0].legs[0].segments[0].departure_time_utc, '2026-10-03T03:10:00Z');
+    assert.equal(body.itineraries[0].legs[0].segments[0].departure_time_utc, '2027-03-03T03:10:00Z');
     assert.equal(captured.url, 'https://ignav.com/api/fares/search');
     assert.equal(captured.headers['x-api-key'], 'test-secret');
     assert.equal(captured.body.market, 'US');
@@ -266,7 +268,7 @@ test('Ignav proxy rejects unverified fares, accepts local-time fallback and reje
     assert.equal(localFallback.status, 200);
     const localFallbackBody = await localFallback.json();
     assert.equal(localFallbackBody.itineraries.length, 1);
-    assert.equal(localFallbackBody.itineraries[0].legs[0].segments[0].departure_time_utc, '2026-10-03T03:10:00.000Z');
+    assert.equal(localFallbackBody.itineraries[0].legs[0].segments[0].departure_time_utc, '2027-03-03T03:10:00.000Z');
 
     const malformed = await worker.fetch(new Request('https://iumrah.app/api/package/flights/search', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(searchBody()),
@@ -304,13 +306,13 @@ test('Ignav proxy rejects malformed one-to-two-leg requests before upstream call
     const invalidBodies = [
       { ...searchBody(), legs: [] },
       { ...searchBody(), legs: [
-        { origin: 'TAS', destination: 'JED', departure_date: '2026-10-03' },
-        { origin: 'MED', destination: 'TAS', departure_date: '2026-10-10' },
-        { origin: 'TAS', destination: 'DXB', departure_date: '2026-10-11' },
+        { origin: 'TAS', destination: 'JED', departure_date: '2027-03-03' },
+        { origin: 'MED', destination: 'TAS', departure_date: '2027-03-10' },
+        { origin: 'TAS', destination: 'DXB', departure_date: '2027-03-11' },
       ] },
-      { ...searchBody(), legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-02-31' }, { origin: 'MED', destination: 'TAS', departure_date: '2026-10-10' }] },
+      { ...searchBody(), legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-02-31' }, { origin: 'MED', destination: 'TAS', departure_date: '2027-03-10' }] },
       { ...searchBody(), allow_self_transfer: 'false' },
-      { ...searchBody(), legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-10-10' }, { origin: 'MED', destination: 'TAS', departure_date: '2026-10-03' }] },
+      { ...searchBody(), legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2027-03-10' }, { origin: 'MED', destination: 'TAS', departure_date: '2027-03-03' }] },
     ];
     for (const body of invalidBodies) {
       const response = await worker.fetch(new Request('https://iumrah.app/api/package/flights/search', {
@@ -332,12 +334,12 @@ test('Ignav proxy accepts one-way searches and returns the complete one-leg fare
     const itinerary = validIgnavItinerary();
     itinerary.legs = [itinerary.legs[0]];
     return new Response(JSON.stringify({
-      legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-10-03' }],
+      legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2027-03-03' }],
       itineraries: [itinerary],
     }), { status: 200, headers: { 'content-type': 'application/json' } });
   };
   try {
-    const body = searchBody({ legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2026-10-03' }] });
+    const body = searchBody({ legs: [{ origin: 'TAS', destination: 'JED', departure_date: '2027-03-03' }] });
     const response = await worker.fetch(new Request('https://iumrah.app/api/package/flights/search', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     }), { IGNAV_API_KEY: 'test-secret' });
@@ -488,13 +490,13 @@ test('flight fare calendar reads accumulated D1 observations without calling ups
     assert.equal(search.status, 200);
     assert.equal(upstreamCalls, 1);
 
-    const calendarResponse = await worker.fetch(new Request('https://iumrah.app/api/package/flights/calendar?outbound_origin=TAS&outbound_destination=JED&inbound_origin=MED&inbound_destination=TAS&adults=2&children=1&infants_in_seat=0&infants_on_lap=1&cabin_class=economy&from=2026-10-01&to=2026-10-31'), env);
+    const calendarResponse = await worker.fetch(new Request('https://iumrah.app/api/package/flights/calendar?outbound_origin=TAS&outbound_destination=JED&inbound_origin=MED&inbound_destination=TAS&adults=2&children=1&infants_in_seat=0&infants_on_lap=1&cabin_class=economy&from=2027-03-01&to=2027-03-31'), env);
     assert.equal(calendarResponse.status, 200);
     const body = await calendarResponse.json();
     assert.equal(body.ok, true);
     assert.equal(body.prices.length, 1);
-    assert.equal(body.prices[0].outbound_date, '2026-10-03');
-    assert.equal(body.prices[0].inbound_date, '2026-10-10');
+    assert.equal(body.prices[0].outbound_date, '2027-03-03');
+    assert.equal(body.prices[0].inbound_date, '2027-03-10');
     assert.equal(body.prices[0].min_total_fare, 612);
     assert.equal(body.prices[0].min_per_traveler_fare, 153);
     assert.equal(upstreamCalls, 1, 'calendar endpoint must never buy a provider search');
@@ -506,12 +508,12 @@ test('flight fare calendar reads accumulated D1 observations without calling ups
 
 function curationRequest({ mode = 'round_trip', inboundOrigin = 'JED', inboundDestination = 'TAS' } = {}) {
   const legs = mode === 'outbound_one_way'
-    ? [{ origin: 'TAS', destination: 'JED', departure_date: '2026-10-03', max_stops: 0 }]
+    ? [{ origin: 'TAS', destination: 'JED', departure_date: '2027-03-03', max_stops: 0 }]
     : mode === 'return_one_way'
-      ? [{ origin: inboundOrigin, destination: inboundDestination, departure_date: '2026-10-10', max_stops: 0 }]
+      ? [{ origin: inboundOrigin, destination: inboundDestination, departure_date: '2027-03-10', max_stops: 0 }]
       : [
-          { origin: 'TAS', destination: 'JED', departure_date: '2026-10-03', max_stops: 0 },
-          { origin: inboundOrigin, destination: inboundDestination, departure_date: '2026-10-10', max_stops: 0 },
+          { origin: 'TAS', destination: 'JED', departure_date: '2027-03-03', max_stops: 0 },
+          { origin: inboundOrigin, destination: inboundDestination, departure_date: '2027-03-10', max_stops: 0 },
         ];
   return new Request('https://iumrah.app/api/admin/package/flights/curation-search', {
     method: 'POST',
@@ -562,8 +564,8 @@ function curationRoundTripProviderResponse({ amount = 430, id = 'rt-provider-1' 
   return {
     itineraries: [{
       price: { amount, currency: 'USD', status: 'verified' },
-      outbound: curationProviderLeg({ origin: 'TAS', destination: 'JED', date: '2026-10-03', number: '337' }),
-      inbound: curationProviderLeg({ origin: 'JED', destination: 'TAS', date: '2026-10-10', number: '338' }),
+      outbound: curationProviderLeg({ origin: 'TAS', destination: 'JED', date: '2027-03-03', number: '337' }),
+      inbound: curationProviderLeg({ origin: 'JED', destination: 'TAS', date: '2027-03-10', number: '338' }),
       cabin_class: 'economy',
       bags: { carry_on: 1, checked: 1 },
       requires_self_transfer: false,
@@ -583,9 +585,9 @@ test('Business curation exact-return mode compares true Ignav round-trip against
       return new Response(JSON.stringify(curationRoundTripProviderResponse({ amount: 430 })), { status: 200, headers: { 'content-type': 'application/json' } });
     }
     if (body.origin === 'TAS') {
-      return new Response(JSON.stringify(curationOneWayProviderResponse({ origin: 'TAS', destination: 'JED', date: '2026-10-03', amount: 260, number: '337', id: 'ow-out-1' })), { status: 200, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify(curationOneWayProviderResponse({ origin: 'TAS', destination: 'JED', date: '2027-03-03', amount: 260, number: '337', id: 'ow-out-1' })), { status: 200, headers: { 'content-type': 'application/json' } });
     }
-    return new Response(JSON.stringify(curationOneWayProviderResponse({ origin: 'JED', destination: 'TAS', date: '2026-10-10', amount: 250, number: '338', id: 'ow-ret-1' })), { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify(curationOneWayProviderResponse({ origin: 'JED', destination: 'TAS', date: '2027-03-10', amount: 250, number: '338', id: 'ow-ret-1' })), { status: 200, headers: { 'content-type': 'application/json' } });
   };
   try {
     const response = await searchIgnavFlightsForCuration(curationRequest(), { IGNAV_API_KEY: 'test-secret' });
@@ -617,8 +619,8 @@ test('Business curation open-jaw mode never mislabels a system pair as a true ro
     if (endpoint.endsWith('/fares/round-trip')) throw new Error('round-trip endpoint must not be called for open-jaw');
     const isOutbound = body.origin === 'TAS';
     const data = isOutbound
-      ? curationOneWayProviderResponse({ origin: 'TAS', destination: 'JED', date: '2026-10-03', amount: 260, number: '337', id: 'open-out' })
-      : curationOneWayProviderResponse({ origin: 'MED', destination: 'TAS', date: '2026-10-10', amount: 270, number: '501', id: 'open-ret' });
+      ? curationOneWayProviderResponse({ origin: 'TAS', destination: 'JED', date: '2027-03-03', amount: 260, number: '337', id: 'open-out' })
+      : curationOneWayProviderResponse({ origin: 'MED', destination: 'TAS', date: '2027-03-10', amount: 270, number: '501', id: 'open-ret' });
     return new Response(JSON.stringify(data), { status: 200, headers: { 'content-type': 'application/json' } });
   };
   try {
@@ -642,8 +644,8 @@ test('Business curation one-way modes return a single typed outbound or return p
     const body = JSON.parse(init.body);
     const isOutbound = body.origin === 'TAS';
     const data = isOutbound
-      ? curationOneWayProviderResponse({ origin: 'TAS', destination: 'JED', date: '2026-10-03', amount: 260, number: '337', id: 'typed-out' })
-      : curationOneWayProviderResponse({ origin: 'JED', destination: 'TAS', date: '2026-10-10', amount: 250, number: '338', id: 'typed-ret' });
+      ? curationOneWayProviderResponse({ origin: 'TAS', destination: 'JED', date: '2027-03-03', amount: 260, number: '337', id: 'typed-out' })
+      : curationOneWayProviderResponse({ origin: 'JED', destination: 'TAS', date: '2027-03-10', amount: 250, number: '338', id: 'typed-ret' });
     return new Response(JSON.stringify(data), { status: 200, headers: { 'content-type': 'application/json' } });
   };
   try {
@@ -728,8 +730,8 @@ function curatedSaveItinerary(id) {
     offer_type: 'round_trip',
     journey_role: 'complete',
     legs: [
-      { airline: 'Uzbekistan Airways', flight_number: 'HY 337', airline_code: 'HY', origin: 'TAS', destination: 'JED', departure_at: '2026-10-03T08:00:00Z', arrival_at: '2026-10-03T12:00:00Z', duration_minutes: 240, stops: 0, cabin_class: 'economy' },
-      { airline: 'Uzbekistan Airways', flight_number: 'HY 338', airline_code: 'HY', origin: 'JED', destination: 'TAS', departure_at: '2026-10-10T08:00:00Z', arrival_at: '2026-10-10T12:00:00Z', duration_minutes: 240, stops: 0, cabin_class: 'economy' },
+      { airline: 'Uzbekistan Airways', flight_number: 'HY 337', airline_code: 'HY', origin: 'TAS', destination: 'JED', departure_at: '2027-03-03T08:00:00Z', arrival_at: '2027-03-03T12:00:00Z', duration_minutes: 240, stops: 0, cabin_class: 'economy' },
+      { airline: 'Uzbekistan Airways', flight_number: 'HY 338', airline_code: 'HY', origin: 'JED', destination: 'TAS', departure_at: '2027-03-10T08:00:00Z', arrival_at: '2027-03-10T12:00:00Z', duration_minutes: 240, stops: 0, cabin_class: 'economy' },
     ],
   };
 }
@@ -790,5 +792,83 @@ test('published direct resolver prices the saved D1 itinerary without a provider
     assert.equal(body.inbound.destination, 'TAS');
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('Data API never invents a return carrier from an unrelated same-day flight', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (request) => {
+    const url = new URL(request);
+    const reverse = url.searchParams.get('origin') === 'JED';
+    const data = reverse ? [{ origin: 'JED', destination: 'TAS', price: 230, airline: 'HY', flight_number: 998, departure_at: '2027-03-10T19:20:00+03:00' }] : [{
+      origin: 'TAS', destination: 'JED', price: 550, airline: 'XY', flight_number: 634,
+      departure_at: '2027-03-03T14:30:00+05:00', return_at: '2027-03-10T08:25:00+03:00',
+      duration_to: 405, duration_back: 360,
+    }];
+    return Response.json({ success: true, data, currency: 'usd' });
+  };
+  try {
+    const result = await publicAviasalesData(new URL('https://iumrah.app/api/package/flights/data?origin=TAS&destination=JED&departure=2027-03-03&return=2027-03-10&view=offers'), { TRAVELPAYOUTS_API_TOKEN: 'test' });
+    assert.equal(result.status, 200);
+    const data = await result.json();
+    assert.equal(data.offers[0].returnAirlineCode, null);
+    assert.equal(data.offers[0].returnFlightNumber, null);
+    assert.equal(data.offers[0].returnAt, '2027-03-10T08:25:00+03:00');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('Data API resolves return carrier only against matching exact return departure', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (request) => {
+    const url = new URL(request);
+    const reverse = url.searchParams.get('origin') === 'JED';
+    const data = reverse ? [{ origin: 'JED', destination: 'TAS', price: 230, airline: 'HY', flight_number: 777, departure_at: '2027-03-10T05:25:00Z', duration: 360 }] : [{
+      origin: 'TAS', destination: 'JED', price: 550, airline: 'XY', flight_number: 634,
+      departure_at: '2027-03-03T14:30:00+05:00', return_at: '2027-03-10T08:25:00+03:00',
+      duration_to: 405, duration_back: 360,
+    }];
+    return Response.json({ success: true, data, currency: 'usd' });
+  };
+  try {
+    const result = await publicAviasalesData(new URL('https://iumrah.app/api/package/flights/data?origin=TAS&destination=JED&departure=2027-03-03&return=2027-03-10&view=offers'), { TRAVELPAYOUTS_API_TOKEN: 'test' });
+    assert.equal(result.status, 200);
+    const data = await result.json();
+    assert.equal(data.offers[0].returnAirlineCode, 'HY');
+    assert.equal(data.offers[0].returnFlightNumber, '777');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('Flight First server checks actual RT fare without requiring reverse one-way cache', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (request) => {
+    const url = new URL(request);
+    const reverse = url.searchParams.get('origin') === 'JED';
+    return Response.json({ success: true, currency: 'usd', data: reverse ? [] : [{
+      origin: 'TAS', destination: 'JED', airline: 'XY', flight_number: '634', price: 550,
+      departure_at: '2027-03-03T14:30:00+05:00', return_at: '2027-03-10T08:25:00+03:00',
+      duration_to: 405, duration_back: 360,
+    }] });
+  };
+  try {
+    const env = { TRAVELPAYOUTS_API_TOKEN: 'test' };
+    const rt = await resolveAviasalesSelection('aviasales:rt:TAS:JED:2027-03-03:2027-03-10:XY:634:-:-', env);
+    assert.equal(rt.perTravelerUsd, 550);
+    assert.equal(rt.inbound?.origin, 'JED');
+    assert.equal(rt.inbound?.destination, 'TAS');
+    await assert.rejects(
+      resolveAviasalesSelection('aviasales:rt:TAS:JED:2027-03-03:2027-03-10:XY:999:-:-', env),
+      /AVIASALES_FARE_NOT_FOUND/,
+    );
+    await assert.rejects(
+      resolveAviasalesSelection('aviasales:rt:TAS:JED:2027-03-03:2027-03-10:XY:634:HY:777', env),
+      /AVIASALES_RETURN_IDENTITY_UNVERIFIED/,
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
   }
 });

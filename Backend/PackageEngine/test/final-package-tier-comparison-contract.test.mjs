@@ -20,7 +20,8 @@ const comparisonPricing = journey.slice(
 test("final package comparison keeps the exact selected flight itinerary and fare source", () => {
   assert.match(comparisonBuilder, /guard let outbound = selectedOutbound, outbound\.isVerifiedForBooking/);
   assert.match(comparisonBuilder, /guard let value = selectedInbound/);
-  assert.match(comparisonBuilder, /returnOffer\(value, matches: outbound\)/);
+  assert.match(comparisonBuilder, /returnPairMatches\(value, outbound: outbound\)/);
+  assert.match(journey, /private func returnPairMatches[\s\S]*?packageFlightPath == \.aviasalesSelected[\s\S]*?return returnOffer\(inbound, matches: outbound\)/);
   assert.match(comparisonBuilder, /pricingOffer = value/);
   assert.match(comparisonBuilder, /pricingOffer = outbound/);
   assert.doesNotMatch(comparisonBuilder, /LocalFXRateService\.shared\.usd/);

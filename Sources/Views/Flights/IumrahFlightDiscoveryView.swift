@@ -1267,7 +1267,9 @@ struct IumrahFlightDiscoveryView: View {
             .filter { item in
                 item.inbound == nil &&
                 item.effectiveJourneyRole == "return" &&
-                item.outbound.origin.uppercased() == recommendedReturnOriginCode &&
+                (journey.trip.scope == .makkahAndMadinah
+                    ? ["JED", "MED"].contains(item.outbound.origin.uppercased())
+                    : item.outbound.origin.uppercased() == "JED") &&
                 item.outbound.destination.uppercased() == originCode
             }
             .sorted { lhs, rhs in
@@ -1453,6 +1455,11 @@ struct IumrahFlightDiscoveryView: View {
         journey.stageUmrahFlight(selection)
 
         if role != "return" {
+            if let inbound {
+                journey.trip.selectedReturnAirport = inbound.origin.uppercased() == "MED" ? .madinah : .jeddah
+            } else if kind == .outbound, !journey.stagedUmrahFlights.contains(where: { $0.kind == .inbound }) {
+                journey.trip.selectedReturnAirport = nil
+            }
             journey.trip.origin = outbound.origin.uppercased()
             if journey.trip.originCode.uppercased() != outbound.origin.uppercased() {
                 journey.trip.originAirport = nil
@@ -1465,6 +1472,9 @@ struct IumrahFlightDiscoveryView: View {
             }
             journey.trip.flightTripType = inbound == nil ? .oneWay : .roundTrip
         } else if let date = isoDate(outbound.departureAt) {
+            if ["JED", "MED"].contains(outbound.origin.uppercased()) {
+                journey.trip.selectedReturnAirport = outbound.origin.uppercased() == "MED" ? .madinah : .jeddah
+            }
             journey.trip.returnDate = date
             journey.trip.flightTripType = .roundTrip
         }
@@ -1514,6 +1524,15 @@ struct IumrahFlightDiscoveryView: View {
         syncSearchConfigurationToJourney()
         journey.packageFlightPath = .aviasalesSelected
         journey.clearPublishedFlightSelection()
+
+        if kind == .roundTrip {
+            // A conventional round-trip uses the same Saudi airport on both legs.
+            journey.trip.selectedReturnAirport = destination == "MED" ? .madinah : .jeddah
+        } else if kind == .inbound, originSaudi {
+            journey.trip.selectedReturnAirport = origin == "MED" ? .madinah : .jeddah
+        } else if kind == .outbound, !journey.stagedUmrahFlights.contains(where: { $0.kind == .inbound }) {
+            journey.trip.selectedReturnAirport = nil
+        }
 
         if destinationSaudi {
             let currentOriginMatches = journey.trip.originCode.uppercased() == origin
@@ -1892,7 +1911,7 @@ private struct FlightDiscoveryTicketCard: View {
                     legRow(
                         departureTime: localTime(offer.departureAt),
                         departureDate: compactDate(offer.departureAt),
-                        arrivalTime: arrivalTime(for: offer.departureAt, duration: offer.durationMinutes),
+                        arrivalTime: arrivalTime(for: offer.departureAt, duration: offer.durationMinutes, destination: offer.destination),
                         origin: offer.originAirport.isEmpty ? offer.origin : offer.originAirport,
                         destination: offer.destinationAirport.isEmpty ? offer.destination : offer.destinationAirport,
                         duration: durationText(offer.durationMinutes),
@@ -1904,11 +1923,11 @@ private struct FlightDiscoveryTicketCard: View {
                         legRow(
                             departureTime: localTime(returnAt),
                             departureDate: compactDate(returnAt),
-                            arrivalTime: arrivalTime(for: returnAt, duration: offer.returnDurationMinutes ?? 0),
+                            arrivalTime: arrivalTime(for: returnAt, duration: offer.returnDurationMinutes ?? 0, destination: offer.origin),
                             origin: offer.destinationAirport.isEmpty ? offer.destination : offer.destinationAirport,
                             destination: offer.originAirport.isEmpty ? offer.origin : offer.originAirport,
                             duration: durationText(offer.returnDurationMinutes ?? 0),
-                            transfers: offer.returnTransfers ?? 0
+                            transfers: offer.returnTransfers ?? -1
                         )
                         returnFlightMetaRow
                     }
@@ -2043,6 +2062,9 @@ private struct FlightDiscoveryTicketCard: View {
     }
 
     private func stopsText(_ transfers: Int) -> String {
+        if transfers < 0 {
+            return tr("Пересадки уточняются", "Stops pending", "Almashishlar aniqlanmoqda", "Алмашишлар аниқланмоқда")
+        }
         switch language {
         case .russian: return transfers == 0 ? "Прямой" : "\(transfers) перес."
         case .english: return transfers == 0 ? "Non-stop" : "\(transfers) stop(s)"
@@ -2073,11 +2095,12 @@ private struct FlightDiscoveryTicketCard: View {
         return String(after.prefix(5))
     }
 
-    private func arrivalTime(for departureAt: String, duration: Int) -> String {
+    private func arrivalTime(for departureAt: String, duration: Int, destination: String) -> String {
         guard duration > 0, let departure = isoDate(departureAt) else { return "—" }
         let arrival = departure.addingTimeInterval(TimeInterval(duration * 60))
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = FlightReferenceCatalog.timeZone(for: destination) ?? .current
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: arrival)
     }
@@ -2758,6 +2781,8 @@ private struct FlightDiscoveryPriceGraphSheet: View {
     @State private var outboundDays: [FlightDiscoveryCalendarDay] = []
     @State private var inboundDays: [FlightDiscoveryCalendarDay] = []
     @State private var isLoading = false
+    @State private var selectedGraphLeg = 0 // 0 = outbound, 1 = inbound
+
 
     private let service = AviasalesFlightDiscoveryService()
 
@@ -2773,26 +2798,47 @@ private struct FlightDiscoveryPriceGraphSheet: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    priceSection(
-                        title: tr("Вылет в \(cityName(destination))", "Departure to \(cityName(destination))", "\(cityName(destination))ga jo‘nash", "\(cityName(destination))га жўнаш"),
-                        days: outboundDays,
-                        selectedDate: departureDate,
-                        onSelect: { date in
-                            departureDate = date
-                            if roundTrip, returnDate <= date {
-                                returnDate = Calendar.current.date(byAdding: .day, value: 7, to: date) ?? date
-                            }
-                        }
-                    )
-
                     if roundTrip {
+                        Picker("", selection: $selectedGraphLeg) {
+                            Text(tr("Туда", "Outbound", "Borish", "Бориш") + " · \(origin) → \(destination)").tag(0)
+                            Text(tr("Обратно", "Return", "Qaytish", "Қайтиш") + " · \(destination) → \(origin)").tag(1)
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityLabel(tr("Направление", "Flight direction", "Yo‘nalish", "Йўналиш"))
+                    }
+
+                    if selectedGraphLeg == 0 || !roundTrip {
                         priceSection(
-                            title: tr("Обратно в \(cityName(origin))", "Return to \(cityName(origin))", "\(cityName(origin))ga qaytish", "\(cityName(origin))га қайтиш"),
+                            title: tr("Туда · \(origin) → \(destination)", "Outbound · \(origin) → \(destination)", "Borish · \(origin) → \(destination)", "Бориш · \(origin) → \(destination)"),
+                            days: outboundDays,
+                            selectedDate: departureDate,
+                            onSelect: { date in
+                                departureDate = date
+                                if roundTrip, returnDate <= date {
+                                    returnDate = Calendar.current.date(byAdding: .day, value: 7, to: date) ?? date
+                                }
+                            }
+                        )
+                    } else {
+                        priceSection(
+                            title: tr("Обратно · \(destination) → \(origin)", "Return · \(destination) → \(origin)", "Qaytish · \(destination) → \(origin)", "Қайтиш · \(destination) → \(origin)"),
                             days: inboundDays,
                             selectedDate: returnDate,
-                            onSelect: { date in returnDate = date }
+                            onSelect: { date in
+                                if date > departureDate { returnDate = date }
+                            }
                         )
                     }
+
+                    Text(tr(
+                        "График показывает недавно найденные цены за одно направление, а не стоимость всего билета туда-обратно.",
+                        "These are recently cached one-way fares, not the price of a full return ticket.",
+                        "Grafik yaqinida topilgan bir tomonlik narxlarni ko‘rsatadi, borib-kelish chiptasi narxini emas.",
+                        "График яқинда топилган бир томонлик нархларни кўрсатади, бориб-келиш чиптаси нархини эмас."
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                     Toggle(isOn: $directOnly) {
                         Text(tr("Только прямые рейсы", "Non-stop flights only", "Faqat to‘g‘ridan-to‘g‘ri", "Фақат тўғридан-тўғри"))
@@ -2804,29 +2850,22 @@ private struct FlightDiscoveryPriceGraphSheet: View {
                         Task { await load() }
                     }
 
-                    if let lowest = allDays.map(\.price).filter({ $0 > 0 }).min() {
-                        Button {
-                            dismiss()
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text(tr("Найти билеты от", "Find flights from", "Chiptalarni topish", "Чипталарни топиш"))
-                                Text("$\(Int(lowest.rounded()))")
-                                    .fontWeight(.bold)
-                                Spacer()
-                            }
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text(tr("Готово", "Done", "Tayyor", "Тайёр"))
                             .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 55)
                             .foregroundStyle(.white)
-                            .frame(height: 58)
                             .background(Color.blue, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(20)
             }
             .overlay {
-                if isLoading && outboundDays.isEmpty {
+                if isLoading && (selectedGraphLeg == 0 ? outboundDays.isEmpty : inboundDays.isEmpty) {
                     ProgressView()
                 }
             }
@@ -2857,6 +2896,11 @@ private struct FlightDiscoveryPriceGraphSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.headline)
+            if let selectedDay = days.first(where: { $0.date == IumrahFlightDiscoveryStore.dayFormatter.string(from: selectedDate) }) {
+                Text("\(tr("Выбранная дата", "Selected date", "Tanlangan sana", "Танланган сана")): $\(Int(selectedDay.price.rounded()))")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.blue)
+            }
 
             if days.isEmpty {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -2874,13 +2918,13 @@ private struct FlightDiscoveryPriceGraphSheet: View {
                     }
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .bottom, spacing: 7) {
+                    HStack(alignment: .bottom, spacing: 9) {
                         ForEach(days.sorted(by: { $0.date < $1.date })) { day in
                             graphBar(day, days: days, selectedDate: selectedDate, onSelect: onSelect)
                         }
                     }
                     .padding(.horizontal, 2)
-                    .frame(height: 166, alignment: .bottom)
+                    .frame(height: 174, alignment: .bottom)
                 }
             }
         }
@@ -2910,7 +2954,7 @@ private struct FlightDiscoveryPriceGraphSheet: View {
         } label: {
             VStack(spacing: 6) {
                 if selected || cheapest {
-                    Text("от $\(Int(day.price.rounded()))")
+                    Text("$\(Int(day.price.rounded()))")
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(selected ? Color.blue : Color.green)
                         .lineLimit(1)
@@ -2921,13 +2965,13 @@ private struct FlightDiscoveryPriceGraphSheet: View {
 
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(tint)
-                    .frame(width: 28, height: height)
+                    .frame(width: 39, height: height)
 
                 Text(dayNumber(day.date))
                     .font(.caption2.weight(selected ? .bold : .medium))
                     .foregroundStyle(selected ? Color.blue : Color.secondary)
             }
-            .frame(width: 34)
+            .frame(width: 52)
         }
         .buttonStyle(.plain)
     }
@@ -3016,6 +3060,18 @@ private struct FlightDiscoveryOfferDetailView: View {
 
                 if hasReturn {
                     returnCard
+                    if activeOffer.returnAirlineCode?.isEmpty != false || activeOffer.returnFlightNumber?.isEmpty != false {
+                        Label(tr(
+                            "Data API не подтверждает перевозчика и номер обратного рейса. Уточните их у продавца перед оплатой.",
+                            "Data API does not confirm the return carrier or flight number. Check with the seller before payment.",
+                            "Data API qaytish aviakompaniyasi va reys raqamini tasdiqlamaydi. To‘lovdan oldin sotuvchidan tekshiring.",
+                            "Data API қайтиш авиакомпанияси ва рейс рақамини тасдиқламайди. Тўловдан олдин сотувчидан текширинг."
+                        ), systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
 
                 monitoringCard
@@ -3245,7 +3301,7 @@ private struct FlightDiscoveryOfferDetailView: View {
             summaryLeg(
                 icon: "airplane.departure",
                 route: "\(outboundOrigin) → \(outboundDestination)",
-                date: dateOnly(activeOffer.departureAt),
+                date: dateOnly(activeOffer.departureAt, airport: outboundOrigin),
                 flight: [activeOffer.airlineName, flightNumberText].filter { !$0.isEmpty }.joined(separator: " · ")
             )
 
@@ -3254,7 +3310,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                 summaryLeg(
                     icon: "airplane.arrival",
                     route: "\(outboundDestination) → \(outboundOrigin)",
-                    date: dateOnly(returnAt),
+                    date: dateOnly(returnAt, airport: outboundDestination),
                     flight: [returnAirlineName, returnFlightNumberText].filter { !$0.isEmpty }.joined(separator: " · ")
                 )
             }
@@ -3326,7 +3382,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                 origin: outboundDestination,
                 destination: outboundOrigin,
                 duration: activeOffer.returnDurationMinutes ?? 0,
-                transfers: activeOffer.returnTransfers ?? 0,
+                transfers: activeOffer.returnTransfers ?? -1,
                 flightNumber: returnFlightNumberText,
                 airlineCode: activeOffer.returnAirlineCode ?? "",
                 airlineName: returnAirlineName
@@ -3401,8 +3457,8 @@ private struct FlightDiscoveryOfferDetailView: View {
             .padding(.top, 5)
 
             VStack(alignment: .leading, spacing: 24) {
-                timelineRow(time: localTime(departureAt), date: dateOnly(departureAt), city: airportCity(origin), code: origin)
-                timelineRow(time: arrivalTime(departureAt: departureAt, duration: duration), date: arrivalDate(departureAt: departureAt, duration: duration), city: airportCity(destination), code: destination)
+                timelineRow(time: localTime(departureAt, airport: origin), date: dateOnly(departureAt, airport: origin), city: airportCity(origin), code: origin)
+                timelineRow(time: arrivalTime(departureAt: departureAt, duration: duration, airport: destination), date: arrivalDate(departureAt: departureAt, duration: duration, airport: destination), city: airportCity(destination), code: destination)
             }
         }
     }
@@ -3662,13 +3718,13 @@ private struct FlightDiscoveryOfferDetailView: View {
         }
     }
 
-    private var hasReturn: Bool { activeOffer.isRoundTrip || fallbackReturnDate != nil }
+    // A requested return date is not proof that the Data API returned a reverse
+    // flight. Never fabricate a noon departure and present it as a real ticket.
+    private var hasReturn: Bool { activeOffer.isRoundTrip }
 
     private var effectiveReturnAt: String? {
-        if let returnAt = activeOffer.returnAt, !returnAt.isEmpty { return returnAt }
-        guard let fallbackReturnDate else { return nil }
-        let date = IumrahFlightDiscoveryStore.dayFormatter.string(from: fallbackReturnDate)
-        return date + "T12:00:00Z"
+        guard let returnAt = activeOffer.returnAt, !returnAt.isEmpty else { return nil }
+        return returnAt
     }
 
     private var outboundOrigin: String { activeOffer.originAirport.isEmpty ? activeOffer.origin : activeOffer.originAirport }
@@ -3717,7 +3773,7 @@ private struct FlightDiscoveryOfferDetailView: View {
 
     private var returnAirlineName: String {
         guard let code = activeOffer.returnAirlineCode?.trimmingCharacters(in: .whitespacesAndNewlines), !code.isEmpty else {
-            return tr("Перевозчик уточняется", "Carrier pending", "Aviakompaniya aniqlanmoqda", "Авиакомпания аниқланмоқда")
+            return tr("Не указан в Data API", "Not provided by Data API", "Data API’da ko‘rsatilmagan", "Data API’да кўрсатилмаган")
         }
         return FlightReferenceCatalog.airlineName(code: code, fallback: code)
     }
@@ -3730,10 +3786,10 @@ private struct FlightDiscoveryOfferDetailView: View {
             }
         if !values.isEmpty { return values.joined(separator: " ") }
         return tr(
-            "Точный обратный рейс уточняется",
-            "Exact return flight pending",
-            "Aniq qaytish reysi tekshiruvda",
-            "Аниқ қайтиш рейси текширувда"
+            "Номер не предоставлен · проверьте у продавца",
+            "Flight number unavailable · confirm with seller",
+            "Reys raqami mavjud emas · sotuvchidan tekshiring",
+            "Рейс рақами мавжуд эмас · сотувчидан текширинг"
         )
     }
 
@@ -3743,6 +3799,9 @@ private struct FlightDiscoveryOfferDetailView: View {
     }
 
     private func directText(transfers: Int) -> String {
+        if transfers < 0 {
+            return tr("Пересадки уточняются", "Stops pending", "Almashishlar aniqlanmoqda", "Алмашишлар аниқланмоқда")
+        }
         switch language {
         case .russian: return transfers == 0 ? "Прямой рейс" : "\(transfers) пересадка"
         case .english: return transfers == 0 ? "Non-stop" : "\(transfers) stop(s)"
@@ -3763,34 +3822,38 @@ private struct FlightDiscoveryOfferDetailView: View {
         }
     }
 
-    private func localTime(_ value: String) -> String {
+    private func localTime(_ value: String, airport: String) -> String {
         guard let date = isoDate(value) else { return String(value.suffix(5)) }
         let formatter = DateFormatter()
         formatter.locale = locale
+        formatter.timeZone = FlightReferenceCatalog.timeZone(for: airport) ?? .current
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }
 
-    private func dateOnly(_ value: String) -> String {
+    private func dateOnly(_ value: String, airport: String) -> String {
         guard let date = isoDate(value) else { return String(value.prefix(10)) }
         let formatter = DateFormatter()
         formatter.locale = locale
+        formatter.timeZone = FlightReferenceCatalog.timeZone(for: airport) ?? .current
         formatter.setLocalizedDateFormatFromTemplate("dMMM EEE")
         return formatter.string(from: date)
     }
 
-    private func arrivalTime(departureAt: String, duration: Int) -> String {
+    private func arrivalTime(departureAt: String, duration: Int, airport: String) -> String {
         guard duration > 0, let departure = isoDate(departureAt) else { return "—" }
         let formatter = DateFormatter()
         formatter.locale = locale
+        formatter.timeZone = FlightReferenceCatalog.timeZone(for: airport) ?? .current
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: departure.addingTimeInterval(TimeInterval(duration * 60)))
     }
 
-    private func arrivalDate(departureAt: String, duration: Int) -> String {
+    private func arrivalDate(departureAt: String, duration: Int, airport: String) -> String {
         guard duration > 0, let departure = isoDate(departureAt) else { return "—" }
         let formatter = DateFormatter()
         formatter.locale = locale
+        formatter.timeZone = FlightReferenceCatalog.timeZone(for: airport) ?? .current
         formatter.setLocalizedDateFormatFromTemplate("dMMM EEE")
         return formatter.string(from: departure.addingTimeInterval(TimeInterval(duration * 60)))
     }

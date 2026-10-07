@@ -204,6 +204,9 @@ struct TripDraft: Codable, Hashable {
     var origin: String = "TAS"
     var originAirport: Airport? = nil
     var arrivalAirport: SaudiArrivalAirport = .jeddah
+    /// A published/Data API return can leave from JED *or* MED, independently of
+    /// the hotel scope. Nil preserves the legacy opposite-airport default.
+    var selectedReturnAirport: SaudiArrivalAirport? = nil
     var departureDate: Date = Calendar.current.date(byAdding: .day, value: 21, to: Date()) ?? Date()
     /// Actual local calendar day when the selected outbound itinerary reaches Saudi Arabia.
     /// Hotel stays start here, never on the origin-airport departure day.
@@ -249,6 +252,7 @@ struct TripDraft: Codable, Hashable {
     }
 
     var returnOriginCode: String {
+        if let selectedReturnAirport { return selectedReturnAirport.rawValue }
         if isWeekendUmrah { return "JED" }
         guard scope == .makkahAndMadinah else { return "JED" }
         return arrivalAirport == .madinah ? "JED" : "MED"
