@@ -24,6 +24,7 @@ final class HotelStorefrontStore: ObservableObject {
     private let snapshotURL: URL
     private var preparationTask: Task<Void, Never>?
     private var hotelPackageRefreshTask: Task<Void, Never>?
+    private var imageWarmupTask: Task<Void, Never>?
     private var hotelServerPackages: [String: [StorefrontServerPackageSnapshot]] = [:]
     private var flightServerPackages: [String: StorefrontServerPackageSnapshot] = [:]
 
@@ -1377,14 +1378,16 @@ final class HotelStorefrontStore: ObservableObject {
     }
 
     private func startImageWarmup() {
+        // Warm only first-screen covers. Prefetching 8 gallery photos for every
+        // hotel on app launch can exhaust memory before MapKit starts.
         let critical = allHotels
-            .flatMap { previewImages(for: $0, limit: 3) }
+            .prefix(6)
+            .flatMap { previewImages(for: $0, limit: 1) }
             .compactMap { AppConfig.absoluteURL($0) }
-        let detailWarmup = details.values
-            .flatMap { detail in detail.images.sorted(by: imageSort).prefix(8).map(\.url) }
-            .compactMap { AppConfig.absoluteURL($0) }
-        Task(priority: .userInitiated) { await HotelImageCache.shared.prefetch(urls: critical) }
-        Task(priority: .utility) { await HotelImageCache.shared.prefetch(urls: detailWarmup) }
+        imageWarmupTask?.cancel()
+        imageWarmupTask = Task(priority: .utility) {
+            await HotelImageCache.shared.prefetch(urls: critical)
+        }
     }
 
     private func imageSort(_ lhs: HotelImage, _ rhs: HotelImage) -> Bool {

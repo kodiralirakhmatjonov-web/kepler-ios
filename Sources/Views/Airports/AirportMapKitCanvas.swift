@@ -60,7 +60,8 @@ struct AirportMapKitCanvas: UIViewRepresentable {
 
         func sync(parent: AirportMapKitCanvas, mapView: MKMapView) {
             let endpointPoints = Self.endpointPoints(origin: parent.origin, destination: parent.destination)
-            var desiredByID = Dictionary(uniqueKeysWithValues: parent.points.map { ($0.id, $0) })
+            var desiredByID: [String: AirportMapPoint] = [:]
+            for point in parent.points { desiredByID[point.id] = point }
             endpointPoints.forEach { desiredByID[$0.id] = $0 }
 
             let staleIDs = Set(annotationsByID.keys).subtracting(desiredByID.keys)
@@ -187,19 +188,21 @@ struct AirportMapKitCanvas: UIViewRepresentable {
             if annotation is MKUserLocation { return nil }
 
             if let cluster = annotation as? MKClusterAnnotation {
-                let view = mapView.dequeueReusableAnnotationView(
+                let view = (mapView.dequeueReusableAnnotationView(
                     withIdentifier: AirportClusterAnnotationView.reuseIdentifier,
                     for: cluster
-                ) as! AirportClusterAnnotationView
+                ) as? AirportClusterAnnotationView)
+                    ?? AirportClusterAnnotationView(annotation: cluster, reuseIdentifier: AirportClusterAnnotationView.reuseIdentifier)
                 view.configure(count: cluster.memberAnnotations.count, cameraDistance: mapView.camera.centerCoordinateDistance)
                 return view
             }
 
             guard let airportAnnotation = annotation as? AirportAnnotation else { return nil }
-            let view = mapView.dequeueReusableAnnotationView(
+            let view = (mapView.dequeueReusableAnnotationView(
                 withIdentifier: AirportAnnotationView.reuseIdentifier,
                 for: airportAnnotation
-            ) as! AirportAnnotationView
+            ) as? AirportAnnotationView)
+                ?? AirportAnnotationView(annotation: airportAnnotation, reuseIdentifier: AirportAnnotationView.reuseIdentifier)
             view.annotation = airportAnnotation
             view.clusteringIdentifier = airportAnnotation.role == .normal ? "iumrah-airports" : nil
             view.configure(

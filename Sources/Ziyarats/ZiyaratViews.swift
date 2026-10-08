@@ -34,6 +34,8 @@ struct ZiyaratJourneyView: View {
     @State private var polylines: [MKPolyline] = []
     @State private var loadingCatalog = true
     @State private var loadingRoute = false
+    @State private var mapReady = false
+    @State private var routingTask: Task<Void, Never>?
 
     @State private var mapMode: ZiyaratMapMode = .standard
     @State private var showRouteLine = true
@@ -61,8 +63,16 @@ struct ZiyaratJourneyView: View {
             let metrics = ZiyaratPanelMetrics(containerHeight: proxy.size.height)
 
             ZStack(alignment: .bottom) {
-                mapScene
-                    .ignoresSafeArea()
+                // Allow the navigation transition to settle before allocating a
+                // live MapKit scene. Simultaneous hotel-gallery image work and
+                // MapKit startup caused severe first-frame memory pressure.
+                if mapReady {
+                    mapScene
+                        .ignoresSafeArea()
+                } else {
+                    Color(uiColor: .secondarySystemBackground)
+                        .ignoresSafeArea()
+                }
 
                 mapChrome
 
@@ -102,15 +112,27 @@ struct ZiyaratJourneyView: View {
             chrome.setImmersive(true)
         }
         .onDisappear {
+            routingTask?.cancel()
+            routingTask = nil
             if !closing { chrome.setImmersive(false) }
         }
         .task {
-            await loadJourney()
+            // Do not mount MapKit in the same render pass as NavigationStack.
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            mapReady = true
+            // Intro must never wait for an API timeout: bundled map content stays
+            // interactive even when the remote catalogue is offline.
+            async let catalog: Void = loadJourney()
             await playWelcomeSequence()
+            _ = await catalog
         }
         .onChange(of: panelLevel) { _, _ in
             guard let selectedPlace else { return }
             focus(on: selectedPlace, animated: true)
+        }
+        .onChange(of: showRouteLine) { _, enabled in
+            if enabled { loadRoadRouteIfNeeded() }
         }
     }
 
@@ -145,7 +167,7 @@ struct ZiyaratJourneyView: View {
             }
 
             if showPlacePins {
-                ForEach(Array(orderedPlaces.enumerated()), id: \.offset) { index, place in
+                ForEach(Array(orderedPlaces.enumerated()), id: \.element.id) { index, place in
                     Annotation(
                         place.localizedContent(locale: settings.language.rawValue).title,
                         coordinate: place.coordinate,
@@ -390,6 +412,7 @@ struct ZiyaratJourneyView: View {
         case .route:
             fitEntireRoute(animated: true)
             if isCompactPanel { setPanel(.card) }
+            loadRoadRouteIfNeeded()
         case .journey, .places:
             if isCompactPanel { setPanel(.card) }
         }
@@ -455,9 +478,7 @@ struct ZiyaratJourneyView: View {
                 }
 
                 Button {
-                    selectedPlace = nil
-                    activeTab = .route
-                    fitEntireRoute(animated: true)
+                    activateTab(.route)
                     setPanel(.card)
                 } label: {
                     Label(showRouteLabel, systemImage: "point.topleft.down.to.point.bottomright.curvepath")
@@ -479,7 +500,7 @@ struct ZiyaratJourneyView: View {
                 panelSectionHeader(title: placesTitle, subtitle: "\(orderedPlaces.count) \(stopsLabel)")
                     .padding(.bottom, 8)
 
-                ForEach(Array(orderedPlaces.enumerated()), id: \.offset) { index, place in
+                ForEach(Array(orderedPlaces.enumerated()), id: \.element.id) { index, place in
                     Button { select(place) } label: {
                         ZiyaratPlaceListRow(
                             place: place,
@@ -511,7 +532,7 @@ struct ZiyaratJourneyView: View {
                 }
 
                 VStack(spacing: 0) {
-                    ForEach(Array(orderedPlaces.enumerated()), id: \.offset) { index, place in
+                    ForEach(Array(orderedPlaces.enumerated()), id: \.element.id) { index, place in
                         Button { select(place) } label: {
                             ZiyaratRouteStepRow(
                                 place: place,
@@ -725,6 +746,10 @@ struct ZiyaratJourneyView: View {
     private func loadJourney(for city: ZiyaratJourneyCity, animateCamera: Bool) async {
         let requestID = UUID()
         routeRequestID = requestID
+        routingTask?.cancel()
+        routingTask = nil
+        polylines = []
+        loadingRoute = false
         loadingCatalog = true
 
         let live = await ZiyaratService.shared.route(city: city.rawValue)
@@ -745,13 +770,27 @@ struct ZiyaratJourneyView: View {
         loadingCatalog = false
         revealedStopCount = validPlaces.count
 
+        // Route requests are intentionally lazy. Several consecutive MKDirections
+        // calls during the first Map render can overload low-memory iPhones.
+        if activeTab == .route { loadRoadRouteIfNeeded() }
+    }
+
+    @MainActor
+    private func loadRoadRouteIfNeeded() {
+        guard !loadingCatalog, !loadingRoute, polylines.isEmpty,
+              showRouteLine, orderedPlaces.count > 1 else { return }
+        let requestID = routeRequestID
+        let places = orderedPlaces
         loadingRoute = true
-        let routeCity = city
-        Task { @MainActor in
-            let lines = await ZiyaratRouteService.shared.roadPolylines(for: validPlaces)
-            guard !Task.isCancelled, selectedCity == routeCity, routeRequestID == requestID else { return }
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) { polylines = lines }
+        routingTask?.cancel()
+        routingTask = Task { @MainActor in
+            let lines = await ZiyaratRouteService.shared.roadPolylines(for: places)
+            guard !Task.isCancelled, routeRequestID == requestID else { return }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.28)) {
+                polylines = lines
+            }
             loadingRoute = false
+            routingTask = nil
         }
     }
 
@@ -775,6 +814,7 @@ struct ZiyaratJourneyView: View {
             welcomeCopyVisible = true
             revealedStopCount = orderedPlaces.count
             try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
             welcomeVisible = false
             panelLevel = .card
             return
@@ -782,20 +822,25 @@ struct ZiyaratJourneyView: View {
 
         withAnimation(.easeOut(duration: 0.34)) { welcomeCopyVisible = true }
         try? await Task.sleep(for: .milliseconds(260))
+        guard !Task.isCancelled else { return }
 
         let count = max(orderedPlaces.count, 1)
         for index in 1...count {
             try? await Task.sleep(for: .milliseconds(92))
+            guard !Task.isCancelled else { return }
             withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
                 revealedStopCount = index
             }
         }
 
         try? await Task.sleep(for: .milliseconds(650))
+        guard !Task.isCancelled else { return }
         withAnimation(.easeInOut(duration: 0.38)) { welcomeVisible = false }
         try? await Task.sleep(for: .milliseconds(90))
+        guard !Task.isCancelled else { return }
         panelLevel = .compact
         try? await Task.sleep(for: .milliseconds(180))
+        guard !Task.isCancelled else { return }
         setPanel(.card)
     }
 
@@ -1929,6 +1974,8 @@ fileprivate final class ZiyaratRemoteImageLoader: ObservableObject {
     func cancel() {
         task?.cancel()
         task = nil
+        currentURL = nil
+        image = nil
     }
 }
 
@@ -2014,11 +2061,6 @@ struct ZiyaratIncludedCatalogSheet: View {
                         Image(systemName: "xmark")
                     }
                 }
-            }
-            .task {
-                async let makkah: Void = ZiyaratImagePrefetcher.shared.prefetch(city: ZiyaratJourneyCity.makkah.rawValue)
-                async let madinah: Void = ZiyaratImagePrefetcher.shared.prefetch(city: ZiyaratJourneyCity.madinah.rawValue)
-                _ = await (makkah, madinah)
             }
             .task(id: city.rawValue) {
                 await load(city)

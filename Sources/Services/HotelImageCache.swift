@@ -1,64 +1,95 @@
 import CryptoKit
 import Foundation
+import ImageIO
 import SwiftUI
 import UIKit
 
-/// Hotel photography has a much longer lifecycle than price data.
-/// URLs are the version key: the same URL is served from memory/disk without a TTL;
-/// replacing the URL naturally creates a new cache entry while catalog prices keep
-/// their independent 48-hour server freshness contract.
+/// Hotel photography is cached by URL, independently of flight/hotel pricing.
+/// Always decode thumbnails rather than full-resolution original photos: a single
+/// hotel image may expand from a few MB on disk to tens of MB in process memory.
 actor HotelImageCache {
     static let shared = HotelImageCache()
 
     private let memory = NSCache<NSURL, UIImage>()
     private let fileManager = FileManager.default
     private let directory: URL
+    private let maximumCompressedBytes = 16 * 1024 * 1024
+    private let maximumPixelDimension = 1600
 
     private init() {
-        let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
         directory = caches.appendingPathComponent("iumrah-hotel-images-v1", isDirectory: true)
         try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        memory.countLimit = 180
+        memory.countLimit = 24
+        memory.totalCostLimit = 48 * 1024 * 1024
     }
 
     func image(for url: URL) async -> UIImage? {
+        guard !Task.isCancelled else { return nil }
         let key = url as NSURL
         if let cached = memory.object(forKey: key) { return cached }
 
         let diskURL = fileURL(for: url)
-        if let data = try? Data(contentsOf: diskURL), let image = UIImage(data: data) {
-            memory.setObject(image, forKey: key)
-            return image
+        if let attributes = try? fileManager.attributesOfItem(atPath: diskURL.path),
+           let size = attributes[.size] as? NSNumber,
+           size.intValue > maximumCompressedBytes {
+            try? fileManager.removeItem(at: diskURL)
+        } else if let data = try? Data(contentsOf: diskURL),
+                  let decoded = downsample(data) {
+            store(decoded, for: key)
+            return decoded
         }
 
         do {
-            var request = URLRequest(url: url)
-            request.cachePolicy = .returnCacheDataElseLoad
-            request.timeoutInterval = 30
+            var request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 20)
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse,
+            guard !Task.isCancelled,
+                  let http = response as? HTTPURLResponse,
                   (200..<300).contains(http.statusCode),
-                  let image = UIImage(data: data) else { return nil }
+                  data.count <= maximumCompressedBytes,
+                  let decoded = downsample(data) else { return nil }
+
+            // Preserve compressed data on disk, but never hold the full-sized
+            // decoded bitmap in NSCache or SwiftUI views.
             try? data.write(to: diskURL, options: .atomic)
-            memory.setObject(image, forKey: key)
-            return image
+            store(decoded, for: key)
+            return decoded
         } catch {
             return nil
         }
     }
 
+    /// Only a few visible covers should be prefetched. Detail-gallery images
+    /// remain on-demand; prefetching an entire global catalogue caused OOM risk.
     func prefetch(urls: [URL]) async {
-        let unique = Array(Set(urls))
-        for chunkStart in stride(from: 0, to: unique.count, by: 6) {
-            let chunk = Array(unique[chunkStart..<min(chunkStart + 6, unique.count)])
-            await withTaskGroup(of: Void.self) { group in
-                for url in chunk {
-                    group.addTask {
-                        _ = await self.image(for: url)
-                    }
-                }
-            }
+        var seen = Set<URL>()
+        let prioritized = urls.filter { seen.insert($0).inserted }.prefix(12)
+        for url in prioritized {
+            guard !Task.isCancelled else { return }
+            _ = await image(for: url)
         }
+    }
+
+    private func downsample(_ data: Data) -> UIImage? {
+        guard data.count <= maximumCompressedBytes,
+              let source = CGImageSourceCreateWithData(data as CFData,
+                   [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maximumPixelDimension,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return nil
+        }
+        return UIImage(cgImage: image)
+    }
+
+    private func store(_ image: UIImage, for key: NSURL) {
+        let cost = (image.cgImage?.bytesPerRow ?? 0) * (image.cgImage?.height ?? 0)
+        memory.setObject(image, forKey: key, cost: cost)
     }
 
     private func fileURL(for url: URL) -> URL {
@@ -84,9 +115,6 @@ struct HotelCachedImage: View {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: contentMode == .fill ? .fill : .fit)
-                        // A panoramic source image must never define the SwiftUI
-                        // layout width. The parent card owns the viewport; the photo
-                        // is rendered inside that exact viewport and cropped there.
                         .frame(width: proxy.size.width, height: proxy.size.height)
                 } else {
                     Color.iumrahRaisedBackground
@@ -107,10 +135,11 @@ struct HotelCachedImage: View {
                 image = nil
                 return
             }
-            // Never flash the previous cell's photo while a reused SwiftUI view
-            // switches to a different hotel URL. Disk hits still resolve immediately.
             image = nil
-            image = await HotelImageCache.shared.image(for: url)
+            let loaded = await HotelImageCache.shared.image(for: url)
+            guard !Task.isCancelled else { return }
+            image = loaded
         }
+        .onDisappear { image = nil }
     }
 }

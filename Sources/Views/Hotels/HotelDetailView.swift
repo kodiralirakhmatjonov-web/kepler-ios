@@ -37,6 +37,10 @@ struct HotelDetailView: View {
     @State private var selectedPackageVariantIndex = 0
     @State private var selectedPackageVariantScrollID: Int? = 0
     @State private var hasAppliedInitialPackageSelection = false
+    // A drag in the horizontal carousel must never open a package.
+    // This is updated only for actual drags (not for ordinary taps).
+    @State private var lastPackageCarouselDragAt = Date.distantPast
+    @GestureState private var isPackageCarouselDragging = false
 
     private let service = HotelCatalogService()
     private let packageEngine = RemotePackageEngineClient()
@@ -124,7 +128,9 @@ struct HotelDetailView: View {
         }
         .onChange(of: selectedPackageVariantIndex) { oldValue, newValue in
             guard oldValue != newValue, hotelPackagePreviews.indices.contains(newValue) else { return }
-            selectedPackageVariantScrollID = newValue
+            // scrollPosition already tracks the user's swipe. Writing it back
+            // during that swipe can unexpectedly reposition the card under the
+            // finger and turn a scrolling interaction into a button press.
             IumrahHaptics.selection()
         }
         .fullScreenCover(isPresented: $isGalleryPresented) {
@@ -274,7 +280,7 @@ struct HotelDetailView: View {
     private var identitySection: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let stars = hotel.stars {
-                Text(String(repeating: "★", count: stars))
+                Text(String(repeating: "★", count: max(0, min(5, stars))))
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.secondary)
             }
@@ -371,12 +377,15 @@ struct HotelDetailView: View {
                     }
                     .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
                     .scrollPosition(id: $selectedPackageVariantScrollID, anchor: .leading)
+                    .simultaneousGesture(packageCarouselSwipeGesture)
                     .onChange(of: selectedPackageVariantScrollID) { _, newValue in
                         guard let newValue, hotelPackagePreviews.indices.contains(newValue), selectedPackageVariantIndex != newValue else { return }
                         selectedPackageVariantIndex = newValue
                     }
                 }
-                .frame(height: 332)
+                // Date strings can span two lines in RU/UZ, especially on iPhone
+                // mini. 332pt was shorter than the card's actual content height.
+                .frame(height: 402)
 
                 if hotelPackagePreviews.count > 1 {
                     HStack(spacing: 7) {
@@ -392,6 +401,32 @@ struct HotelDetailView: View {
                 }
             }
         }
+    }
+
+    // Observe a swipe without replacing SwiftUI's native ScrollView gesture.
+    // A simultaneous gesture leaves scrolling, view alignment and snapping intact.
+    private var packageCarouselSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 8, coordinateSpace: .local)
+            .updating($isPackageCarouselDragging) { _, isDragging, _ in
+                isDragging = true
+            }
+            .onChanged { value in
+                if abs(value.translation.width) >= 8 || abs(value.translation.height) >= 8 {
+                    lastPackageCarouselDragAt = Date()
+                }
+            }
+            .onEnded { _ in
+                lastPackageCarouselDragAt = Date()
+            }
+    }
+
+    private func openPackageConfiguratorFromExplicitTap(_ preview: StorefrontFlightPackagePreview) {
+        // Defend against touch-up delivered to a Button while the horizontally
+        // snapping scroll view is finishing a drag/deceleration.
+        guard !isPackageCarouselDragging,
+              Date().timeIntervalSince(lastPackageCarouselDragAt) > 0.35 else { return }
+        IumrahHaptics.selection()
+        selectedConfiguratorPreview = preview
     }
 
     private func synchronizeSelectedPackageVariant() {
@@ -449,11 +484,12 @@ struct HotelDetailView: View {
             }
 
             Text(packageVariantDateRange(preview))
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .font(.system(size: 20, weight: .bold, design: .rounded))
                 .tracking(-0.45)
                 .foregroundStyle(accent.text)
                 .lineLimit(2)
-                .minimumScaleFactor(0.78)
+                .minimumScaleFactor(0.72)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack(alignment: .lastTextBaseline, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -493,8 +529,7 @@ struct HotelDetailView: View {
             Spacer(minLength: 0)
 
             Button {
-                IumrahHaptics.selection()
-                selectedConfiguratorPreview = preview
+                openPackageConfiguratorFromExplicitTap(preview)
             } label: {
                 HStack(spacing: 9) {
                     Image(systemName: "slider.horizontal.3")
@@ -1504,6 +1539,8 @@ struct HotelDetailView: View {
         do {
             let loaded = try await service.hotelDetail(id: hotel.id)
             detail = loaded
+            selectedImageIndex = 0  // Response may contain fewer photos than cached metadata.
+            roomImageIndices = [:]
             storefront.ingest(detail: loaded)
         } catch {
             errorMessage = L10n.text("hotels_load_error", settings.language)
