@@ -1,0 +1,21 @@
+IUMRAH HOTELS LIST LAYOUT RESTORATION — V17 (2026-10-08)
+
+Cumulative ZIP: contains all V16 contents plus this targeted layout fix.
+To apply: extract into repository ROOT (preserve source paths), then build iOS.
+
+Changed:
+  Sources/Views/Tabs/HotelsHomeView.swift
+  - Keep original horizontal page padding, section spacing, and hotel card geometry.
+  - Clip scrolled content to the safe-area viewport so section titles do not draw
+    behind the status bar on iOS when the navigation bar is hidden.
+  - Give the hotels list extra scroll clearance above the floating system tab bar.
+  - Keep the compact Finance calculator from V15 unchanged.
+
+Not changed:
+  HotelStorefrontCard (204pt card height, collage geometry, font sizes, corner radii)
+  Package Engine, Aviasales, Ziyarats, prices, DB schema, App Icon, App Store version
+
+Validation:
+  swiftc -frontend -parse of edited Swift source: PASS
+  archive integrity: PASS
+  Xcode build and device layout verification: REQUIRED in GitHub Actions/TestFlight.

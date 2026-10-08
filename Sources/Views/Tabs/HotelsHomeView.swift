@@ -44,11 +44,18 @@ struct HotelsHomeView: View {
                 }
 
             }
+            // Preserve the original storefront spacing and the 204pt hotel cards.
+            // The iOS floating tab bar covers more of the scroll viewport than a
+            // classic bar: reserve scroll clearance without moving any card.
             .padding(.horizontal, IumrahDesign.pagePadding)
             .padding(.top, 10)
-            .padding(.bottom, 42)
+            .padding(.bottom, board == .hotels ? 112 : 42)
         }
         .background(Color.iumrahPageBackground)
+        // With the navigation bar hidden, iOS can render scrolled section titles
+        // behind the system status bar. Clip the scroll content to the safe-area
+        // viewport, keeping all hotel card geometry and original side insets.
+        .clipped()
         .safeAreaInset(edge: .bottom, spacing: 2) {
             if board == .flights {
                 IumrahPackageAssemblyBar(
