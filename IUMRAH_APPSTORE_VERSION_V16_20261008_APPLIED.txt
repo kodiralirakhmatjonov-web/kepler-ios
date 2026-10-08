@@ -1,0 +1,17 @@
+IUMRAH BETА APP STORE CONNECT V16 (2026-10-08)
+CUMULATIVE PATCH: includes V15 and all prior cumulative files.
+
+Incident: Apple upload rejection after a SUCCESSFUL IPA archive/export.
+Apple errors: 90062 and 90186, prerelease train 2.0.6 closed.
+
+Change:
+  project.yml
+    settings.base.MARKETING_VERSION: 2.0.6 -> 2.0.7
+
+Both the app and widgets use $(MARKETING_VERSION) in their Info.plist.
+The TestFlight workflow reads MARKETING_VERSION from project.yml and passes
+it to xcodebuild at archive time. The build number remains automatically
+computed from GitHub run number, with no signing or bundle ID changes.
+
+No database migrations or backend deployment are required for THIS fix.
+Full Xcode build and App Store Connect upload must be confirmed by GitHub.
