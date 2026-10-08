@@ -229,6 +229,8 @@ export async function publicAviasalesData(url: URL, env: Env): Promise<Response>
   const view = (url.searchParams.get("view") ?? "offers").trim().toLowerCase();
   const currency = normalizedCurrency(url.searchParams.get("currency"));
   const direct = boolParam(url.searchParams.get("direct"), false);
+  const fresh = boolParam(url.searchParams.get("fresh"), false);
+  const edgeTTL = fresh ? "no-store" : "public, max-age=300, s-maxage=900";
 
   if (!origin || !destination || !departure) {
     return json({ ok: false, error: "origin, destination and departure are required" }, 400);
@@ -266,7 +268,7 @@ export async function publicAviasalesData(url: URL, env: Env): Promise<Response>
         currency: payload.currency ?? currency,
         query: { origin, destination, departure, return: returnAt, direct },
         days: rows,
-      }, 200, "public, max-age=300, s-maxage=900");
+      }, 200, edgeTTL);
     }
 
     if (view !== "offers" && view !== "direct") {
@@ -291,11 +293,10 @@ export async function publicAviasalesData(url: URL, env: Env): Promise<Response>
       return json({ ok: false, error: payload.error ?? "AVIASALES_DATA_ERROR" }, 502);
     }
 
-    const enriched = returnAt
-      ? await hydrateReturnIdentities(payload.data ?? [], token, payload.currency ?? currency)
-      : (payload.data ?? []);
-
-    const rows = enriched
+    // Cached round-trip rows report a single airline/number and number of stops,
+    // not the individual connected flight segments. Never join an unrelated
+    // reverse one-way ticket by departure time and call it the return carrier.
+    const rows = (payload.data ?? [])
       .map((item, index) => normalizeOffer(item, index))
       .filter((item) => item.price > 0 && item.departureAt.length > 0)
       .sort((a, b) => a.price - b.price);
@@ -308,7 +309,7 @@ export async function publicAviasalesData(url: URL, env: Env): Promise<Response>
       currency: payload.currency ?? currency,
       query: { origin, destination, departure, return: returnAt, direct: view === "direct" || direct },
       offers: rows,
-    }, 200, "public, max-age=300, s-maxage=900");
+    }, 200, edgeTTL);
   } catch (error) {
     return json({
       ok: false,

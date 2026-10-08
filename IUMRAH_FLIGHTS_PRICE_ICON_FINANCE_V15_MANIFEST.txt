@@ -1,0 +1,10 @@
+Cumulative iumrah Beta update V15 (includes V8 / V10 / V11 / V12 / V13 / V14).
+Root ZIP extraction into repository.
+Main AppIcon: supplied logo world map, 1024 iOS marketing and iPhone sizes.
+Finance: cover, hotel class, adults, children, live quote summary, included/price sheet. No informational filler or room count.
+Flights: show outbound/return leg summary, stop counts, a full itinerary deep link when transfer segments are unavailable from Aviasales Data API.
+Price refresh: re-request fare without edge CDN cache, communicate match/no match/error; never swap to unrelated cheaper ticket. Upstream Travelpayouts is an indicative fare cache, NOT live seat or fare confirmation.
+Graph load spinner no longer intercepts taps; flight-card Details is now tappable.
+Backend PackageEngine deployment required to activate no-store refresh and avoid return-carrier misattribution.
+No SQL migrations.
+QA: swiftc -frontend -parse for 3 touched Swift sources; TypeScript typecheck; 116 contract and 24 runtime tests. No full Xcode build possible here.

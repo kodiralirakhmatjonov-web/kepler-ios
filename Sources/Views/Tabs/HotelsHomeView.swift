@@ -816,11 +816,13 @@ private struct IumrahFriendsCalculatorCard: View {
     private var calculationKey: String { "\(stars)|\(adults)|\(children)|\(storefront.flightPackagePreviews.count)|\(storefront.allHotels.count)" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Image("IumrahFriendsHotelsCover")
                 .resizable()
-                .scaledToFit()
+                .scaledToFill()
                 .frame(maxWidth: .infinity)
+                .frame(height: 124)
+                .clipped()
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
@@ -830,28 +832,18 @@ private struct IumrahFriendsCalculatorCard: View {
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.green)
                     Text(titleText)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .tracking(-0.5)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .tracking(-0.3)
                 }
-                Spacer()
-                Image(systemName: "calculator")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.green)
-                    .frame(width: 42, height: 42)
-                    .background(Color.green.opacity(0.1), in: Circle())
+                Spacer(minLength: 0)
             }
-
-            Text(bodyText)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
 
             starPicker
             travelersCard
             resultCard
             includedRow
         }
-        .padding(18)
+        .padding(15)
         .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: IumrahDesign.heroRadius, style: .continuous)
@@ -923,15 +915,7 @@ private struct IumrahFriendsCalculatorCard: View {
             } plus: {
                 if totalTravelers < 16 { children += 1 }
             }
-            Divider().padding(.leading, 4)
-            HStack {
-                Label(roomsTitle, systemImage: "bed.double.fill")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Text("\(rooms)")
-                    .font(.headline.monospacedDigit())
-            }
-            .padding(.vertical, 15)
+
         }
         .padding(.horizontal, 18)
         .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -982,7 +966,7 @@ private struct IumrahFriendsCalculatorCard: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(totalTitle).font(.caption.weight(.bold)).foregroundStyle(.secondary)
                         Text(money(quote.totalPackagePrice))
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .font(.system(size: 33, weight: .bold, design: .rounded))
                             .tracking(-0.8)
                     }
                     Spacer()
@@ -991,23 +975,6 @@ private struct IumrahFriendsCalculatorCard: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if let preview = usedPreview {
-                    Label(durationText(preview.durationDays), systemImage: "airplane")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                if let hotel = usedMakkahHotel {
-                    Label("\(hotel.name) · \(stars)★", systemImage: "building.2.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                if let hotel = usedMadinahHotel {
-                    Label(hotel.name, systemImage: "moon.stars.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
             } else {
                 Text(errorText ?? unavailableText)
                     .font(.subheadline)

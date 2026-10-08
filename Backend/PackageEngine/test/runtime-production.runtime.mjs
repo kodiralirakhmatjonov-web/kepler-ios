@@ -820,7 +820,7 @@ test('Data API never invents a return carrier from an unrelated same-day flight'
   }
 });
 
-test('Data API resolves return carrier only against matching exact return departure', async () => {
+test('Data API does not assign an unverified return carrier even when departure timestamps match', async () => {
   const previousFetch = globalThis.fetch;
   globalThis.fetch = async (request) => {
     const url = new URL(request);
@@ -836,8 +836,8 @@ test('Data API resolves return carrier only against matching exact return depart
     const result = await publicAviasalesData(new URL('https://iumrah.app/api/package/flights/data?origin=TAS&destination=JED&departure=2027-03-03&return=2027-03-10&view=offers'), { TRAVELPAYOUTS_API_TOKEN: 'test' });
     assert.equal(result.status, 200);
     const data = await result.json();
-    assert.equal(data.offers[0].returnAirlineCode, 'HY');
-    assert.equal(data.offers[0].returnFlightNumber, '777');
+    assert.equal(data.offers[0].returnAirlineCode, null);
+    assert.equal(data.offers[0].returnFlightNumber, null);
   } finally {
     globalThis.fetch = previousFetch;
   }
@@ -868,6 +868,23 @@ test('Flight First server checks actual RT fare without requiring reverse one-wa
       resolveAviasalesSelection('aviasales:rt:TAS:JED:2027-03-03:2027-03-10:XY:634:HY:777', env),
       /AVIASALES_RETURN_IDENTITY_UNVERIFIED/,
     );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+
+test('Data API forced fare recheck bypasses its public edge TTL', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ success: true, currency: 'usd', data: [{
+    origin: 'TAS', destination: 'JED', price: 620, airline: 'XY', flight_number: '634',
+    departure_at: '2027-03-03T14:30:00+05:00',
+  }] });
+  try {
+    const response = await publicAviasalesData(new URL('https://iumrah.app/api/package/flights/data?origin=TAS&destination=JED&departure=2027-03-03&view=offers&fresh=1'), { TRAVELPAYOUTS_API_TOKEN: 'test' });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.equal((await response.json()).offers[0].price, 620);
   } finally {
     globalThis.fetch = previousFetch;
   }

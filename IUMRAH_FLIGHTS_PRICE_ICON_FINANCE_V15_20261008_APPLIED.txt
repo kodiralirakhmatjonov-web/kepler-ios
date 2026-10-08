@@ -1,0 +1,4 @@
+iumrah beta V15 - Flight detail, correct cached-fare feedback, app icon, compact finance.
+Files included: Sources/Services/AviasalesFlightDiscoveryService.swift; Sources/Views/Flights/IumrahFlightDiscoveryView.swift; Sources/Views/Tabs/HotelsHomeView.swift; Backend/PackageEngine/src/aviasales-data.ts; Resources/Assets.xcassets/AppIcon.appiconset/*.png.
+Aviasales Data API provides fare + counts of connections, not full flight segment list. UI links to Aviasales for full transfer details and avoids inventing return carrier/flight number. Forced refresh bypasses our edge cache but upstream is still a recently searched fares cache.
+No database migration. Deploy Package Engine backend for fresh=1 edge bypass.

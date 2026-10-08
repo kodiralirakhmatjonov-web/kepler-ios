@@ -1935,16 +1935,24 @@ private struct FlightDiscoveryTicketCard: View {
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 8) {
-                Label(dateText, systemImage: "calendar")
-                Spacer()
-                Text(tr("Подробнее", "Details", "Batafsil", "Батафсил"))
-                    .font(.caption.weight(.bold))
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.bold))
+            Button {
+                IumrahHaptics.selection()
+                onTap()
+            } label: {
+                HStack(spacing: 8) {
+                    Label(dateText, systemImage: "calendar")
+                    Spacer()
+                    Text(tr("Подробнее", "Details", "Batafsil", "Батафсил"))
+                        .font(.caption.weight(.bold))
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.bold))
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(minHeight: 42)
+                .contentShape(Rectangle())
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
         }
         .padding(15)
         .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 23, style: .continuous))
@@ -2867,6 +2875,7 @@ private struct FlightDiscoveryPriceGraphSheet: View {
             .overlay {
                 if isLoading && (selectedGraphLeg == 0 ? outboundDays.isEmpty : inboundDays.isEmpty) {
                     ProgressView()
+                        .allowsHitTesting(false)
                 }
             }
             .background(Color.iumrahPageBackground)
@@ -3031,6 +3040,8 @@ private struct FlightDiscoveryOfferDetailView: View {
     @State private var refreshedOffer: FlightDiscoveryOffer?
     @State private var isRefreshingPrice = false
     @State private var lastPriceRefreshAt: Date?
+    @State private var refreshFeedback: String?
+    @State private var refreshFailed = false
     @State private var cartAnimationVisible = false
     @State private var cartAnimationDropped = false
     @State private var cartConfirmationVisible = false
@@ -3072,6 +3083,10 @@ private struct FlightDiscoveryOfferDetailView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                }
+
+                if activeOffer.transfers > 0 || (hasReturn && (activeOffer.returnTransfers ?? 0) > 0) {
+                    connectingFlightsNote
                 }
 
                 monitoringCard
@@ -3145,6 +3160,7 @@ private struct FlightDiscoveryOfferDetailView: View {
         .task {
             await refreshCurrentFare()
         }
+        .safeAreaPadding(.bottom, 110)
         .overlay {
             GeometryReader { proxy in
                 if cartAnimationVisible {
@@ -3235,9 +3251,17 @@ private struct FlightDiscoveryOfferDetailView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.green)
             } else if isRefreshingPrice {
-                Text(tr("Обновляем актуальную цену…", "Refreshing current fare…", "Joriy narx yangilanmoqda…", "Жорий нарх янгиланмоқда…"))
+                Text(tr("Проверяем последние данные Data API…", "Checking recent Data API fares…", "Data API ma’lumotlari tekshirilmoqda…", "Data API маълумотлари текширилмоқда…"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            if let refreshFeedback {
+                Label(refreshFeedback, systemImage: refreshFailed ? "exclamationmark.circle" : "checkmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(refreshFailed ? Color.orange : Color.green)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Text(passengerPriceCaption)
@@ -3267,7 +3291,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                     .iumrahGlass(in: Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
-                .disabled(isRefreshingPrice)
+                .accessibilityLabel(tr("Повторно проверить цену", "Recheck cached fare", "Narxni qayta tekshirish", "Нархни қайта текшириш"))
             }
 
             HStack(spacing: 10) {
@@ -3311,7 +3335,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                     icon: "airplane.arrival",
                     route: "\(outboundDestination) → \(outboundOrigin)",
                     date: dateOnly(returnAt, airport: outboundDestination),
-                    flight: [returnAirlineName, returnFlightNumberText].filter { !$0.isEmpty }.joined(separator: " · ")
+                    flight: returnLegSummary
                 )
             }
         }
@@ -3368,7 +3392,9 @@ private struct FlightDiscoveryOfferDetailView: View {
             transfers: activeOffer.transfers,
             flightNumber: flightNumberText,
             airlineCode: activeOffer.airlineCode,
-            airlineName: activeOffer.airlineName
+            airlineName: activeOffer.transfers > 0
+                ? tr("Перевозчик первого сегмента: ", "First leg airline: ", "Birinchi qism aviakompaniyasi: ", "Биринчи қисм авиакомпанияси: ") + activeOffer.airlineName
+                : activeOffer.airlineName
         )
     }
 
@@ -3436,6 +3462,20 @@ private struct FlightDiscoveryOfferDetailView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Data API does not provide the intermediate airports, layover
+            // durations or flight numbers. Never portray a connection as one
+            // confirmed direct flight segment.
+            if transfers > 0 {
+                Label(tr(
+                    "Маршрут с пересадками: детали каждого сегмента доступны у продавца.",
+                    "Connecting itinerary: view each segment on the seller's page.",
+                    "Almashishli yo‘nalish: har bir qism tafsilotlari sotuvchida.",
+                    "Алмашишли йўналиш: ҳар бир қисм тафсилотлари сотувчида."
+                ), systemImage: "arrow.triangle.branch")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+            }
             flightTimeline(
                 departureAt: departureAt,
                 duration: duration,
@@ -3482,6 +3522,56 @@ private struct FlightDiscoveryOfferDetailView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var connectingFlightsNote: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            Label(tr(
+                "Пересадки и отдельные перелёты",
+                "Connections and individual flights",
+                "Almashishlar va alohida parvozlar",
+                "Алмашишлар ва алоҳида парвозлар"
+            ), systemImage: "point.topleft.down.curvedto.point.bottomright.up")
+            .font(.headline)
+
+            Text(tr(
+                "Data API передаёт общее время в пути и число пересадок, но не аэропорты пересадок, время ожидания и полный список перевозчиков. Проверьте все сегменты на Aviasales перед оплатой.",
+                "Data API provides total travel time and stop count, but not intermediate airports, layover times or every carrier. Confirm every segment on Aviasales before purchase.",
+                "Data API umumiy vaqt va almashish sonini beradi, lekin to‘xtash aeroportlari va barcha aviakompaniyalarni emas. Xariddan oldin hammasini Aviasales’da tekshiring.",
+                "Data API умумий вақт ва алмашиш сонини беради, лекин тўхташ аэропортлари ва барча авиакомпанияларни эмас. Хариддан олдин Aviasales’да текширинг."
+            ))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                onCheckPrice(activeOffer)
+                IumrahHaptics.soft()
+            } label: {
+                HStack {
+                    Text(tr("Посмотреть все перелёты на Aviasales", "View all flight legs on Aviasales", "Barcha parvozlarni Aviasales’da ko‘rish", "Барча парвозларни Aviasales’да кўриш"))
+                    Spacer(minLength: 2)
+                    Image(systemName: "arrow.up.right")
+                }
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.blue)
+                .padding(.vertical, 9)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(17)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+    }
+
+    private var returnLegSummary: String {
+        let code = activeOffer.returnAirlineCode?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let number = activeOffer.returnFlightNumber?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if code.isEmpty && number.isEmpty {
+            return tr("Обратный маршрут подтверждён по дате · сегменты уточняются", "Return date available · segments unconfirmed", "Qaytish sanasi mavjud · qismlar tasdiqlanmagan", "Қайтиш санаси мавжуд · қисмлар тасдиқланмаган")
+        }
+        return [returnAirlineName, returnFlightNumberText].joined(separator: " · ")
     }
 
     private var monitoringCard: some View {
@@ -3544,11 +3634,18 @@ private struct FlightDiscoveryOfferDetailView: View {
     private func refreshCurrentFare() async {
         guard !isRefreshingPrice else { return }
         isRefreshingPrice = true
+        refreshFailed = false
+        refreshFeedback = nil
         defer { isRefreshingPrice = false }
 
         let baseOffer = activeOffer
         let departure = String(baseOffer.departureAt.prefix(10))
         let returnDay = effectiveReturnAt.map { String($0.prefix(10)) }
+        guard departure.count == 10 else {
+            refreshFailed = true
+            refreshFeedback = tr("Невозможно проверить дату рейса.", "Flight date unavailable.", "Reys sanasini tekshirib bo‘lmadi.", "Рейс санасини текшириб бўлмади.")
+            return
+        }
 
         do {
             let response = try await AviasalesFlightDiscoveryService().offers(
@@ -3558,50 +3655,72 @@ private struct FlightDiscoveryOfferDetailView: View {
                 returnAt: returnDay,
                 direct: baseOffer.isDirect,
                 limit: 100,
-                currency: currency
+                currency: currency,
+                forceRefresh: true
             )
 
-            let routeCandidates = response.offers.filter { candidate in
+            // Never change an existing ticket's price using a different cached
+            // itinerary merely because route and calendar dates are identical.
+            let matches = response.offers.filter { candidate in
                 guard candidate.origin.caseInsensitiveCompare(baseOffer.origin) == .orderedSame,
                       candidate.destination.caseInsensitiveCompare(baseOffer.destination) == .orderedSame,
-                      String(candidate.departureAt.prefix(10)) == departure else {
+                      String(candidate.departureAt.prefix(10)) == departure else { return false }
+
+                if let returnDay {
+                    guard let candidateReturn = candidate.returnAt else { return false }
+                    guard String(candidateReturn.prefix(10)) == returnDay else { return false }
+                } else if candidate.isRoundTrip {
                     return false
                 }
 
-                if let returnDay {
-                    guard let candidateReturn = candidate.returnAt, !candidateReturn.isEmpty else { return false }
-                    return String(candidateReturn.prefix(10)) == returnDay
-                }
-                return true
-            }
-
-            let sameOutbound = routeCandidates.filter { candidate in
-                flightIdentityMatches(
+                guard flightIdentityMatches(
                     candidateCode: candidate.airlineCode,
                     candidateNumber: candidate.flightNumber,
                     expectedCode: baseOffer.airlineCode,
                     expectedNumber: baseOffer.flightNumber
-                )
-            }
+                ) else { return false }
 
-            // Prefer the exact outbound identity. If the provider normalized the
-            // flight number differently on refresh, keep the same route/date and use
-            // the candidate with the best return-leg identity instead of leaving the
-            // stale price on screen.
-            let refreshPool = sameOutbound.isEmpty ? routeCandidates : sameOutbound
-            let current = refreshPool.max { lhs, rhs in
+                if let expectedInstant = isoDate(baseOffer.departureAt),
+                   let candidateInstant = isoDate(candidate.departureAt) {
+                    guard abs(expectedInstant.timeIntervalSince(candidateInstant)) <= 120 else { return false }
+                } else {
+                    guard candidate.departureAt == baseOffer.departureAt else { return false }
+                }
+                return true
+            }
+            let current = matches.max { lhs, rhs in
                 returnIdentityScore(lhs, comparedTo: baseOffer) < returnIdentityScore(rhs, comparedTo: baseOffer)
             }
-
-            guard let current, current.price > 0 else { return }
+            guard let current, current.price > 0 else {
+                refreshFailed = true
+                refreshFeedback = tr(
+                    "Этот же билет не найден в обновлённом кэше. Проверьте наличие и цену на Aviasales.",
+                    "This exact itinerary is not in the refreshed cache. Check fare and availability on Aviasales.",
+                    "Aynan shu chipta yangilangan ma’lumotlarda topilmadi. Narxni Aviasales’da tekshiring.",
+                    "Айнан шу чипта янгиланган маълумотларда топилмади. Нархни Aviasales’да текширинг."
+                )
+                return
+            }
 
             withAnimation(.easeInOut(duration: 0.25)) {
                 refreshedOffer = current
                 livePrice = current.price
                 lastPriceRefreshAt = Date()
+                refreshFeedback = tr(
+                    "Стоимость сверена с последними данными Data API (не онлайн-тариф).",
+                    "Matched recent Data API fare (not a live bookable quote).",
+                    "Narx Data API’ning so‘nggi ma’lumotlari bilan solishtirildi (jonli tarif emas).",
+                    "Нарх Data API’нинг сўнгги маълумотлари билан солиштирилди (жонли тариф эмас)."
+                )
             }
         } catch {
-            // Keep the cached fare visible if the live refresh is temporarily unavailable.
+            refreshFailed = true
+            refreshFeedback = tr(
+                "Не удалось связаться с Data API. Попробуйте снова или проверьте на Aviasales.",
+                "Could not reach Data API. Retry or check on Aviasales.",
+                "Data API bilan bog‘lanib bo‘lmadi. Qayta urining yoki Aviasales’da tekshiring.",
+                "Data API билан боғланиб бўлмади. Қайта урининг ёки Aviasales’да текширинг."
+            )
         }
     }
 
@@ -3755,12 +3874,12 @@ private struct FlightDiscoveryOfferDetailView: View {
         }
         let seconds = max(0, Int(Date().timeIntervalSince(lastPriceRefreshAt)))
         if seconds < 60 {
-            return tr("Цена обновлена только что", "Price updated just now", "Narx hozirgina yangilandi", "Нарх ҳозиргина янгиланди")
+            return tr("Цена обновлена только что · Data API", "Price updated just now · Data API", "Narx hozirgina yangilandi · Data API", "Нарх ҳозиргина янгиланди · Data API")
         }
         let minutes = max(1, seconds / 60)
         return tr(
-            "Цена обновлена \(minutes) мин назад",
-            "Price updated \(minutes)m ago",
+            "Цена обновлена \(minutes) мин назад · Data API",
+            "Price checked \(minutes)m ago · Data API",
             "Narx \(minutes) daqiqa oldin yangilandi",
             "Нарх \(minutes) дақиқа олдин янгиланди"
         )

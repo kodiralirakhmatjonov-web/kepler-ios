@@ -120,7 +120,8 @@ struct AviasalesFlightDiscoveryService {
         returnAt: String? = nil,
         direct: Bool = false,
         limit: Int = 50,
-        currency: String = "usd"
+        currency: String = "usd",
+        forceRefresh: Bool = false
     ) async throws -> (offers: [FlightDiscoveryOffer], currency: String, generatedAt: String?) {
         var query = [
             URLQueryItem(name: "view", value: direct ? "direct" : "offers"),
@@ -132,6 +133,11 @@ struct AviasalesFlightDiscoveryService {
         ]
         if let returnAt, !returnAt.isEmpty {
             query.append(URLQueryItem(name: "return", value: returnAt))
+        }
+        // Bypass our edge cache for a user-initiated price recheck. The upstream
+        // Travelpayouts Data API remains a recently searched fares cache.
+        if forceRefresh {
+            query.append(URLQueryItem(name: "fresh", value: "1"))
         }
 
         let response: FlightDiscoveryOffersEnvelope = try await api.get(
