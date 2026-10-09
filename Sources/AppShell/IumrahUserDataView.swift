@@ -84,7 +84,7 @@ struct IumrahUserDataView: View {
                 VStack(spacing: 1) {
                     Text(tr("Your details", "Ваши данные", "Ma’lumotlaringiz", "Маълумотларингиз"))
                         .font(.headline)
-                    Text("iumrah Security · Profile")
+                    Text("iumrah Security · \(tr("Profile", "Профиль", "Profil", "Профил"))")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
@@ -888,8 +888,10 @@ struct IumrahUserDataView: View {
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
+        case .indonesian: return IndonesianLocalization.phrase(en)
+        case .malay: return MalayLocalization.phrase(en)
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .english: return en
         case .russian: return ru
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl

@@ -69,8 +69,10 @@ struct IumrahInvoiceShareCard: View {
     private var localizedTitle: String {
         switch settings.language {
         case .russian: return "Инвойс бронирования"
+        case .indonesian: return IndonesianLocalization.phrase("Booking invoice")
+        case .malay: return MalayLocalization.phrase("Booking invoice")
         case .turkish: return TurkishLocalization.phrase("Booking invoice")
-        case .indonesian, .english: return "Booking invoice"
+        case .english: return "Booking invoice"
         case .uzbek: return "Bron invoice"
         case .uzbekCyrillic: return "Брон invoice"
         }
@@ -79,8 +81,10 @@ struct IumrahInvoiceShareCard: View {
     private var localizedBody: String {
         switch settings.language {
         case .russian: return "Формируется из сохранённых данных этой поездки и доступен для сохранения в PDF."
+        case .indonesian: return IndonesianLocalization.phrase("Generated from the saved booking snapshot and available to save as a PDF.")
+        case .malay: return MalayLocalization.phrase("Generated from the saved booking snapshot and available to save as a PDF.")
         case .turkish: return TurkishLocalization.phrase("Generated from the saved booking snapshot and available to save as a PDF.")
-        case .indonesian, .english: return "Generated from the saved booking snapshot and available to save as a PDF."
+        case .english: return "Generated from the saved booking snapshot and available to save as a PDF."
         case .uzbek: return "Saqlangan bron ma’lumotlaridan yaratiladi va PDF sifatida saqlanishi mumkin."
         case .uzbekCyrillic: return "Сақланган брон маълумотларидан яратилади ва PDF сифатида сақланиши мумкин."
         }
@@ -89,8 +93,10 @@ struct IumrahInvoiceShareCard: View {
     private var localizedAction: String {
         switch settings.language {
         case .russian: return "Сохранить инвойс PDF"
+        case .indonesian: return IndonesianLocalization.phrase("Save invoice PDF")
+        case .malay: return MalayLocalization.phrase("Save invoice PDF")
         case .turkish: return TurkishLocalization.phrase("Save invoice PDF")
-        case .indonesian, .english: return "Save invoice PDF"
+        case .english: return "Save invoice PDF"
         case .uzbek: return "Invoice PDF saqlash"
         case .uzbekCyrillic: return "Invoice PDF сақлаш"
         }
@@ -99,8 +105,10 @@ struct IumrahInvoiceShareCard: View {
     private var localizedError: String {
         switch settings.language {
         case .russian: return "Не удалось сформировать PDF. Попробуйте ещё раз."
+        case .indonesian: return IndonesianLocalization.phrase("Could not create the PDF. Please try again.")
+        case .malay: return MalayLocalization.phrase("Could not create the PDF. Please try again.")
         case .turkish: return TurkishLocalization.phrase("Could not create the PDF. Please try again.")
-        case .indonesian, .english: return "Could not create the PDF. Please try again."
+        case .english: return "Could not create the PDF. Please try again."
         case .uzbek: return "PDF yaratilmadi. Qayta urinib ko‘ring."
         case .uzbekCyrillic: return "PDF яратилмади. Қайта уриниб кўринг."
         }
@@ -205,8 +213,10 @@ enum IumrahInvoiceRenderer {
     private static func invoiceTitle(_ language: AppSettingsStore.Language) -> String {
         switch language {
         case .russian: return "Инвойс бронирования"
+        case .indonesian: return IndonesianLocalization.phrase("Booking Invoice")
+        case .malay: return MalayLocalization.phrase("Booking Invoice")
         case .turkish: return TurkishLocalization.phrase("Booking Invoice")
-        case .indonesian, .english: return "Booking Invoice"
+        case .english: return "Booking Invoice"
         case .uzbek: return "Bron Invoice"
         case .uzbekCyrillic: return "Брон Invoice"
         }
@@ -248,8 +258,10 @@ enum IumrahInvoiceRenderer {
     private static func label(_ language: AppSettingsStore.Language, _ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch language {
         case .russian: return ru
+        case .indonesian: return IndonesianLocalization.phrase(en)
+        case .malay: return MalayLocalization.phrase(en)
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
         }
@@ -294,7 +306,7 @@ struct IumrahPaidReceiptCard: View {
 
                 Spacer(minLength: 8)
 
-                Text("PAID")
+                Text(localized("ОПЛАЧЕНО", "PAID", "TO‘LANGAN", "ТЎЛАНГАН"))
                     .font(.caption2.monospaced().weight(.black))
                     .tracking(1.1)
                     .foregroundStyle(Color.green)
@@ -492,8 +504,10 @@ struct IumrahPaidReceiptCard: View {
     private func localized(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .indonesian: return IndonesianLocalization.phrase(en)
+        case .malay: return MalayLocalization.phrase(en)
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
         }
@@ -714,8 +728,10 @@ enum IumrahPaidReceiptRenderer {
     private static func label(_ language: AppSettingsStore.Language, _ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch language {
         case .russian: return ru
+        case .indonesian: return IndonesianLocalization.phrase(en)
+        case .malay: return MalayLocalization.phrase(en)
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
         }
