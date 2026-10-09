@@ -19,6 +19,9 @@ struct FlightDiscoveryOffer: Codable, Hashable, Identifiable {
     let durationMinutes: Int
     let returnDurationMinutes: Int?
     let bookingUrl: String?
+    // Future-compatible segment details. Missing fields are never fabricated.
+    var outboundSegments: [FlightDiscoveryVerifiedSegment]? = nil
+    var inboundSegments: [FlightDiscoveryVerifiedSegment]? = nil
 
     var airlineName: String {
         FlightReferenceCatalog.airlineName(code: airlineCode, fallback: airlineCode.isEmpty ? "Airline" : airlineCode)

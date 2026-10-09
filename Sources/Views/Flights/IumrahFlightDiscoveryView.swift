@@ -1124,7 +1124,6 @@ struct IumrahFlightDiscoveryView: View {
         let count = adults + children + infants
         switch settings.language {
         case .russian: return "\(count), эконом"
-        case .turkish: return TurkishLocalization.phrase("\(count), economy")
         case .english: return "\(count), economy"
         case .uzbek: return "\(count), ekonom"
         case .uzbekCyrillic: return "\(count), эконом"
@@ -1179,34 +1178,19 @@ struct IumrahFlightDiscoveryView: View {
     }
 
     private func checkCurrentPrice(for offer: FlightDiscoveryOffer) {
-        // Prefer the Aviasales result path returned by Data API. Aviasales will
-        // reopen the route search and can refresh the fare on its side.
-        if let raw = offer.bookingUrl, let url = URL(string: raw) {
-            openURL(url)
-        } else if let url = aviasalesSearchURL(for: offer) {
-            openURL(url)
-        }
-    }
-
-    private func aviasalesSearchURL(for offer: FlightDiscoveryOffer) -> URL? {
-        guard let departure = isoDate(offer.departureAt) ?? dayDate(String(offer.departureAt.prefix(10))) else {
-            return offer.bookingUrl.flatMap(URL.init(string:))
-        }
-        let outboundToken = compactDayMonth(departure)
-        let passengerToken: String
-        if children == 0 && infants == 0 {
-            passengerToken = String(adults)
-        } else {
-            passengerToken = "\(adults)\(children)\(infants)"
-        }
-
-        var params = "\(offer.origin.uppercased())\(outboundToken)\(offer.destination.uppercased())"
-        if tripType == .roundTrip {
-            let actualReturn = offer.returnAt.flatMap(isoDate) ?? returnDate
-            params += compactDayMonth(actualReturn)
-        }
-        params += passengerToken
-        return URL(string: "https://www.aviasales.com/search/\(params)")
+        // Cached deal-specific ticket links can expire. Always take the user to
+        // a new, editable route search with the correct dates and passenger mix.
+        // Never imply that an individual cached ticket has been reserved.
+        guard let url = AviasalesSearchLinkBuilder.searchURL(
+            origin: offer.origin,
+            destination: offer.destination,
+            departureAt: offer.departureAt,
+            returnAt: offer.isRoundTrip ? offer.returnAt : nil,
+            adults: adults,
+            children: children,
+            infants: infants
+        ) else { return }
+        openURL(url)
     }
 
     private var visibleOfferCount: Int {
@@ -1569,7 +1553,6 @@ struct IumrahFlightDiscoveryView: View {
             case "NMA": return "Наманган"
             default: return reference.city
             }
-        case .turkish: return reference.city
         case .english: return reference.city
         case .uzbek:
             switch code.uppercased() {
@@ -1619,7 +1602,6 @@ struct IumrahFlightDiscoveryView: View {
     private var locale: Locale {
         switch settings.language {
         case .russian: return Locale(identifier: "ru_RU")
-        case .turkish: return Locale(identifier: "tr_TR")
         case .english: return Locale(identifier: "en_US")
         case .uzbek: return Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: return Locale(identifier: "uz_Cyrl_UZ")
@@ -1648,7 +1630,6 @@ struct IumrahFlightDiscoveryView: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
@@ -1815,7 +1796,6 @@ private struct IumrahRecommendedFlightCard: View {
     private var locale: Locale {
         switch language {
         case .russian: return Locale(identifier: "ru_RU")
-        case .turkish: return Locale(identifier: "tr_TR")
         case .english: return Locale(identifier: "en_US")
         case .uzbek: return Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: return Locale(identifier: "uz_Cyrl_UZ")
@@ -1825,7 +1805,6 @@ private struct IumrahRecommendedFlightCard: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -2069,7 +2048,6 @@ private struct FlightDiscoveryTicketCard: View {
         let m = minutes % 60
         switch language {
         case .russian: return m == 0 ? "\(h) ч" : "\(h) ч \(m) мин"
-        case .turkish: return m == 0 ? "\(h)h" : "\(h) sa. \(m) dk."
         case .english: return m == 0 ? "\(h)h" : "\(h)h \(m)m"
         case .uzbek: return m == 0 ? "\(h) soat" : "\(h) soat \(m) daq"
         case .uzbekCyrillic: return m == 0 ? "\(h) соат" : "\(h) соат \(m) дақ"
@@ -2082,7 +2060,6 @@ private struct FlightDiscoveryTicketCard: View {
         }
         switch language {
         case .russian: return transfers == 0 ? "Прямой" : "\(transfers) перес."
-        case .turkish: return transfers == 0 ? "Aktarmasız" : "\(transfers) aktarma"
         case .english: return transfers == 0 ? "Non-stop" : "\(transfers) stop(s)"
         case .uzbek: return transfers == 0 ? "To‘g‘ridan-to‘g‘ri" : "\(transfers) almashish"
         case .uzbekCyrillic: return transfers == 0 ? "Тўғридан-тўғри" : "\(transfers) алмашиш"
@@ -2129,7 +2106,6 @@ private struct FlightDiscoveryTicketCard: View {
     private var locale: Locale {
         switch language {
         case .russian: return Locale(identifier: "ru_RU")
-        case .turkish: return Locale(identifier: "tr_TR")
         case .english: return Locale(identifier: "en_US")
         case .uzbek: return Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: return Locale(identifier: "uz_Cyrl_UZ")
@@ -2147,7 +2123,6 @@ private struct FlightDiscoveryTicketCard: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -2202,10 +2177,10 @@ private struct FlightDiscoveryPassengersSheet: View {
                             .foregroundStyle(.blue)
                     }
                     Text(tr(
-                        "Data API используется для ориентировочной цены. Другие классы и точный тариф выбираются при финальной проверке.",
-                        "Data API is used for indicative pricing. Other cabins and the exact fare are selected during the final check.",
-                        "Data API taxminiy narx uchun ishlatiladi. Boshqa klasslar va aniq tarif yakuniy tekshiruvda tanlanadi.",
-                        "Data API тахминий нарх учун ишлатилади. Бошқа класслар ва аниқ тариф якуний текширувда танланади."
+                        "Показана ранее найденная цена. Класс и точный тариф выбираются при поиске.",
+                        "Prices are indicative. Select cabin and exact fare during the booking search.",
+                        "Narx taxminiy. Klass va aniq tarif qidiruvda tanlanadi.",
+                        "Нарх тахминий. Класс ва аниқ тариф қидирувда танланади."
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -2286,7 +2261,6 @@ private struct FlightDiscoveryPassengersSheet: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -2319,10 +2293,10 @@ private struct FlightDiscoveryFiltersSheet: View {
                     Image(systemName: "suitcase.rolling.fill")
                         .foregroundStyle(.secondary)
                     Text(tr(
-                        "Наличие багажа не входит в надёжные поля Data API, поэтому iumrah не показывает неподтверждённый багаж. Он проверяется на финальном экране продавца.",
-                        "Baggage is not a reliable Data API field, so iumrah does not display unverified baggage. It is checked on the seller's final screen.",
-                        "Bagaj Data API'ning ishonchli maydoni emas, shuning uchun iumrah tasdiqlanmagan bagajni ko‘rsatmaydi. U sotuvchining yakuniy ekranida tekshiriladi.",
-                        "Багаж Data API'нинг ишончли майдони эмас, шунинг учун iumrah тасдиқланмаган багажни кўрсатмайди. У сотувчининг якуний экранида текширилади."
+                        "Условия багажа уточняются у продавца. Мы не показываем неподтверждённые нормы.",
+                        "Baggage allowance is checked with the seller. Unconfirmed baggage is not displayed.",
+                        "Bagaj me’yori sotuvchida tekshiriladi. Tasdiqlanmagan ma’lumot ko‘rsatilmaydi.",
+                        "Багаж меъёри сотувчида текширилади. Тасдиқланмаган маълумот кўрсатилмайди."
                     ))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -2357,7 +2331,6 @@ private struct FlightDiscoveryFiltersSheet: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -2434,7 +2407,6 @@ private struct FlightDiscoveryAirlinesSheet: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -2522,7 +2494,6 @@ private struct FlightDiscoveryFavoritesSheet: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -2659,7 +2630,6 @@ private struct FlightDiscoveryCalendarSheet: View {
     private var locale: Locale {
         switch language {
         case .russian: return Locale(identifier: "ru_RU")
-        case .turkish: return Locale(identifier: "tr_TR")
         case .english: return Locale(identifier: "en_US")
         case .uzbek: return Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: return Locale(identifier: "uz_Cyrl_UZ")
@@ -2669,7 +2639,6 @@ private struct FlightDiscoveryCalendarSheet: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -2760,7 +2729,6 @@ private struct FlightDiscoveryMonthGrid: View {
         let base: [String]
         switch language {
         case .russian: base = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
-        case .turkish: base = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
         case .english: base = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
         case .uzbek: base = ["Ya", "Du", "Se", "Ch", "Pa", "Ju", "Sh"]
         case .uzbekCyrillic: base = ["Як", "Ду", "Се", "Чо", "Па", "Жу", "Ша"]
@@ -2778,7 +2746,6 @@ private struct FlightDiscoveryMonthGrid: View {
     private var locale: Locale {
         switch language {
         case .russian: return Locale(identifier: "ru_RU")
-        case .turkish: return Locale(identifier: "tr_TR")
         case .english: return Locale(identifier: "en_US")
         case .uzbek: return Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: return Locale(identifier: "uz_Cyrl_UZ")
@@ -3044,7 +3011,6 @@ private struct FlightDiscoveryPriceGraphSheet: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -3082,34 +3048,13 @@ private struct FlightDiscoveryOfferDetailView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 18) {
+            VStack(spacing: 16) {
                 priceHero
-                tripSummaryCard
-                fareConditionsCard
                 outboundCard
-
-                if hasReturn {
-                    returnCard
-                    if activeOffer.returnAirlineCode?.isEmpty != false || activeOffer.returnFlightNumber?.isEmpty != false {
-                        Label(tr(
-                            "Data API не подтверждает перевозчика и номер обратного рейса. Уточните их у продавца перед оплатой.",
-                            "Data API does not confirm the return carrier or flight number. Check with the seller before payment.",
-                            "Data API qaytish aviakompaniyasi va reys raqamini tasdiqlamaydi. To‘lovdan oldin sotuvchidan tekshiring.",
-                            "Data API қайтиш авиакомпанияси ва рейс рақамини тасдиқламайди. Тўловдан олдин сотувчидан текширинг."
-                        ), systemImage: "info.circle")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-
-                if activeOffer.transfers > 0 || (hasReturn && (activeOffer.returnTransfers ?? 0) > 0) {
-                    connectingFlightsNote
-                }
-
+                if hasReturn { returnCard }
+                fareConditionsCard
                 monitoringCard
-                warningCard
+                compactFareNotice
 
                 Button {
                     onCheckPrice(activeOffer)
@@ -3120,7 +3065,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                         } else {
                             Image(systemName: "airplane.circle.fill")
                         }
-                        Text(tr("Проверить и купить", "Check fare & buy", "Narxni tekshirish va sotib olish", "Нархни текшириш ва сотиб олиш"))
+                        Text(tr("Найти билеты на Aviasales", "Search on Aviasales", "Aviasales’da qidirish", "Aviasales’да қидириш"))
                         Spacer()
                         Image(systemName: "arrow.up.right")
                     }
@@ -3270,7 +3215,7 @@ private struct FlightDiscoveryOfferDetailView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.green)
             } else if isRefreshingPrice {
-                Text(tr("Проверяем последние данные Data API…", "Checking recent Data API fares…", "Data API ma’lumotlari tekshirilmoqda…", "Data API маълумотлари текширилмоқда…"))
+                Text(tr("Обновляем найденную цену…", "Checking recently found fare…", "Topilgan narx tekshirilmoqda…", "Топилган нарх текширилмоқда…"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -3313,20 +3258,6 @@ private struct FlightDiscoveryOfferDetailView: View {
                 .accessibilityLabel(tr("Повторно проверить цену", "Recheck cached fare", "Narxni qayta tekshirish", "Нархни қайта текшириш"))
             }
 
-            HStack(spacing: 10) {
-                AirlineLogoView(airlineCode: activeOffer.airlineCode, size: 42)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(activeOffer.airlineName)
-                        .font(.headline)
-                    Text(flightNumberText)
-                        .font(.caption.monospaced().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(activeOffer.routeTitle)
-                    .font(.subheadline.monospaced().weight(.bold))
-                    .foregroundStyle(.secondary)
-            }
         }
         .padding(18)
         .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -3388,8 +3319,8 @@ private struct FlightDiscoveryOfferDetailView: View {
             Text(tr("Условия тарифа", "Fare conditions", "Tarif shartlari", "Тариф шартлари"))
                 .font(.title3.bold())
 
-            conditionRow(icon: "bag.fill", tint: .green, title: tr("Ручная кладь и багаж", "Cabin & checked baggage", "Qo‘l yuki va bagaj", "Қўл юки ва багаж"), value: tr("Уточняются при проверке тарифа", "Confirmed during live fare check", "Tarif tekshirilganda aniqlanadi", "Тариф текширилганда аниқланади"))
-            conditionRow(icon: activeOffer.isDirect ? "checkmark.circle.fill" : "arrow.triangle.branch", tint: activeOffer.isDirect ? .green : .orange, title: tr("Маршрут", "Route", "Yo‘nalish", "Йўналиш"), value: directText(transfers: activeOffer.transfers))
+            conditionRow(icon: "bag.fill", tint: .secondary, title: tr("Ручная кладь и багаж", "Cabin & checked baggage", "Qo‘l yuki va bagaj", "Қўл юки ва багаж"), value: tr("Уточняются при проверке тарифа", "Confirmed during live fare check", "Tarif tekshirilganda aniqlanadi", "Тариф текширилганда аниқланади"))
+            conditionRow(icon: activeOffer.isDirect ? "checkmark.circle.fill" : "arrow.triangle.branch", tint: activeOffer.isDirect ? .green : .secondary, title: tr("Маршрут", "Route", "Yo‘nalish", "Йўналиш"), value: directText(transfers: activeOffer.transfers))
             conditionRow(icon: "arrow.uturn.backward.circle", tint: .secondary, title: tr("Обмен и возврат", "Changes & refunds", "Almashtirish va qaytarish", "Алмаштириш ва қайтариш"), value: tr("По правилам тарифа продавца", "According to seller fare rules", "Sotuvchi tarifi qoidalariga ko‘ra", "Сотувчи тарифи қоидаларига кўра"))
 
             if hasReturn {
@@ -3403,7 +3334,7 @@ private struct FlightDiscoveryOfferDetailView: View {
     private var outboundCard: some View {
         flightLegCard(
             title: "\(airportCity(outboundOrigin)) — \(airportCity(outboundDestination))",
-            subtitle: tr("Перелёт туда", "Outbound flight", "Borish reysi", "Бориш рейси"),
+            subtitle: tr("Туда", "Outbound", "Borish", "Бориш"),
             departureAt: activeOffer.departureAt,
             origin: outboundOrigin,
             destination: outboundDestination,
@@ -3411,9 +3342,8 @@ private struct FlightDiscoveryOfferDetailView: View {
             transfers: activeOffer.transfers,
             flightNumber: flightNumberText,
             airlineCode: activeOffer.airlineCode,
-            airlineName: activeOffer.transfers > 0
-                ? tr("Перевозчик первого сегмента: ", "First leg airline: ", "Birinchi qism aviakompaniyasi: ", "Биринчи қисм авиакомпанияси: ") + activeOffer.airlineName
-                : activeOffer.airlineName
+            airlineName: activeOffer.airlineName,
+            verifiedSegments: activeOffer.outboundSegments
         )
     }
 
@@ -3422,7 +3352,7 @@ private struct FlightDiscoveryOfferDetailView: View {
         if let returnAt = effectiveReturnAt {
             flightLegCard(
                 title: "\(airportCity(outboundDestination)) — \(airportCity(outboundOrigin))",
-                subtitle: tr("Обратный перелёт", "Return flight", "Qaytish reysi", "Қайтиш рейси"),
+                subtitle: tr("Обратно", "Return", "Qaytish", "Қайтиш"),
                 departureAt: returnAt,
                 origin: outboundDestination,
                 destination: outboundOrigin,
@@ -3430,10 +3360,9 @@ private struct FlightDiscoveryOfferDetailView: View {
                 transfers: activeOffer.returnTransfers ?? -1,
                 flightNumber: returnFlightNumberText,
                 airlineCode: activeOffer.returnAirlineCode ?? "",
-                airlineName: returnAirlineName
+                airlineName: returnAirlineName,
+                verifiedSegments: activeOffer.inboundSegments
             )
-        } else {
-            EmptyView()
         }
     }
 
@@ -3447,141 +3376,179 @@ private struct FlightDiscoveryOfferDetailView: View {
         transfers: Int,
         flightNumber: String,
         airlineCode: String,
-        airlineName: String
+        airlineName: String,
+        verifiedSegments: [FlightDiscoveryVerifiedSegment]?
     ) -> some View {
-        VStack(alignment: .leading, spacing: 15) {
-            VStack(alignment: .leading, spacing: 3) {
+        let legs = FlightDiscoveryItineraryValidator.verified(verifiedSegments, origin: origin, destination: destination, transfers: transfers)
+        return VStack(alignment: .leading, spacing: 17) {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(subtitle.uppercased())
+                        .font(.caption.weight(.bold))
+                        .tracking(0.7)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(directText(transfers: transfers))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
                 Text(title)
-                    .font(.title3.bold())
-                Text("\(durationText(duration)) · \(directText(transfers: transfers))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 23, weight: .bold, design: .rounded))
+                    .fixedSize(horizontal: false, vertical: true)
+                if duration > 0 {
+                    Label(durationText(duration), systemImage: "clock")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
 
-            HStack(spacing: 12) {
-                if !airlineCode.isEmpty {
-                    AirlineLogoView(airlineCode: airlineCode, size: 44)
-                } else {
-                    Image(systemName: "airplane")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.blue)
-                        .frame(width: 44, height: 44)
-                        .background(Color.blue.opacity(0.1), in: Circle())
+            Divider()
+
+            if let legs {
+                ForEach(Array(legs.enumerated()), id: \.offset) { index, leg in
+                    verifiedFlightRow(leg, index: index + 1)
+                    if index + 1 < legs.count {
+                        let next = legs[index + 1]
+                        connectionRow(from: leg, to: next)
+                    }
                 }
+            } else {
+                summaryAirlineRow(code: airlineCode, name: airlineName, flight: flightNumber, transfers: transfers)
+                summaryRouteTimeline(departureAt: departureAt, origin: origin, destination: destination, duration: duration)
+                if transfers != 0 {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(.secondary)
+                        Text(tr(
+                            "Аэропорты пересадок, ожидание и следующие рейсы будут показаны при поиске у продавца.",
+                            "Connection airports, layover times and additional flights are available during the seller's search.",
+                            "Almashish aeroportlari, kutish va keyingi reyslar sotuvchida qidirishda ko‘rsatiladi.",
+                            "Алмашиш аэропортлари, кутиш ва кейинги рейслар сотувчида қидиришда кўрсатилади."
+                        ))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
+                }
+            }
+        }
+        .padding(19)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+    }
+
+    private func summaryAirlineRow(code: String, name: String, flight: String, transfers: Int) -> some View {
+        HStack(spacing: 12) {
+            if !code.isEmpty { AirlineLogoView(airlineCode: code, size: 37) }
+            else { Image(systemName: "airplane").foregroundStyle(.secondary).frame(width: 37, height: 37) }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(transfers > 0
+                     ? tr("Первый известный рейс · \(flight)", "First known flight · \(flight)", "Birinchi ma’lum reys · \(flight)", "Биринчи маълум рейс · \(flight)")
+                     : flight)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func summaryRouteTimeline(departureAt: String, origin: String, destination: String, duration: Int) -> some View {
+        VStack(spacing: 11) {
+            timelineRow(time: localTime(departureAt, airport: origin),
+                        date: dateOnly(departureAt, airport: origin),
+                        city: airportCity(origin), code: origin)
+            HStack {
+                Image(systemName: "arrow.down")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Rectangle().fill(Color.secondary.opacity(0.12)).frame(height: 1)
+            }
+            timelineRow(time: arrivalTime(departureAt: departureAt, duration: duration, airport: destination),
+                        date: arrivalDate(departureAt: departureAt, duration: duration, airport: destination),
+                        city: airportCity(destination), code: destination)
+            if duration > 0 {
+                Text(tr("Прибытие рассчитано по общей длительности маршрута",
+                        "Arrival estimated from the total journey duration",
+                        "Yetib kelish umumiy safar davomiyligidan hisoblangan",
+                        "Етиб келиш умумий сафар давомийлигидан ҳисобланган"))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func verifiedFlightRow(_ leg: FlightDiscoveryVerifiedSegment, index: Int) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                AirlineLogoView(airlineCode: leg.airlineCode, size: 35)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(airlineName)
-                        .font(.headline)
-                    Text(flightNumber)
+                    Text(FlightReferenceCatalog.airlineName(code: leg.airlineCode, fallback: leg.airlineCode))
+                        .font(.subheadline.weight(.semibold))
+                    Text(tr("Рейс \(index)", "Flight \(index)", "\(index)-reys", "\(index)-рейс") + " · " + [leg.airlineCode, leg.flightNumber].filter { !$0.isEmpty }.joined(separator: " "))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Text(subtitle)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
             }
-
-            // Data API does not provide the intermediate airports, layover
-            // durations or flight numbers. Never portray a connection as one
-            // confirmed direct flight segment.
-            if transfers > 0 {
-                Label(tr(
-                    "Маршрут с пересадками: детали каждого сегмента доступны у продавца.",
-                    "Connecting itinerary: view each segment on the seller's page.",
-                    "Almashishli yo‘nalish: har bir qism tafsilotlari sotuvchida.",
-                    "Алмашишли йўналиш: ҳар бир қисм тафсилотлари сотувчида."
-                ), systemImage: "arrow.triangle.branch")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.orange)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            flightTimeline(
-                departureAt: departureAt,
-                duration: duration,
-                origin: origin,
-                destination: destination
-            )
+            timelineRow(time: localTime(leg.departureAt, airport: leg.originAirport),
+                        date: dateOnly(leg.departureAt, airport: leg.originAirport),
+                        city: airportCity(leg.originAirport), code: leg.originAirport)
+            timelineRow(time: localTime(leg.arrivalAt, airport: leg.destinationAirport),
+                        date: dateOnly(leg.arrivalAt, airport: leg.destinationAirport),
+                        city: airportCity(leg.destinationAirport), code: leg.destinationAirport)
         }
-        .padding(18)
-        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
-    private func flightTimeline(departureAt: String, duration: Int, origin: String, destination: String) -> some View {
-        HStack(alignment: .top, spacing: 13) {
-            VStack(spacing: 0) {
-                Circle().strokeBorder(Color.secondary, lineWidth: 3).frame(width: 13, height: 13)
-                Rectangle().fill(Color.secondary.opacity(0.45)).frame(width: 2, height: 62)
-                Circle().strokeBorder(Color.secondary, lineWidth: 3).frame(width: 13, height: 13)
-            }
-            .padding(.top, 5)
-
-            VStack(alignment: .leading, spacing: 24) {
-                timelineRow(time: localTime(departureAt, airport: origin), date: dateOnly(departureAt, airport: origin), city: airportCity(origin), code: origin)
-                timelineRow(time: arrivalTime(departureAt: departureAt, duration: duration, airport: destination), date: arrivalDate(departureAt: departureAt, duration: duration, airport: destination), city: airportCity(destination), code: destination)
-            }
+    private func connectionRow(from leg: FlightDiscoveryVerifiedSegment, to next: FlightDiscoveryVerifiedSegment) -> some View {
+        let airport = leg.destinationAirport
+        let interval = FlightDiscoveryItineraryValidator.connectionMinutes(from: leg, to: next) ?? 0
+        return HStack(spacing: 9) {
+            Image(systemName: "clock.arrow.circlepath")
+                .foregroundStyle(.blue)
+            Text(tr("Пересадка", "Layover", "Almashish", "Алмашиш") + " · " + airportCity(airport) + " (" + airport + ")")
+                .font(.subheadline.weight(.medium))
+            Spacer(minLength: 6)
+            Text(durationText(interval)).font(.subheadline.weight(.semibold)).monospacedDigit()
         }
+        .padding(12)
+        .background(Color.blue.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
     }
 
     private func timelineRow(time: String, date: String, city: String, code: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(time)
-                    .font(.title3.bold())
-                Text(date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(time).font(.title3.bold()).monospacedDigit()
+                Text(date).font(.caption).foregroundStyle(.secondary)
             }
-            .frame(width: 82, alignment: .leading)
-
+            .frame(width: 86, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
-                Text(city)
-                    .font(.headline)
-                Text(code)
-                    .font(.caption.monospaced().weight(.semibold))
-                    .foregroundStyle(.secondary)
+                Text(city).font(.headline)
+                Text(code).font(.caption.monospaced().weight(.semibold)).foregroundStyle(.secondary)
             }
+            Spacer(minLength: 0)
         }
     }
 
-    private var connectingFlightsNote: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            Label(tr(
-                "Пересадки и отдельные перелёты",
-                "Connections and individual flights",
-                "Almashishlar va alohida parvozlar",
-                "Алмашишлар ва алоҳида парвозлар"
-            ), systemImage: "point.topleft.down.curvedto.point.bottomright.up")
-            .font(.headline)
-
+    private var compactFareNotice: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "info.circle").foregroundStyle(.secondary)
             Text(tr(
-                "Data API передаёт общее время в пути и число пересадок, но не аэропорты пересадок, время ожидания и полный список перевозчиков. Проверьте все сегменты на Aviasales перед оплатой.",
-                "Data API provides total travel time and stop count, but not intermediate airports, layover times or every carrier. Confirm every segment on Aviasales before purchase.",
-                "Data API umumiy vaqt va almashish sonini beradi, lekin to‘xtash aeroportlari va barcha aviakompaniyalarni emas. Xariddan oldin hammasini Aviasales’da tekshiring.",
-                "Data API умумий вақт ва алмашиш сонини беради, лекин тўхташ аэропортлари ва барча авиакомпанияларни эмас. Хариддан олдин Aviasales’да текширинг."
+                "Цена найдена ранее. На Aviasales откроется новый поиск: проверьте маршрут, багаж и цену перед оплатой.",
+                "This fare was found earlier. Aviasales will open a new search; confirm flights, baggage and price before payment.",
+                "Narx oldin topilgan. Aviasales’da yangi qidiruv ochiladi. To‘lovdan oldin reys, bagaj va narxni tekshiring.",
+                "Нарх олдин топилган. Aviasales’да янги қидирув очилади. Тўловдан олдин рейс, багаж ва нархни текширинг."
             ))
-            .font(.caption)
+            .font(.footnote)
             .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-
-            Button {
-                onCheckPrice(activeOffer)
-                IumrahHaptics.soft()
-            } label: {
-                HStack {
-                    Text(tr("Посмотреть все перелёты на Aviasales", "View all flight legs on Aviasales", "Barcha parvozlarni Aviasales’da ko‘rish", "Барча парвозларни Aviasales’да кўриш"))
-                    Spacer(minLength: 2)
-                    Image(systemName: "arrow.up.right")
-                }
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(.blue)
-                .padding(.vertical, 9)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
         }
-        .padding(17)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .padding(.horizontal, 4)
     }
 
     private var returnLegSummary: String {
@@ -3726,19 +3693,19 @@ private struct FlightDiscoveryOfferDetailView: View {
                 livePrice = current.price
                 lastPriceRefreshAt = Date()
                 refreshFeedback = tr(
-                    "Стоимость сверена с последними данными Data API (не онлайн-тариф).",
-                    "Matched recent Data API fare (not a live bookable quote).",
-                    "Narx Data API’ning so‘nggi ma’lumotlari bilan solishtirildi (jonli tarif emas).",
-                    "Нарх Data API’нинг сўнгги маълумотлари билан солиштирилди (жонли тариф эмас)."
+                    "Цена сверена с последними найденными предложениями. Наличие уточняется перед покупкой.",
+                    "Matched recently found fares; availability is checked before purchase.",
+                    "Narx so‘nggi topilgan takliflar bilan solishtirildi. Mavjudlik xarid oldidan tekshiriladi.",
+                    "Нарх сўнгги топилган таклифлар билан солиштирилди. Мавжудлик харид олдидан текширилади."
                 )
             }
         } catch {
             refreshFailed = true
             refreshFeedback = tr(
-                "Не удалось связаться с Data API. Попробуйте снова или проверьте на Aviasales.",
-                "Could not reach Data API. Retry or check on Aviasales.",
-                "Data API bilan bog‘lanib bo‘lmadi. Qayta urining yoki Aviasales’da tekshiring.",
-                "Data API билан боғланиб бўлмади. Қайта урининг ёки Aviasales’да текширинг."
+                "Не удалось обновить цену. Попробуйте снова или проверьте на Aviasales.",
+                "Could not refresh this fare. Retry or check on Aviasales.",
+                "Narxni yangilab bo‘lmadi. Qayta urining yoki Aviasales’da tekshiring.",
+                "Нархни янгилаб бўлмади. Қайта урининг ёки Aviasales’да текширинг."
             )
         }
     }
@@ -3893,12 +3860,12 @@ private struct FlightDiscoveryOfferDetailView: View {
         }
         let seconds = max(0, Int(Date().timeIntervalSince(lastPriceRefreshAt)))
         if seconds < 60 {
-            return tr("Цена обновлена только что · Data API", "Price updated just now · Data API", "Narx hozirgina yangilandi · Data API", "Нарх ҳозиргина янгиланди · Data API")
+            return tr("Цена обновлена только что · по найденным предложениям", "Found fare checked just now", "Topilgan narx hozir tekshirildi", "Топилган нарх ҳозир текширилди")
         }
         let minutes = max(1, seconds / 60)
         return tr(
-            "Цена обновлена \(minutes) мин назад · Data API",
-            "Price checked \(minutes)m ago · Data API",
+            "Цена проверена \(minutes) мин назад",
+            "Fare checked \(minutes)m ago",
             "Narx \(minutes) daqiqa oldin yangilandi",
             "Нарх \(minutes) дақиқа олдин янгиланди"
         )
@@ -3911,7 +3878,7 @@ private struct FlightDiscoveryOfferDetailView: View {
 
     private var returnAirlineName: String {
         guard let code = activeOffer.returnAirlineCode?.trimmingCharacters(in: .whitespacesAndNewlines), !code.isEmpty else {
-            return tr("Не указан в Data API", "Not provided by Data API", "Data API’da ko‘rsatilmagan", "Data API’да кўрсатилмаган")
+            return tr("Перевозчик уточняется", "Airline not confirmed", "Aviakompaniya aniqlanmoqda", "Авиакомпания аниқланмоқда")
         }
         return FlightReferenceCatalog.airlineName(code: code, fallback: code)
     }
@@ -3942,7 +3909,6 @@ private struct FlightDiscoveryOfferDetailView: View {
         }
         switch language {
         case .russian: return transfers == 0 ? "Прямой рейс" : "\(transfers) пересадка"
-        case .turkish: return transfers == 0 ? "Aktarmasız" : "\(transfers) aktarma"
         case .english: return transfers == 0 ? "Non-stop" : "\(transfers) stop(s)"
         case .uzbek: return transfers == 0 ? "To‘g‘ridan-to‘g‘ri" : "\(transfers) almashish"
         case .uzbekCyrillic: return transfers == 0 ? "Тўғридан-тўғри" : "\(transfers) алмашиш"
@@ -3955,45 +3921,64 @@ private struct FlightDiscoveryOfferDetailView: View {
         let m = minutes % 60
         switch language {
         case .russian: return m == 0 ? "\(h) ч" : "\(h) ч \(m) мин"
-        case .turkish: return m == 0 ? "\(h)h" : "\(h) sa. \(m) dk."
         case .english: return m == 0 ? "\(h)h" : "\(h)h \(m)m"
         case .uzbek: return m == 0 ? "\(h) soat" : "\(h) soat \(m) daq"
         case .uzbekCyrillic: return m == 0 ? "\(h) соат" : "\(h) соат \(m) дақ"
         }
     }
 
+    // Use a known airport timezone first. For less common airports, fall back
+    // to the explicit UTC offset carried by the provider's timestamp; never
+    // silently display the device's timezone as an airport local time.
+    private func airportTimeZone(_ airport: String, timestamp: String) -> TimeZone? {
+        if let zone = FlightReferenceCatalog.timeZone(for: airport) { return zone }
+        if timestamp.hasSuffix("Z") { return TimeZone(secondsFromGMT: 0) }
+        let raw = String(timestamp.suffix(6))
+        guard raw.count == 6, raw[raw.index(raw.startIndex, offsetBy: 3)] == ":",
+              let sign = raw.first, sign == "+" || sign == "-",
+              let hours = Int(raw.dropFirst().prefix(2)),
+              let minutes = Int(raw.suffix(2)),
+              hours <= 14, minutes < 60 else { return nil }
+        let seconds = (hours * 60 + minutes) * 60 * (sign == "-" ? -1 : 1)
+        return TimeZone(secondsFromGMT: seconds)
+    }
+
     private func localTime(_ value: String, airport: String) -> String {
-        guard let date = isoDate(value) else { return String(value.suffix(5)) }
+        guard let date = isoDate(value), let zone = airportTimeZone(airport, timestamp: value) else { return "—" }
         let formatter = DateFormatter()
         formatter.locale = locale
-        formatter.timeZone = FlightReferenceCatalog.timeZone(for: airport) ?? .current
+        formatter.timeZone = zone
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }
 
     private func dateOnly(_ value: String, airport: String) -> String {
-        guard let date = isoDate(value) else { return String(value.prefix(10)) }
+        guard let date = isoDate(value), let zone = airportTimeZone(airport, timestamp: value) else {
+            return String(value.prefix(10))
+        }
         let formatter = DateFormatter()
         formatter.locale = locale
-        formatter.timeZone = FlightReferenceCatalog.timeZone(for: airport) ?? .current
+        formatter.timeZone = zone
         formatter.setLocalizedDateFormatFromTemplate("dMMM EEE")
         return formatter.string(from: date)
     }
 
     private func arrivalTime(departureAt: String, duration: Int, airport: String) -> String {
-        guard duration > 0, let departure = isoDate(departureAt) else { return "—" }
+        guard duration > 0, let departure = isoDate(departureAt),
+              let zone = FlightReferenceCatalog.timeZone(for: airport) else { return "—" }
         let formatter = DateFormatter()
         formatter.locale = locale
-        formatter.timeZone = FlightReferenceCatalog.timeZone(for: airport) ?? .current
+        formatter.timeZone = zone
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: departure.addingTimeInterval(TimeInterval(duration * 60)))
     }
 
     private func arrivalDate(departureAt: String, duration: Int, airport: String) -> String {
-        guard duration > 0, let departure = isoDate(departureAt) else { return "—" }
+        guard duration > 0, let departure = isoDate(departureAt),
+              let zone = FlightReferenceCatalog.timeZone(for: airport) else { return "—" }
         let formatter = DateFormatter()
         formatter.locale = locale
-        formatter.timeZone = FlightReferenceCatalog.timeZone(for: airport) ?? .current
+        formatter.timeZone = zone
         formatter.setLocalizedDateFormatFromTemplate("dMMM EEE")
         return formatter.string(from: departure.addingTimeInterval(TimeInterval(duration * 60)))
     }
@@ -4011,7 +3996,6 @@ private struct FlightDiscoveryOfferDetailView: View {
     private var locale: Locale {
         switch language {
         case .russian: return Locale(identifier: "ru_RU")
-        case .turkish: return Locale(identifier: "tr_TR")
         case .english: return Locale(identifier: "en_US")
         case .uzbek: return Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: return Locale(identifier: "uz_Cyrl_UZ")
@@ -4029,7 +4013,6 @@ private struct FlightDiscoveryOfferDetailView: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
-        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
