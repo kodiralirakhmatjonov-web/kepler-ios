@@ -76,15 +76,6 @@ struct BookingFlightFirstComponentsView: View {
                 )
             }
         }
-        .task(id: session.id) {
-            guard session.ziyaratMakkahEnabled || session.ziyaratMadinahEnabled else { return }
-            if session.ziyaratMakkahEnabled {
-                await ZiyaratImagePrefetcher.shared.prefetch(city: "Makkah")
-            }
-            if session.ziyaratMadinahEnabled {
-                await ZiyaratImagePrefetcher.shared.prefetch(city: "Madinah")
-            }
-        }
     }
 
     private var includedServicesCard: some View {
