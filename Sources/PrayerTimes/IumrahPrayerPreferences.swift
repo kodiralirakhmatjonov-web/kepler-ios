@@ -7,6 +7,9 @@ struct IumrahPrayerNotificationPreference: Codable, Equatable {
     var enabled = false
     var offsetMinutes = 0
     var sound = true
+    // Optional for backward-compatible decoding of preferences saved before
+    // early reminders were introduced.
+    var earlyReminderMinutes: Int? = nil
 }
 
 @MainActor
@@ -175,6 +178,25 @@ enum IumrahPrayerNotifications {
                 let request = UNNotificationRequest(identifier: id, content: content,
                     trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
                 if (try? await center.add(request)) != nil { requestsAdded += 1 }
+                if let lead = preference.earlyReminderMinutes,
+                   [5, 10, 15, 30].contains(lead), requestsAdded < 56 {
+                    let earlyFire = entry.date.addingTimeInterval(-Double(lead * 60))
+                    if earlyFire > now.addingTimeInterval(10) {
+                        var earlyComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: earlyFire)
+                        earlyComponents.timeZone = place.timeZone
+                        let earlyContent = UNMutableNotificationContent()
+                        earlyContent.title = entry.kind.title
+                        earlyContent.body = "Prayer begins in \(lead) minutes · \(place.name)"
+                        earlyContent.sound = preference.sound ? .default : nil
+                        earlyContent.userInfo = ["iumrahCategory": "prayerTimes", "kind": entry.kind.rawValue, "earlyReminder": true]
+                        let earlyRequest = UNNotificationRequest(
+                            identifier: prefix + String(Int(earlyFire.timeIntervalSince1970)) + ".early." + entry.kind.rawValue,
+                            content: earlyContent,
+                            trigger: UNCalendarNotificationTrigger(dateMatching: earlyComponents, repeats: false)
+                        )
+                        if (try? await center.add(earlyRequest)) != nil { requestsAdded += 1 }
+                    }
+                }
             }
         }
         return true
