@@ -106,7 +106,7 @@ struct BookingCheckoutView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     HStack(spacing: 8) {
-                        Text("Бронь \(createdSession.displayBookingNumber)")
+                        Text(L10n.format("booking_number_short", settings.language, createdSession.displayBookingNumber))
                         if let pilgrimID = createdSession.displayPilgrimID {
                             Text("· iumrah ID \(pilgrimID)")
                         }

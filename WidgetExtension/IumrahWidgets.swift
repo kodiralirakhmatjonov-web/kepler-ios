@@ -47,8 +47,8 @@ private struct IumrahActiveTripWidget: Widget {
             IumrahActiveTripWidgetView(entry: entry)
                 .containerBackground(for: .widget) { Color.black }
         }
-        .configurationDisplayName("iumrah — поездка")
-        .description("Маршрут, даты и статус активной Umrah.")
+        .configurationDisplayName(IumrahWidgetL10n.activeTripWidgetName)
+        .description(IumrahWidgetL10n.activeTripWidgetDescription)
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
         .contentMarginsDisabled()
     }
@@ -62,8 +62,8 @@ private struct IumrahBookingStatusWidget: Widget {
             IumrahBookingStatusWidgetView(entry: entry)
                 .containerBackground(for: .widget) { IumrahWidgetPalette.surface }
         }
-        .configurationDisplayName("iumrah — статус")
-        .description("Текущий этап бронирования и следующий шаг.")
+        .configurationDisplayName(IumrahWidgetL10n.bookingWidgetName)
+        .description(IumrahWidgetL10n.bookingWidgetDescription)
         .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()
     }
@@ -77,8 +77,8 @@ private struct IumrahPlannedUmrahWidget: Widget {
             IumrahPlannedUmrahWidgetView(entry: entry)
                 .containerBackground(for: .widget) { Color.black }
         }
-        .configurationDisplayName("Следующая Umrah")
-        .description("Обратный отсчёт до запланированной поездки.")
+        .configurationDisplayName(IumrahWidgetL10n.plannedWidgetName)
+        .description(IumrahWidgetL10n.plannedWidgetDescription)
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
         .contentMarginsDisabled()
     }
@@ -93,7 +93,7 @@ private struct IumrahIdentityWidget: Widget {
                 .containerBackground(for: .widget) { Color.black }
         }
         .configurationDisplayName("iumrah ID")
-        .description("Быстрый доступ к вашему iumrah ID и QR.")
+        .description(IumrahWidgetL10n.identityWidgetDescription)
         .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()
     }
@@ -107,8 +107,8 @@ private struct IumrahCountdownWidget: Widget {
             IumrahCountdownWidgetView(entry: entry)
                 .containerBackground(for: .widget) { Color.clear }
         }
-        .configurationDisplayName("До Umrah")
-        .description("Компактный обратный отсчёт для экрана блокировки.")
+        .configurationDisplayName(IumrahWidgetL10n.countdownWidgetName)
+        .description(IumrahWidgetL10n.countdownWidgetDescription)
         .supportedFamilies([.accessoryInline, .accessoryCircular, .accessoryRectangular])
     }
 }
@@ -193,7 +193,7 @@ private struct IumrahActiveTripWidgetView: View {
                     .foregroundStyle(.white.opacity(0.68))
                 Spacer(minLength: 8)
                 if let start = booking.startDate {
-                    Label(start.formatted(.dateTime.day().month(.abbreviated)), systemImage: "calendar")
+                    Label(IumrahWidgetL10n.date(start), systemImage: "calendar")
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(.white.opacity(0.9))
                 }
@@ -235,7 +235,7 @@ private struct IumrahActiveTripWidgetView: View {
                 premiumFact(icon: "suitcase.fill", title: IumrahWidgetL10n.booking, value: booking.displayNumber)
                 premiumFact(icon: "person.2.fill", title: IumrahWidgetL10n.travelers, value: "\(booking.travelerCount)")
                 if let start = booking.startDate {
-                    premiumFact(icon: "calendar", title: IumrahWidgetL10n.departure, value: start.formatted(.dateTime.day().month(.abbreviated)))
+                    premiumFact(icon: "calendar", title: IumrahWidgetL10n.departure, value: IumrahWidgetL10n.date(start))
                 }
             }
         }
@@ -405,7 +405,7 @@ private struct IumrahPlannedUmrahWidgetView: View {
 
             Spacer(minLength: 7)
 
-            Text(trip.startDate, format: .dateTime.day().month(.wide))
+            Text(IumrahWidgetL10n.date(trip.startDate, abbreviated: false))
                 .font(.caption.weight(.bold))
                 .lineLimit(1)
         }
@@ -423,7 +423,7 @@ private struct IumrahPlannedUmrahWidgetView: View {
                 Text(trip.title)
                     .font(.system(size: 21, weight: .bold, design: .rounded))
                     .lineLimit(2)
-                Label(trip.startDate.formatted(.dateTime.day().month(.wide)), systemImage: "calendar")
+                Label(IumrahWidgetL10n.date(trip.startDate, abbreviated: false), systemImage: "calendar")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.white.opacity(0.86))
             }
@@ -478,7 +478,7 @@ private struct IumrahPlannedUmrahWidgetView: View {
     }
 
     private func dateChip(icon: String, date: Date) -> some View {
-        Label(date.formatted(.dateTime.day().month(.abbreviated)), systemImage: icon)
+        Label(IumrahWidgetL10n.date(date), systemImage: icon)
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -863,65 +863,96 @@ private enum IumrahWidgetPalette {
 // MARK: - Localisation
 
 private enum IumrahWidgetL10n {
-    private enum Language { case ru, en, uz, uzCyrl }
+    private enum Language { case ru, en, uz, uzCyrl, tr, id }
 
     private static var language: Language {
-        let id = Locale.current.identifier.lowercased()
-        if id.contains("uz") && id.contains("cyrl") { return .uzCyrl }
-        if id.hasPrefix("uz") { return .uz }
-        if id.hasPrefix("ru") { return .ru }
+        // The selected language is shared by the main app in the widget snapshot.
+        // Existing pre-update snapshots fall back to the device locale.
+        let code = (IumrahWidgetSharedStore.load().languageCode ?? Locale.current.identifier)
+            .lowercased().replacingOccurrences(of: "_", with: "-")
+        if code.hasPrefix("uz-cyrl") { return .uzCyrl }
+        if code.hasPrefix("uz") { return .uz }
+        if code.hasPrefix("ru") { return .ru }
+        if code.hasPrefix("tr") { return .tr }
+        if code.hasPrefix("id") { return .id }
         return .en
     }
 
-    static var days: String { pick("дней", "days", "kun", "кун") }
-    static var shortDays: String { pick("дн", "d", "kun", "кун") }
-    static var daysUntilTrip: String { pick("до поездки", "until trip", "safargacha", "сафаргача") }
-    static var daysUntilUmrah: String { pick("дней до Umrah", "days until Umrah", "kun Umragacha", "кун Умрагача") }
-    static var activeUmrah: String { pick("Ваша Umrah", "Your Umrah", "Sizning Umrangiz", "Сизнинг Умрангиз") }
-    static var nextUmrah: String { pick("следующая Umrah", "next Umrah", "keyingi Umra", "кейинги Умра") }
-    static var booking: String { pick("Бронь", "Booking", "Bron", "Брон") }
-    static var travelers: String { pick("Паломники", "Travelers", "Ziyoratchilar", "Зиёратчилар") }
-    static var departure: String { pick("Вылет", "Departure", "Uchish", "Учиш") }
-    static var noActiveTrip: String { pick("Нет активной поездки", "No active trip", "Faol safar yo‘q", "Фаол сафар йўқ") }
-    static var noBooking: String { pick("Нет активной брони", "No active booking", "Faol bron yo‘q", "Фаол брон йўқ") }
-    static var openIumrah: String { pick("Откройте iumrah, чтобы начать", "Open iumrah to start", "Boshlash uchun iumrah’ni oching", "Бошлаш учун iumrah’ни очинг") }
-    static var planUmrah: String { pick("Запланировать Umrah", "Plan your Umrah", "Umrani rejalashtirish", "Умрани режалаштириш") }
-    static var planUmrahSubtitle: String { pick("Выберите даты и включите напоминания", "Choose dates and reminders", "Sanalar va eslatmalarni tanlang", "Саналар ва эслатмаларни танланг") }
-    static var signIn: String { pick("Войдите в аккаунт iumrah", "Sign in to iumrah", "iumrah akkauntiga kiring", "iumrah аккаунтига киринг") }
-    static var scanToOpen: String { pick("Сканируйте, чтобы открыть ID", "Scan to open ID", "ID ochish uchun skanerlang", "ID очиш учун сканерланг") }
-    static var remindersOn: String { pick("Напоминания включены", "Reminders on", "Eslatmalar yoqilgan", "Эслатмалар ёқилган") }
-    static var remindersOff: String { pick("Напоминания выключены", "Reminders off", "Eslatmalar o‘chiq", "Эслатмалар ўчиқ") }
+    static var days: String { pick("дней", "days", "kun", "кун", "gün", "hari") }
+    static var shortDays: String { pick("дн", "d", "kun", "кун", "g", "hr") }
+    static var daysUntilTrip: String { pick("до поездки", "until trip", "safargacha", "сафаргача", "yolculuğa kalan", "menuju perjalanan") }
+    static var daysUntilUmrah: String { pick("дней до Umrah", "days until Umrah", "kun Umragacha", "кун Умрагача", "Umre’ye kalan gün", "hari menuju Umrah") }
+    static var activeUmrah: String { pick("Ваша Umrah", "Your Umrah", "Sizning Umrangiz", "Сизнинг Умрангиз", "Umreniz", "Umrah Anda") }
+    static var nextUmrah: String { pick("следующая Umrah", "next Umrah", "keyingi Umra", "кейинги Умра", "sonraki Umre", "Umrah berikutnya") }
+    static var booking: String { pick("Бронь", "Booking", "Bron", "Брон", "Rezervasyon", "Pemesanan") }
+    static var travelers: String { pick("Паломники", "Travelers", "Ziyoratchilar", "Зиёратчилар", "Yolcular", "Jemaah") }
+    static var departure: String { pick("Вылет", "Departure", "Uchish", "Учиш", "Kalkış", "Keberangkatan") }
+    static var noActiveTrip: String { pick("Нет активной поездки", "No active trip", "Faol safar yo‘q", "Фаол сафар йўқ", "Aktif seyahat yok", "Tidak ada perjalanan aktif") }
+    static var noBooking: String { pick("Нет активной брони", "No active booking", "Faol bron yo‘q", "Фаол брон йўқ", "Aktif rezervasyon yok", "Tidak ada pemesanan aktif") }
+    static var openIumrah: String { pick("Откройте iumrah, чтобы начать", "Open iumrah to start", "Boshlash uchun iumrah’ni oching", "Бошлаш учун iumrah’ни очинг", "Başlamak için iumrah’ı açın", "Buka iumrah untuk memulai") }
+    static var planUmrah: String { pick("Запланировать Umrah", "Plan your Umrah", "Umrani rejalashtirish", "Умрани режалаштириш", "Umrenizi planlayın", "Rencanakan Umrah Anda") }
+    static var planUmrahSubtitle: String { pick("Выберите даты и включите напоминания", "Choose dates and reminders", "Sanalar va eslatmalarni tanlang", "Саналар ва эслатмаларни танланг", "Tarihleri ve hatırlatıcıları seçin", "Pilih tanggal dan pengingat") }
+    static var signIn: String { pick("Войдите в аккаунт iumrah", "Sign in to iumrah", "iumrah akkauntiga kiring", "iumrah аккаунтига киринг", "iumrah hesabınıza giriş yapın", "Masuk ke akun iumrah Anda") }
+    static var scanToOpen: String { pick("Сканируйте, чтобы открыть ID", "Scan to open ID", "ID ochish uchun skanerlang", "ID очиш учун сканерланг", "Kimliği açmak için tarayın", "Pindai untuk membuka ID") }
+    static var remindersOn: String { pick("Напоминания включены", "Reminders on", "Eslatmalar yoqilgan", "Эслатмалар ёқилган", "Hatırlatıcılar açık", "Pengingat aktif") }
+    static var remindersOff: String { pick("Напоминания выключены", "Reminders off", "Eslatmalar o‘chiq", "Эслатмалар ўчиқ", "Hatırlatıcılar kapalı", "Pengingat nonaktif") }
 
     static func status(_ raw: String) -> String {
         switch raw.uppercased() {
-        case "AVAILABILITY_CHECK": return pick("Проверяем наличие", "Checking availability", "Mavjudlik tekshirilmoqda", "Мавжудлик текширилмоқда")
-        case "PAYMENT_PENDING": return pick("Ожидаем оплату", "Waiting for payment", "To‘lov kutilmoqda", "Тўлов кутилмоқда")
-        case "BOOKING_CONFIRMED": return pick("Бронирование подтверждено", "Booking confirmed", "Bron tasdiqlandi", "Брон тасдиқланди")
-        case "READY_TO_TRAVEL": return pick("Готово к поездке", "Ready to travel", "Safarga tayyor", "Сафарга тайёр")
-        case "IN_TRIP": return pick("Вы в поездке", "You are traveling", "Siz safardasiz", "Сиз сафардасиз")
-        case "COMPLETED": return pick("Завершено", "Completed", "Yakunlandi", "Якунланди")
-        case "CANCELLED": return pick("Отменено", "Cancelled", "Bekor qilindi", "Бекор қилинди")
-        default: return pick("Статус поездки", "Trip status", "Safar holati", "Сафар ҳолати")
+        case "AVAILABILITY_CHECK": return pick("Проверяем наличие", "Checking availability", "Mavjudlik tekshirilmoqda", "Мавжудлик текширилмоқда", "Müsaitlik kontrol ediliyor", "Memeriksa ketersediaan")
+        case "PAYMENT_PENDING": return pick("Ожидаем оплату", "Waiting for payment", "To‘lov kutilmoqda", "Тўлов кутилмоқда", "Ödeme bekleniyor", "Menunggu pembayaran")
+        case "BOOKING_CONFIRMED": return pick("Бронирование подтверждено", "Booking confirmed", "Bron tasdiqlandi", "Брон тасдиқланди", "Rezervasyon onaylandı", "Pemesanan dikonfirmasi")
+        case "READY_TO_TRAVEL": return pick("Готово к поездке", "Ready to travel", "Safarga tayyor", "Сафарга тайёр", "Yolculuğa hazır", "Siap berangkat")
+        case "IN_TRIP": return pick("Вы в поездке", "You are traveling", "Siz safardasiz", "Сиз сафардасиз", "Seyahattesiniz", "Anda sedang dalam perjalanan")
+        case "COMPLETED": return pick("Завершено", "Completed", "Yakunlandi", "Якунланди", "Tamamlandı", "Selesai")
+        case "CANCELLED": return pick("Отменено", "Cancelled", "Bekor qilindi", "Бекор қилинди", "İptal edildi", "Dibatalkan")
+        default: return pick("Статус поездки", "Trip status", "Safar holati", "Сафар ҳолати", "Seyahat durumu", "Status perjalanan")
         }
     }
 
     static func nextAction(_ raw: String) -> String {
         switch raw.uppercased() {
-        case "AVAILABILITY_CHECK": return pick("Команда проверяет места и подтверждает пакет.", "The team is confirming availability for your package.", "Jamoa paket mavjudligini tekshirmoqda.", "Жамоа пакет мавжудлигини текширмоқда.")
-        case "PAYMENT_PENDING": return pick("Откройте бронь, чтобы заполнить данные и оплатить.", "Open the booking to add details and pay.", "Ma’lumot va to‘lov uchun bronni oching.", "Маълумот ва тўлов учун бронни очинг.")
-        case "BOOKING_CONFIRMED": return pick("Бронь подтверждена. Документы готовятся.", "Your booking is confirmed. Documents are being prepared.", "Bron tasdiqlandi. Hujjatlar tayyorlanmoqda.", "Брон тасдиқланди. Ҳужжатлар тайёрланмоқда.")
-        case "READY_TO_TRAVEL": return pick("Документы готовы — проверьте детали поездки.", "Your documents are ready — review the trip details.", "Hujjatlar tayyor — safar tafsilotlarini tekshiring.", "Ҳужжатлар тайёр — сафар тафсилотларини текширинг.")
-        case "IN_TRIP": return pick("Все ключевые детали поездки доступны в iumrah.", "Your trip details are available in iumrah.", "Safar tafsilotlari iumrah’da mavjud.", "Сафар тафсилотлари iumrah’да мавжуд.")
+        case "AVAILABILITY_CHECK": return pick("Команда проверяет места и подтверждает пакет.", "The team is confirming availability for your package.", "Jamoa paket mavjudligini tekshirmoqda.", "Жамоа пакет мавжудлигини текширмоқда.", "Ekibimiz paketinizin müsaitliğini doğruluyor.", "Tim kami sedang mengonfirmasi ketersediaan paket Anda.")
+        case "PAYMENT_PENDING": return pick("Откройте бронь, чтобы заполнить данные и оплатить.", "Open the booking to add details and pay.", "Ma’lumot va to‘lov uchun bronni oching.", "Маълумот ва тўлов учун бронни очинг.", "Bilgilerinizi eklemek ve ödeme yapmak için rezervasyonu açın.", "Buka pemesanan untuk melengkapi data dan membayar.")
+        case "BOOKING_CONFIRMED": return pick("Бронь подтверждена. Документы готовятся.", "Your booking is confirmed. Documents are being prepared.", "Bron tasdiqlandi. Hujjatlar tayyorlanmoqda.", "Брон тасдиқланди. Ҳужжатлар тайёрланмоқда.", "Rezervasyonunuz onaylandı. Belgeleriniz hazırlanıyor.", "Pemesanan Anda dikonfirmasi. Dokumen sedang disiapkan.")
+        case "READY_TO_TRAVEL": return pick("Документы готовы — проверьте детали поездки.", "Your documents are ready — review the trip details.", "Hujjatlar tayyor — safar tafsilotlarini tekshiring.", "Ҳужжатлар тайёр — сафар тафсилотларини текширинг.", "Belgeleriniz hazır — seyahat bilgilerini kontrol edin.", "Dokumen Anda siap — periksa detail perjalanan.")
+        case "IN_TRIP": return pick("Все ключевые детали поездки доступны в iumrah.", "Your trip details are available in iumrah.", "Safar tafsilotlari iumrah’da mavjud.", "Сафар тафсилотлари iumrah’да мавжуд.", "Seyahat bilgileriniz iumrah’da mevcut.", "Detail perjalanan Anda tersedia di iumrah.")
         default: return openIumrah
         }
     }
 
-    private static func pick(_ ru: String, _ en: String, _ uz: String, _ cyrl: String) -> String {
+    static func date(_ value: Date, abbreviated: Bool = true) -> String {
+        let formatter = DateFormatter()
+        switch language {
+        case .ru: formatter.locale = Locale(identifier: "ru_RU")
+        case .en: formatter.locale = Locale(identifier: "en_US")
+        case .uz: formatter.locale = Locale(identifier: "uz_Latn_UZ")
+        case .uzCyrl: formatter.locale = Locale(identifier: "uz_Cyrl_UZ")
+        case .tr: formatter.locale = Locale(identifier: "tr_TR")
+        case .id: formatter.locale = Locale(identifier: "id_ID")
+        }
+        formatter.setLocalizedDateFormatFromTemplate(abbreviated ? "dMMM" : "dMMMM")
+        return formatter.string(from: value)
+    }
+
+    static var activeTripWidgetName: String { pick("iumrah — поездка", "iumrah — trip", "iumrah — safar", "iumrah — сафар", "iumrah — seyahat", "iumrah — perjalanan") }
+    static var activeTripWidgetDescription: String { pick("Маршрут, даты и статус активной Umrah.", "Route, dates and status of the active Umrah.", "Faol Umra yo‘nalishi, sanalari va holati.", "Фаол Умра йўналиши, саналари ва ҳолати.", "Aktif Umrenizin rotası, tarihleri ve durumu.", "Rute, tanggal, dan status Umrah aktif.") }
+    static var bookingWidgetName: String { pick("iumrah — статус", "iumrah — status", "iumrah — holat", "iumrah — ҳолат", "iumrah — durum", "iumrah — status") }
+    static var bookingWidgetDescription: String { pick("Текущий этап бронирования и следующий шаг.", "Current booking status and next step.", "Bronning joriy holati va keyingi qadam.", "Броннинг жорий ҳолати ва кейинги қадам.", "Rezervasyon durumunuz ve sonraki adım.", "Status pemesanan dan langkah berikutnya.") }
+    static var plannedWidgetName: String { pick("Следующая Umrah", "Upcoming Umrah", "Keyingi Umra", "Кейинги Умра", "Yaklaşan Umre", "Umrah berikutnya") }
+    static var plannedWidgetDescription: String { pick("Обратный отсчёт до запланированной поездки.", "Countdown to your planned trip.", "Rejalashtirilgan safargacha sanoq.", "Режалаштирилган сафаргача саноқ.", "Planladığınız seyahate geri sayım.", "Hitung mundur menuju perjalanan Anda.") }
+    static var identityWidgetDescription: String { pick("Быстрый доступ к вашему iumrah ID и QR.", "Quick access to your iumrah ID and QR.", "iumrah ID va QR-kodingizga tezkor kirish.", "iumrah ID ва QR-кодингизга тезкор кириш.", "iumrah kimliğinize ve QR kodunuza hızlı erişim.", "Akses cepat ke ID dan kode QR iumrah Anda.") }
+    static var countdownWidgetName: String { pick("До Umrah", "Until Umrah", "Umragacha", "Умрагача", "Umreye kalan", "Menuju Umrah") }
+    static var countdownWidgetDescription: String { pick("Компактный обратный отсчёт для экрана блокировки.", "Compact countdown for the Lock Screen.", "Qulf ekranida ixcham teskari sanoq.", "Қулф экранида ихчам тескари саноқ.", "Kilit ekranı için kompakt geri sayım.", "Hitung mundur ringkas untuk layar kunci.") }
+
+    private static func pick(_ ru: String, _ en: String, _ uz: String, _ cyrl: String, _ tr: String, _ id: String) -> String {
         switch language {
         case .ru: return ru
         case .en: return en
         case .uz: return uz
         case .uzCyrl: return cyrl
+        case .tr: return tr
+        case .id: return id
         }
     }
 }

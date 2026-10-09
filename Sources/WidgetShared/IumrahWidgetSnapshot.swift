@@ -7,6 +7,8 @@ struct IumrahWidgetSnapshot: Codable, Equatable {
     var activeBooking: IumrahWidgetBookingSnapshot?
     var plannedTrip: IumrahWidgetPlannedTripSnapshot?
     var identity: IumrahWidgetIdentitySnapshot?
+    // App-selected locale is persisted with the snapshot so widgets use iumrah language, not device language.
+    var languageCode: String? = nil
 
     static let empty = IumrahWidgetSnapshot()
 }

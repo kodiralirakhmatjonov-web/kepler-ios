@@ -60,7 +60,7 @@ struct HomeVideoCarousel: View {
             HomeEmotionalJourneyFullscreen(language: settings.language, initialStoryID: story.id)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("iumrah video stories")
+        .accessibilityLabel(IumrahAccessibilityCopy.text(settings.language, ru: "Видеоистории iumrah", en: "iumrah video stories", uz: "iumrah video hikoyalari", cy: "iumrah видео ҳикоялари", tr: "iumrah video hikâyeleri", id: "Cerita video iumrah"))
     }
 
     private func videoCard(_ story: HomeEmotionalStory) -> some View {
@@ -82,7 +82,7 @@ struct HomeVideoCarousel: View {
                 fontSize: 15,
                 foreground: .white,
                 tint: .black.opacity(0.08),
-                accessibilityLabel: isMuted ? "Unmute" : "Mute"
+                accessibilityLabel: isMuted ? IumrahAccessibilityCopy.text(settings.language, ru: "Включить звук", en: "Unmute", uz: "Ovozni yoqish", cy: "Овозни ёқиш", tr: "Sesi aç", id: "Aktifkan suara") : IumrahAccessibilityCopy.text(settings.language, ru: "Выключить звук", en: "Mute", uz: "Ovozni o‘chirish", cy: "Овозни ўчириш", tr: "Sesi kapat", id: "Nonaktifkan suara")
             ) {
                 isMuted.toggle()
             }
@@ -118,7 +118,7 @@ struct HomeVideoCarousel: View {
                 .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
         }
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .accessibilityLabel("Video \(storyIndex(story) + 1) of \(stories.count)")
+        .accessibilityLabel("\(videoIndexLabel) \(storyIndex(story) + 1) \(videoOfLabel) \(stories.count)")
         .accessibilityHint(openVideoTitle)
     }
 
@@ -137,9 +137,18 @@ struct HomeVideoCarousel: View {
         .accessibilityHidden(true)
     }
 
+    private var videoIndexLabel: String {
+        IumrahAccessibilityCopy.text(settings.language, ru: "Видео", en: "Video", uz: "Video", cy: "Видео", tr: "Video", id: "Video")
+    }
+
+    private var videoOfLabel: String {
+        IumrahAccessibilityCopy.text(settings.language, ru: "из", en: "of", uz: "dan", cy: "дан", tr: "/", id: "dari")
+    }
+
     private var openVideoTitle: String {
         switch settings.language {
         case .russian: return "Почувствовать"
+        case .indonesian: return IndonesianLocalization.phrase("Experience")
         case .turkish: return TurkishLocalization.phrase("Experience")
         case .english: return "Experience"
         case .uzbek: return "His etish"

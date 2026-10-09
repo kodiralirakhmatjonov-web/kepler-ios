@@ -96,7 +96,7 @@ actor ZiyaratService {
     ) -> [String: ZiyaratPlaceTranslation]? {
         guard let translations else { return nil }
         var result: [String: ZiyaratPlaceTranslation] = [:]
-        for locale in ["ru", "en", "uz", "uz-cyrl"] {
+        for locale in ["ru", "en", "uz", "uz-cyrl", "tr", "id"] {
             guard let t = translations[locale] else { continue }
             result[locale] = ZiyaratPlaceTranslation(
                 title: trim(t.title, length: 180),
@@ -180,12 +180,31 @@ enum ZiyaratFallbackCatalog {
         }
     }
 
+    // Explicit offline Turkish and Indonesian content for every bundled site.
+    // Remote places use translated payloads when provided by the catalogue API.
+    private static let extraOfflineTranslations: [String: (trTitle: String, trBody: String, idTitle: String, idBody: String)] = [
+        "haram": ("Mescid-i Haram", "Kâbe’nin bulunduğu kutsal Mescid-i Haram.", "Masjidil Haram", "Masjid Agung yang menaungi Ka’bah yang suci."),
+        "thawr": ("Sevr Dağı", "Hicret tarihiyle bağlantılı dağ.", "Jabal Tsur", "Gunung yang berkaitan dengan peristiwa Hijrah."),
+        "arafat": ("Arafat", "Hac ibadetinin başlıca kutsal mekânlarından biri.", "Arafah", "Salah satu lokasi utama ibadah haji."),
+        "muzdalifah": ("Müzdelife", "Arafat ile Mina arasındaki kutsal bölge.", "Muzdalifah", "Kawasan suci di antara Arafah dan Mina."),
+        "mina": ("Mina", "Hac ibadetiyle bağlantılı vadi.", "Mina", "Lembah yang berkaitan dengan rangkaian ibadah haji."),
+        "jamarat": ("Cemarat", "Hac sırasında şeytan taşlama ibadetinin yapıldığı yer.", "Jamarat", "Lokasi melontar jumrah dalam ibadah haji."),
+        "quba": ("Kuba Mescidi", "İslam tarihinde inşa edilen ilk mescit.", "Masjid Quba", "Masjid pertama yang dibangun dalam sejarah Islam."),
+        "qiblatain": ("Kıbleteyn Mescidi", "Kıblenin değişmesiyle ilişkilendirilen mescit.", "Masjid Qiblatain", "Masjid yang terkait dengan perubahan arah kiblat."),
+        "uhud": ("Uhud Dağı", "Medine yakınlarındaki tarihî dağ.", "Gunung Uhud", "Gunung bersejarah di dekat Madinah."),
+        "baqi": ("Bakî Mezarlığı", "Mescid-i Nebevî yakınlarındaki tarihî mezarlık.", "Pemakaman Al-Baqi", "Pemakaman bersejarah di dekat Masjid Nabawi."),
+        "shajara": ("Zülhuleyfe Mescidi", "Medine’den çıkan hac ve umre yolcuları için mikat noktası.", "Masjid Dzul Hulaifah", "Tempat miqat bagi jemaah yang berangkat dari Madinah."),
+    ]
+
     private static func make(_ site: Seed, city: String, index: Int) -> ZiyaratPlace {
+        let extra = extraOfflineTranslations[site.id]
         let texts: [(String, String, String)] = [
             ("en", site.english, site.englishSummary),
             ("ru", site.russian, site.russianSummary),
             ("uz", site.uzbek, site.englishSummary),
-            ("uz-cyrl", site.cyrillic, site.englishSummary)
+            ("uz-cyrl", site.cyrillic, site.englishSummary),
+            ("tr", extra?.trTitle ?? site.english, extra?.trBody ?? site.englishSummary),
+            ("id", extra?.idTitle ?? site.english, extra?.idBody ?? site.englishSummary)
         ]
         let translations = Dictionary(uniqueKeysWithValues: texts.map { locale, title, body in
             (locale, ZiyaratPlaceTranslation(

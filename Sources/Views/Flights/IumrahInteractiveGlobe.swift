@@ -8,6 +8,7 @@ import MapKit
 /// Flights hero and the Home footer while keeping the visual overlays outside of MapKit
 /// so they never swallow map gestures.
 struct IumrahInteractiveGlobe: View {
+    @EnvironmentObject private var settings: AppSettingsStore
     enum Presentation {
         case flightRoute
         case worldToMakkah
@@ -81,15 +82,15 @@ struct IumrahInteractiveGlobe: View {
             )
         )
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint("Drag, pinch or rotate the globe")
+        .accessibilityHint(IumrahAccessibilityCopy.text(settings.language, ru: "Вращайте, перетаскивайте или увеличивайте глобус", en: "Drag, pinch or rotate the globe", uz: "Globusni suring, kattalashtiring yoki aylantiring", cy: "Глобусни суринг, катталаштиринг ёки айлантиринг", tr: "Küreyi sürükleyin, yakınlaştırın veya döndürün", id: "Geser, cubit untuk memperbesar, atau putar globe"))
     }
 
     private var accessibilityLabel: String {
         switch presentation {
         case .flightRoute:
-            return "Interactive iumrah Flights globe"
+            return IumrahAccessibilityCopy.text(settings.language, ru: "Интерактивный глобус авиарейсов iumrah", en: "Interactive iumrah Flights globe", uz: "iumrah parvozlarining interaktiv globusi", cy: "iumrah парвозларининг интерактив глобуси", tr: "iumrah uçuşları için etkileşimli küre", id: "Globe interaktif penerbangan iumrah")
         case .worldToMakkah:
-            return "Interactive world globe centered on Makkah"
+            return IumrahAccessibilityCopy.text(settings.language, ru: "Интерактивный глобус с центром в Мекке", en: "Interactive world globe centered on Makkah", uz: "Markazi Makka bo‘lgan interaktiv globus", cy: "Маркази Макка бўлган интерактив глобус", tr: "Merkezi Mekke olan etkileşimli dünya küresi", id: "Globe dunia interaktif dengan pusat di Makkah")
         }
     }
 

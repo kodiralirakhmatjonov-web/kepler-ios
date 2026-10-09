@@ -11,6 +11,7 @@ import SwiftUI
 /// The network state remains driven by `IumrahConnectivityMonitor`; this view is
 /// presentation-only and never changes connectivity behaviour.
 struct IumrahAnimatedConnectivityIndicator: View {
+    @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var connectivity = IumrahConnectivityMonitor()
 
@@ -40,7 +41,22 @@ struct IumrahAnimatedConnectivityIndicator: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Internet connection: \(connectivity.status.title)")
+        .accessibilityLabel("\(localizedConnectionPrefix): \(localizedConnectivityStatus)")
+    }
+
+    private var localizedConnectivityStatus: String {
+        switch connectivity.status {
+        case .checking:
+            return IumrahAccessibilityCopy.text(settings.language, ru: "Проверка", en: "Checking", uz: "Tekshirilmoqda", cy: "Текширилмоқда", tr: "Kontrol ediliyor", id: "Memeriksa")
+        case .online:
+            return IumrahAccessibilityCopy.text(settings.language, ru: "В сети", en: "Online", uz: "Onlayn", cy: "Онлайн", tr: "Çevrimiçi", id: "Online")
+        case .offline:
+            return IumrahAccessibilityCopy.text(settings.language, ru: "Не в сети", en: "Offline", uz: "Oflayn", cy: "Офлайн", tr: "Çevrimdışı", id: "Offline")
+        }
+    }
+
+    private var localizedConnectionPrefix: String {
+        IumrahAccessibilityCopy.text(settings.language, ru: "Интернет-соединение", en: "Internet connection", uz: "Internet aloqasi", cy: "Интернет алоқаси", tr: "İnternet bağlantısı", id: "Koneksi internet")
     }
 
     @ViewBuilder
@@ -62,7 +78,7 @@ struct IumrahAnimatedConnectivityIndicator: View {
                 .strokeBorder(borderGradient(rotation: rotation), lineWidth: 2.15)
 
             HStack(spacing: 5) {
-                Text(connectivity.status.title)
+                Text(localizedConnectivityStatus)
                     .font(.system(size: 11.5, weight: .bold, design: .serif))
                     .italic()
                     .foregroundStyle(.white)

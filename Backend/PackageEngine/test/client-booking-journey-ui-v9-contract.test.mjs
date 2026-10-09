@@ -46,16 +46,17 @@ test('Booking status uses the canonical pilgrim details and payment page', () =>
   assert.doesNotMatch(compatibility, /UNAUTHORIZED/);
 });
 
-test('Ziyarats uses system navigation with a single Find My-style map panel and hardened coordinates', () => {
+test('Ziyarats opens an opt-in native map with validated coordinates and offline place catalogue', () => {
   const ziyarats = read('Sources/Ziyarats/ZiyaratViews.swift');
   const service = read('Sources/Services/ZiyaratService.swift');
   const home = read('Sources/Views/Home/HomeDashboardView.swift');
-  assert.match(ziyarats, /Map\(position: \$camera\)/);
-  assert.match(ziyarats, /findMyPanel\(metrics: metrics\)/);
-  assert.match(ziyarats, /private enum ZiyaratPanelLevel/);
-  assert.match(ziyarats, /CLLocationCoordinate2DIsValid/);
+  assert.match(ziyarats, /ZiyaratFallbackCatalog\.route/);
+  assert.match(ziyarats, /\.sheet\(isPresented: \$showMap\)/);
+  assert.match(ziyarats, /Map\(initialPosition: \.region\(region\)\)/);
+  assert.match(ziyarats, /ZiyaratService\.validCoordinate/);
   assert.doesNotMatch(ziyarats, /\.sheet\(isPresented: \$panelPresented\)/);
-  assert.match(service, /sanitizedRoute/);
+  assert.match(service, /private static func validate/);
+  assert.match(service, /ZiyaratFallbackCatalog\.route/);
   assert.match(service, /CLLocationCoordinate2DIsValid/);
   assert.match(home, /navigationDestination\(isPresented: \$showZiyarats\)/);
 });

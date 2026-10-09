@@ -5,12 +5,14 @@ enum IumrahWidgetSyncService {
     static func sync(
         bookings: [StoredBookingSession],
         account: IumrahAccountProfile?,
-        plannedTrip: UmrahPlannedTrip?
+        plannedTrip: UmrahPlannedTrip?,
+        languageCode: String
     ) {
         let snapshot = IumrahWidgetSnapshot(
             activeBooking: makeActiveBooking(from: bookings),
             plannedTrip: plannedTrip.map(makePlannedTrip),
-            identity: account.map(makeIdentity)
+            identity: account.map(makeIdentity),
+            languageCode: languageCode
         )
 
         _ = IumrahWidgetSharedStore.save(snapshot)

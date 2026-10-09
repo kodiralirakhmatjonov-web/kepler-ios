@@ -262,7 +262,7 @@ struct OnboardingFlowView: View {
                         .iumrahGlass(in: Circle(), interactive: true, chrome: true)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(isMuted ? "Sound off" : "Sound on")
+                .accessibilityLabel(isMuted ? IumrahAccessibilityCopy.text(settings.language, ru: "Звук выключен", en: "Sound off", uz: "Ovoz o‘chiq", cy: "Овоз ўчиқ", tr: "Ses kapalı", id: "Suara nonaktif") : IumrahAccessibilityCopy.text(settings.language, ru: "Звук включён", en: "Sound on", uz: "Ovoz yoqilgan", cy: "Овоз ёқилган", tr: "Ses açık", id: "Suara aktif"))
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 118)

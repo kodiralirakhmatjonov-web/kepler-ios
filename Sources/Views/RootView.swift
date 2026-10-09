@@ -77,6 +77,8 @@ struct RootView: View {
                 }
             }
             .onChange(of: settings.language.rawValue) { _, _ in
+                // Update widget strings and dates on every in-app language change.
+                syncWidgets()
                 guard hasCompletedOnboarding else { return }
                 Task {
                     await syncPushSubscriptions()
@@ -237,7 +239,8 @@ struct RootView: View {
         IumrahWidgetSyncService.sync(
             bookings: bookings.sessions,
             account: account.account,
-            plannedTrip: UmrahPlanStore.shared.trip
+            plannedTrip: UmrahPlanStore.shared.trip,
+            languageCode: settings.language.rawValue
         )
     }
 
@@ -385,7 +388,7 @@ struct RootView: View {
                 .tag(AppTab.care)
 
             tabScreen(for: .account) { IumrahAccountView() }
-                .tabItem { Label(settings.language == .turkish ? "Hesabım" : "Account", systemImage: "person.crop.circle") }
+                .tabItem { Label(settings.language == .indonesian ? "Akun saya" : (settings.language == .turkish ? "Hesabım" : "Account"), systemImage: "person.crop.circle") }
                 .tag(AppTab.account)
         }
         // Navigation chrome uses one restrained app accent; content icons carry

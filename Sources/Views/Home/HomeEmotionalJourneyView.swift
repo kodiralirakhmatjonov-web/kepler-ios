@@ -148,7 +148,15 @@ struct HomeEmotionalJourneyFullscreen: View {
         .clipped()
         .background(Color.black)
         .allowsHitTesting(false)
-        .accessibilityLabel("Video \(storyIndex(story) + 1) of \(HomeEmotionalStory.all.count)")
+        .accessibilityLabel("\(videoIndexLabel) \(storyIndex(story) + 1) \(videoOfLabel) \(HomeEmotionalStory.all.count)")
+    }
+
+    private var videoIndexLabel: String {
+        IumrahAccessibilityCopy.text(language, ru: "Видео", en: "Video", uz: "Video", cy: "Видео", tr: "Video", id: "Video")
+    }
+
+    private var videoOfLabel: String {
+        IumrahAccessibilityCopy.text(language, ru: "из", en: "of", uz: "dan", cy: "дан", tr: "/", id: "dari")
     }
 
     private var bottomGradient: some View {
@@ -324,6 +332,7 @@ private enum HomeEmotionalCopy {
     static func promptTitle(_ language: AppSettingsStore.Language) -> String {
         switch language {
         case .russian: return "Почувствуйте перед поездкой"
+        case .indonesian: return IndonesianLocalization.phrase("Feel it before your journey")
         case .turkish: return TurkishLocalization.phrase("Feel it before your journey")
         case .english: return "Feel it before your journey"
         case .uzbek: return "Safardan oldin his eting"
@@ -334,6 +343,7 @@ private enum HomeEmotionalCopy {
     static func tryButton(_ language: AppSettingsStore.Language) -> String {
         switch language {
         case .russian: return "Почувствовать сейчас"
+        case .indonesian: return IndonesianLocalization.phrase("Experience now")
         case .turkish: return TurkishLocalization.phrase("Experience now")
         case .english: return "Experience now"
         case .uzbek: return "Hozir his eting"
@@ -351,6 +361,15 @@ private enum HomeEmotionalCopy {
                 "Здесь становится тише внутри.",
                 "То, о чём вы просили в тишине…",
                 "А потом — Медина."
+            ][safe: index] ?? ""
+        case .indonesian:
+            return [
+                "Suatu hari nanti, ini bukan hanya gambar di layar.",
+                "Ada tempat yang lebih dulu dijangkau hati sebelum kaki melangkah.",
+                "Setiap orang di sini memiliki kisah.",
+                "Di sini, hati terasa lebih tenang.",
+                "Doa-doa yang Anda panjatkan diam-diam…",
+                "Dan kemudian — Madinah."
             ][safe: index] ?? ""
         case .turkish:
             return [
@@ -401,6 +420,15 @@ private enum HomeEmotionalCopy {
                 nil,
                 "…однажды может привести вас сюда.",
                 "Город, из которого сердце уезжает не сразу."
+            ][safe: index] ?? nil
+        case .indonesian:
+            return [
+                "Anda pun akan berada di sini.",
+                nil,
+                "Dan masing-masing memiliki doanya sendiri.",
+                nil,
+                "…mungkin suatu hari akan membawa Anda ke sini.",
+                "Kota yang tak mudah ditinggalkan hati."
             ][safe: index] ?? nil
         case .turkish:
             return [

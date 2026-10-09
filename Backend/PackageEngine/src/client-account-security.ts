@@ -1767,25 +1767,59 @@ async function linkVerifiedEmail(
   ).bind(now, pilgrimID).run();
 }
 
+// Keep transactional emails in the locale sent by the iOS client. Never fall back
+// to English for languages we explicitly support (especially tr and id).
+const ACCOUNT_EMAIL_COPY = {
+  ru: {
+    verify: "Подтверждение почты iumrah", reset: "Восстановление пароля iumrah",
+    verifyLead: "Код подтверждения почты:", resetLead: "Код для восстановления пароля:",
+    warning: "Код действует 10 минут. Никому его не сообщайте. Если Вы не запрашивали код, проигнорируйте письмо.",
+  },
+  en: {
+    verify: "Verify your iumrah email", reset: "Reset your iumrah password",
+    verifyLead: "Your email verification code:", resetLead: "Your password reset code:",
+    warning: "This code expires in 10 minutes. Never share it. If you did not request it, ignore this email.",
+  },
+  uz: {
+    verify: "iumrah elektron pochtasini tasdiqlash", reset: "iumrah parolini tiklash",
+    verifyLead: "Elektron pochtani tasdiqlash kodi:", resetLead: "Parolni tiklash kodi:",
+    warning: "Kod 10 daqiqa amal qiladi. Uni hech kimga bermang. Agar kodni so‘ramagan bo‘lsangiz, xatni e’tiborsiz qoldiring.",
+  },
+  "uz-cyrl": {
+    verify: "iumrah электрон почтасини тасдиқлаш", reset: "iumrah паролини тиклаш",
+    verifyLead: "Электрон почтани тасдиқлаш коди:", resetLead: "Паролни тиклаш коди:",
+    warning: "Код 10 дақиқа амал қилади. Уни ҳеч кимга берманг. Агар кодни сўрамаган бўлсангиз, хатни эътиборсиз қолдиринг.",
+  },
+  tr: {
+    verify: "iumrah e-posta adresinizi doğrulayın", reset: "iumrah şifrenizi sıfırlayın",
+    verifyLead: "E-posta doğrulama kodunuz:", resetLead: "Şifre sıfırlama kodunuz:",
+    warning: "Bu kod 10 dakika geçerlidir. Kodunuzu kimseyle paylaşmayın. Bu kodu siz istemediyseniz e-postayı dikkate almayın.",
+  },
+  id: {
+    verify: "Verifikasi email iumrah Anda", reset: "Atur ulang kata sandi iumrah Anda",
+    verifyLead: "Kode verifikasi email Anda:", resetLead: "Kode pengaturan ulang kata sandi Anda:",
+    warning: "Kode ini berlaku selama 10 menit. Jangan bagikan kepada siapa pun. Jika Anda tidak meminta kode ini, abaikan email ini.",
+  },
+} as const;
+
+type AccountEmailLocale = keyof typeof ACCOUNT_EMAIL_COPY;
+
+function accountEmailLocale(locale: string): AccountEmailLocale {
+  const normalized = String(locale || "en").trim().toLowerCase().replace(/_/g, "-");
+  if (normalized.startsWith("uz-cyrl")) return "uz-cyrl";
+  const primary = normalized.split("-")[0];
+  return primary === "ru" || primary === "en" || primary === "uz" || primary === "tr" || primary === "id" ? primary : "en";
+}
+
 function emailCopy(code: string, purpose: "verify_email" | "reset_password", locale: string) {
-  const language = locale.toLowerCase();
-  const russian = language.startsWith("ru");
-  const uzbek = language.startsWith("uz");
-  const title = purpose === "reset_password"
-    ? (russian ? "Восстановление пароля iumrah" : uzbek ? "iumrah parolini tiklash" : "Reset your iumrah password")
-    : (russian ? "Подтверждение почты iumrah" : uzbek ? "iumrah elektron pochtasini tasdiqlash" : "Verify your iumrah email");
-  const lead = purpose === "reset_password"
-    ? (russian ? "Код для восстановления пароля:" : uzbek ? "Parolni tiklash kodi:" : "Your password reset code:")
-    : (russian ? "Код подтверждения почты:" : uzbek ? "Elektron pochtani tasdiqlash kodi:" : "Your email verification code:");
-  const warning = russian
-    ? "Код действует 10 минут. Никому его не сообщайте. Если Вы не запрашивали код, проигнорируйте письмо."
-    : uzbek
-      ? "Kod 10 daqiqa amal qiladi. Uni hech kimga bermang. Agar kodni so‘ramagan bo‘lsangiz, xatni e’tiborsiz qoldiring."
-      : "This code expires in 10 minutes. Never share it. If you did not request it, ignore this email.";
+  const copy = ACCOUNT_EMAIL_COPY[accountEmailLocale(locale)];
+  const title = purpose === "reset_password" ? copy.reset : copy.verify;
+  const lead = purpose === "reset_password" ? copy.resetLead : copy.verifyLead;
+  const warning = copy.warning;
   return {
     subject: title,
     text: `${lead}\n\n${code}\n\n${warning}`,
-    html: `<!doctype html><html><body style="margin:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#111"><div style="max-width:520px;margin:32px auto;background:#fff;border-radius:28px;padding:32px"><div style="font-size:18px;font-weight:700">iumrah</div><h1 style="font-size:26px;margin:28px 0 12px">${title}</h1><p style="color:#62676d;line-height:1.5">${lead}</p><div style="font-size:36px;font-weight:750;letter-spacing:9px;padding:18px 0">${code}</div><p style="color:#62676d;line-height:1.5">${warning}</p></div></body></html>`,
+    html: `<!doctype html><html lang="${accountEmailLocale(locale)}"><body style="margin:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#111"><div style="max-width:520px;margin:32px auto;background:#fff;border-radius:28px;padding:32px"><div style="font-size:18px;font-weight:700">iumrah</div><h1 style="font-size:26px;margin:28px 0 12px">${title}</h1><p style="color:#62676d;line-height:1.5">${lead}</p><div style="font-size:36px;font-weight:750;letter-spacing:9px;padding:18px 0">${code}</div><p style="color:#62676d;line-height:1.5">${warning}</p></div></body></html>`,
   };
 }
 

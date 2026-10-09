@@ -312,13 +312,15 @@ export type BookingItineraryEvent = {
 
 type BookingPayload = Record<string, any>;
 
-type Language = "ru" | "en" | "uz" | "uz-Cyrl";
+type Language = "ru" | "en" | "uz" | "uz-Cyrl" | "tr" | "id";
 
 function normalizeLanguage(value: string | null): Language {
   const v = String(value ?? "ru").trim();
-  if (v === "en") return "en";
-  if (v === "uz") return "uz";
-  if (["uz-Cyrl", "uz_cyrl", "uz-Cyrl-UZ"].includes(v)) return "uz-Cyrl";
+  if (v.toLowerCase().split(/[-_]/)[0] === "en") return "en";
+  if (v.toLowerCase().split(/[-_]/)[0] === "tr") return "tr";
+  if (v.toLowerCase().split(/[-_]/)[0] === "id") return "id";
+  if (/^uz[-_]cyrl/i.test(v)) return "uz-Cyrl";
+  if (v.toLowerCase().split(/[-_]/)[0] === "uz") return "uz";
   return "ru";
 }
 
@@ -351,6 +353,12 @@ const COPY = {
   },
   uz: {
     arrival: "Saudiya Arabistoniga yetib kelish", airportExit: "Pasport nazorati va bagaj", transferHotel: "Mehmonxonaga transfer", checkIn: "Mehmonxonaga joylashish", rest: "Yo‘ldan keyin dam olish", umrah: "Umra", umrahBody: "Ihram · tavof · sa’y", madinahZiyarat: "Madina ziyorati", madinahBody: "Payg‘ambar masjidi ﷺ va ziyorat joylari", makkahZiyarat: "Makka ziyorati", makkahBody: "Makkadagi tarixiy joylar", intercityMakkah: "Makkaga yo‘l", intercityMadinah: "Madinaga yo‘l", checkout: "Mehmonxonadan chiqish", airportTransfer: "Aeroportga transfer", flightHome: "Uyga parvoz", haramain: "Haramain · mehmonxona → vokzal → mehmonxona", road: "Shaharlararo transfer", makkah: "Makka", madinah: "Madina", jeddah: "Jidda",
+  },
+  tr: {
+    arrival: "Suudi Arabistan’a varış", airportExit: "Pasaport kontrolü ve bagaj teslimi", transferHotel: "Otele transfer", checkIn: "Otele giriş", rest: "Yolculuk sonrası dinlenme", umrah: "Umre", umrahBody: "İhram · tavaf · sa’y", madinahZiyarat: "Medine ziyaretleri", madinahBody: "Mescid-i Nebevî ﷺ ve ziyaret yerleri", makkahZiyarat: "Mekke ziyaretleri", makkahBody: "Mekke’nin tarihî yerleri", intercityMakkah: "Mekke’ye transfer", intercityMadinah: "Medine’ye transfer", checkout: "Otelden çıkış", airportTransfer: "Havalimanına transfer", flightHome: "Dönüş uçuşu", haramain: "Haremeyn · otel → istasyon → otel", road: "Şehirler arası transfer", makkah: "Mekke", madinah: "Medine", jeddah: "Cidde",
+  },
+  id: {
+    arrival: "Tiba di Arab Saudi", airportExit: "Pemeriksaan imigrasi dan pengambilan bagasi", transferHotel: "Transfer ke hotel", checkIn: "Check-in hotel", rest: "Istirahat setelah perjalanan", umrah: "Umrah", umrahBody: "Ihram · tawaf · sa’i", madinahZiyarat: "Ziarah di Madinah", madinahBody: "Masjid Nabawi ﷺ dan tempat ziarah", makkahZiyarat: "Ziarah di Makkah", makkahBody: "Tempat bersejarah di Makkah", intercityMakkah: "Perjalanan ke Makkah", intercityMadinah: "Perjalanan ke Madinah", checkout: "Check-out hotel", airportTransfer: "Transfer ke bandara", flightHome: "Penerbangan pulang", haramain: "Haramain · hotel → stasiun → hotel", road: "Transfer antarkota", makkah: "Makkah", madinah: "Madinah", jeddah: "Jeddah",
   },
   "uz-Cyrl": {
     arrival: "Саудия Арабистонига етиб келиш", airportExit: "Паспорт назорати ва багаж", transferHotel: "Меҳмонхонага трансфер", checkIn: "Меҳмонхонага жойлашиш", rest: "Йўлдан кейин дам олиш", umrah: "Умра", umrahBody: "Иҳром · тавоф · саъй", madinahZiyarat: "Мадина зиёрати", madinahBody: "Пайғамбар масжиди ﷺ ва зиёрат жойлари", makkahZiyarat: "Макка зиёрати", makkahBody: "Маккадаги тарихий жойлар", intercityMakkah: "Маккага йўл", intercityMadinah: "Мадинага йўл", checkout: "Меҳмонхонадан чиқиш", airportTransfer: "Аэропортга трансфер", flightHome: "Уйга парвоз", haramain: "Haramain · меҳмонхона → вокзал → меҳмонхона", road: "Шаҳарлараро трансфер", makkah: "Макка", madinah: "Мадина", jeddah: "Жидда",

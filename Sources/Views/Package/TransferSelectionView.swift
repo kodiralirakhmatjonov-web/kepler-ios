@@ -902,6 +902,7 @@ struct TransferSelectionView: View {
     private var localeIdentifier: String {
         switch settings.language {
         case .russian: return "ru_RU"
+        case .indonesian: return "id_ID"
         case .turkish: return TurkishLocalization.phrase("en_US")
         case .english: return "en_US"
         case .uzbek: return "uz_Latn_UZ"
@@ -1010,7 +1011,7 @@ private struct TransferLiveSearchMap: View {
                 )
             }
         }
-        .accessibilityLabel("Live transfer search map in Makkah")
+        .accessibilityLabel(IumrahAccessibilityCopy.text(settings.language, ru: "Карта поиска трансфера в Мекке", en: "Live transfer search map in Makkah", uz: "Makkadagi transfer qidiruv xaritasi", cy: "Маккадаги трансфер қидирув харитаси", tr: "Mekke’de canlı transfer arama haritası", id: "Peta pencarian transfer langsung di Makkah"))
     }
 
     private var searchRadiusMeters: CLLocationDistance {
@@ -1206,6 +1207,7 @@ private func transferLocalized(
 ) -> String {
     switch language {
     case .russian: return russian
+    case .indonesian: return IndonesianLocalization.phrase(english)
     case .turkish: return TurkishLocalization.phrase(english)
     case .english: return english
     case .uzbek: return uzbek

@@ -224,7 +224,7 @@ struct IumrahAccountView: View {
     private var accountHeader: some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(settings.language == .turkish ? "Hesabım" : "Account")
+                Text(settings.language == .indonesian ? "Akun saya" : (settings.language == .turkish ? "Hesabım" : "Account"))
                     .font(.system(size: 38, weight: .bold, design: .rounded))
                     .tracking(-1)
                 Text(account.isAuthenticated ? tr("Your iumrah profile and trips", "Ваш профиль и поездки iumrah", "iumrah profilingiz va safarlaringiz", "iumrah профилингиз ва сафарларингиз") : tr("Sign in or create your permanent iumrah account", "Войдите или создайте постоянный аккаунт iumrah", "Doimiy iumrah akkauntingizga kiring yoki uni yarating", "Доимий iumrah аккаунтингизга киринг ёки уни яратинг"))
@@ -647,7 +647,7 @@ struct IumrahAccountView: View {
                             .foregroundStyle(.secondary)
                         Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
                             .font(.system(size: 23, weight: .bold, design: .rounded))
-                        Text("Бронь \(session.displayBookingNumber)")
+                        Text(L10n.format("booking_number_short", settings.language, session.displayBookingNumber))
                             .font(.caption.monospaced().weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
@@ -1896,7 +1896,7 @@ struct IumrahAccountView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("\(session.booking.route.originCode) → \(session.booking.route.outboundDestination)")
                     .font(.subheadline.weight(.bold))
-                Text("Бронь \(session.displayBookingNumber) · \(L10n.date(session.booking.input.startDate, settings.language))")
+                Text("\(L10n.format("booking_number_short", settings.language, session.displayBookingNumber)) · \(L10n.date(session.booking.input.startDate, settings.language))")
                     .font(.caption.monospaced().weight(.semibold))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -2774,6 +2774,7 @@ struct IumrahAccountView: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .indonesian: return IndonesianLocalization.phrase(en)
         case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
