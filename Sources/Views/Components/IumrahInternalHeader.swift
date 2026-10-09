@@ -112,6 +112,7 @@ private struct GeneratorProgressStrip: View {
     private var currentPriceLabel: String {
         switch settings.language {
         case .russian: return "ТЕКУЩАЯ ЦЕНА"
+        case .turkish: return TurkishLocalization.phrase("CURRENT TOTAL")
         case .english: return "CURRENT TOTAL"
         case .uzbek: return "JORIY NARX"
         case .uzbekCyrillic: return "ЖОРИЙ НАРХ"
@@ -425,6 +426,7 @@ struct IumrahGeneratorHeader: View {
     private var backAccessibilityLabel: String {
         switch settings.language {
         case .russian: return "Назад"
+        case .turkish: return TurkishLocalization.phrase("Back")
         case .english: return "Back"
         case .uzbek: return "Orqaga"
         case .uzbekCyrillic: return "Орқага"

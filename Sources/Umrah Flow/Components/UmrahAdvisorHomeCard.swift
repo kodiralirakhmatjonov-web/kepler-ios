@@ -150,6 +150,14 @@ struct UmrahAdvisorHomeCard: View {
                 "10 языков",
                 "Голосовой гид для Умры"
             )
+        case .turkish:
+            return (
+                "Umreye başla",
+                "Advisor, tavaftan Safa ile Merve arasındaki sa'ye ve umrenin tamamlanmasına kadar size sesli rehberlik eder.",
+                "Başla",
+                "10 dil",
+                "Umre için sesli rehber"
+            )
         case .english:
             return (
                 "Start Umrah",

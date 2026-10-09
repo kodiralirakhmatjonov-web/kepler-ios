@@ -140,6 +140,7 @@ struct HomeVideoCarousel: View {
     private var openVideoTitle: String {
         switch settings.language {
         case .russian: return "Почувствовать"
+        case .turkish: return TurkishLocalization.phrase("Experience")
         case .english: return "Experience"
         case .uzbek: return "His etish"
         case .uzbekCyrillic: return "Ҳис этиш"

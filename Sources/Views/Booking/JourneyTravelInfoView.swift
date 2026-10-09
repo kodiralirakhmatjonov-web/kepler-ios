@@ -26,6 +26,7 @@ enum IumrahHolyCity: String, CaseIterable, Identifiable, Codable {
         case .makkah:
             switch language {
             case .russian: return "Мекка"
+            case .turkish: return TurkishLocalization.phrase("Makkah")
             case .english: return "Makkah"
             case .uzbek: return "Makka"
             case .uzbekCyrillic: return "Макка"
@@ -33,6 +34,7 @@ enum IumrahHolyCity: String, CaseIterable, Identifiable, Codable {
         case .madinah:
             switch language {
             case .russian: return "Медина"
+            case .turkish: return TurkishLocalization.phrase("Madinah")
             case .english: return "Madinah"
             case .uzbek: return "Madina"
             case .uzbekCyrillic: return "Мадина"
@@ -175,6 +177,7 @@ struct JourneyTravelInfoView: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
@@ -322,6 +325,7 @@ private struct PrayerTimesCard: View {
     private var prayerUnavailableText: String {
         switch settings.language {
         case .russian: return "Времена появятся после подключения к сети"
+        case .turkish: return TurkishLocalization.phrase("Prayer times appear when online")
         case .english: return "Prayer times appear when online"
         case .uzbek: return "Namoz vaqtlari internet bo‘lganda chiqadi"
         case .uzbekCyrillic: return "Намоз вақтлари интернет бўлганда чиқади"
@@ -331,6 +335,7 @@ private struct PrayerTimesCard: View {
     private var eyebrow: String {
         switch settings.language {
         case .russian: return "ВРЕМЕНА МОЛИТВ"
+        case .turkish: return TurkishLocalization.phrase("PRAYER TIMES")
         case .english: return "PRAYER TIMES"
         case .uzbek: return "NAMOZ VAQTLARI"
         case .uzbekCyrillic: return "НАМОЗ ВАҚТЛАРИ"
@@ -340,6 +345,7 @@ private struct PrayerTimesCard: View {
     private var methodLabel: String {
         switch settings.language {
         case .russian: return "Umm al-Qura · время Саудии"
+        case .turkish: return TurkishLocalization.phrase("Umm al-Qura · Saudi time")
         case .english: return "Umm al-Qura · Saudi time"
         case .uzbek: return "Umm al-Qura · Saudiya vaqti"
         case .uzbekCyrillic: return "Umm al-Qura · Саудия вақти"
@@ -349,6 +355,7 @@ private struct PrayerTimesCard: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
@@ -463,6 +470,7 @@ private struct WeatherForecastCard: View {
     private var weatherEyebrow: String {
         switch settings.language {
         case .russian: return "ПОГОДА · 7 ДНЕЙ"
+        case .turkish: return TurkishLocalization.phrase("WEATHER · 7 DAYS")
         case .english: return "WEATHER · 7 DAYS"
         case .uzbek: return "OB-HAVO · 7 KUN"
         case .uzbekCyrillic: return "ОБ-ҲАВО · 7 КУН"
@@ -474,6 +482,7 @@ private struct WeatherForecastCard: View {
     private var unavailableText: String {
         switch settings.language {
         case .russian: return "Прогноз появится при подключении к сети"
+        case .turkish: return TurkishLocalization.phrase("Forecast appears when online")
         case .english: return "Forecast appears when online"
         case .uzbek: return "Prognoz internet bo‘lganda chiqadi"
         case .uzbekCyrillic: return "Прогноз интернет бўлганда чиқади"
@@ -560,6 +569,7 @@ private struct DualWorldClockCard: View {
     private var clockEyebrow: String {
         switch settings.language {
         case .russian: return "МИРОВОЕ ВРЕМЯ"
+        case .turkish: return TurkishLocalization.phrase("WORLD CLOCK")
         case .english: return "WORLD CLOCK"
         case .uzbek: return "DUNYO VAQTI"
         case .uzbekCyrillic: return "ДУНЁ ВАҚТИ"
@@ -573,6 +583,7 @@ private struct DualWorldClockCard: View {
         guard deltaMinutes != 0 else {
             switch settings.language {
             case .russian: return "Одинаковое время"
+            case .turkish: return TurkishLocalization.phrase("Same time")
             case .english: return "Same time"
             case .uzbek: return "Vaqt bir xil"
             case .uzbekCyrillic: return "Вақт бир хил"
@@ -585,6 +596,7 @@ private struct DualWorldClockCard: View {
         let delta = minutes == 0 ? "\(sign)\(hours) ч" : "\(sign)\(hours):\(String(format: "%02d", minutes))"
         switch settings.language {
         case .russian: return "Ваш город \(delta) относительно Саудии"
+        case .turkish: return TurkishLocalization.phrase("Your city \(delta) vs Saudi Arabia")
         case .english: return "Your city \(delta) vs Saudi Arabia"
         case .uzbek: return "Shahringiz Saudiya vaqtiga nisbatan \(delta)"
         case .uzbekCyrillic: return "Шаҳрингиз Саудия вақтига нисбатан \(delta)"
@@ -865,6 +877,7 @@ struct IumrahWeatherSnapshot: Codable, Hashable {
         formatter.dateFormat = "HH:mm"
         switch language {
         case .russian: return "обновлено \(formatter.string(from: fetchedAt))"
+        case .turkish: return TurkishLocalization.phrase("updated \(formatter.string(from: fetchedAt))")
         case .english: return "updated \(formatter.string(from: fetchedAt))"
         case .uzbek: return "yangilandi \(formatter.string(from: fetchedAt))"
         case .uzbekCyrillic: return "янгиланди \(formatter.string(from: fetchedAt))"
@@ -885,6 +898,7 @@ struct IumrahWeatherDay: Identifiable, Codable, Hashable {
         if calendar.isDate(date, inSameDayAs: Date()) {
             switch language {
             case .russian: return "Сег."
+            case .turkish: return TurkishLocalization.phrase("Today")
             case .english: return "Today"
             case .uzbek: return "Bugun"
             case .uzbekCyrillic: return "Бугун"
@@ -894,6 +908,7 @@ struct IumrahWeatherDay: Identifiable, Codable, Hashable {
         formatter.timeZone = timeZone
         switch language {
         case .russian: formatter.locale = Locale(identifier: "ru_RU")
+        case .turkish: formatter.locale = Locale(identifier: "tr_TR")
         case .english: formatter.locale = Locale(identifier: "en_US")
         case .uzbek: formatter.locale = Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: formatter.locale = Locale(identifier: "uz_Cyrl_UZ")
@@ -961,12 +976,19 @@ enum IumrahWeatherCondition: String, Codable, Hashable {
         case (.rain, .russian), (.showers, .russian): return "Дождь"
         case (.thunder, .russian): return "Гроза"
         case (.snow, .russian): return "Снег"
+        case (.clear, .turkish): return TurkishLocalization.phrase("Clear")
         case (.clear, .english): return "Clear"
+        case (.partlyCloudy, .turkish): return TurkishLocalization.phrase("Partly cloudy")
         case (.partlyCloudy, .english): return "Partly cloudy"
+        case (.cloudy, .turkish): return TurkishLocalization.phrase("Cloudy")
         case (.cloudy, .english): return "Cloudy"
+        case (.fog, .turkish): return TurkishLocalization.phrase("Fog")
         case (.fog, .english): return "Fog"
+        case (.rain, .turkish), (.showers, .turkish): return TurkishLocalization.phrase("Rain")
         case (.rain, .english), (.showers, .english): return "Rain"
+        case (.thunder, .turkish): return TurkishLocalization.phrase("Thunderstorm")
         case (.thunder, .english): return "Thunderstorm"
+        case (.snow, .turkish): return TurkishLocalization.phrase("Snow")
         case (.snow, .english): return "Snow"
         case (.clear, .uzbek), (.clear, .uzbekCyrillic): return "Ochiq"
         case (.partlyCloudy, .uzbek), (.partlyCloudy, .uzbekCyrillic): return "Qisman bulutli"

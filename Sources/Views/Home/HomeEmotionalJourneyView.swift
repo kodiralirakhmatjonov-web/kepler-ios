@@ -324,6 +324,7 @@ private enum HomeEmotionalCopy {
     static func promptTitle(_ language: AppSettingsStore.Language) -> String {
         switch language {
         case .russian: return "Почувствуйте перед поездкой"
+        case .turkish: return TurkishLocalization.phrase("Feel it before your journey")
         case .english: return "Feel it before your journey"
         case .uzbek: return "Safardan oldin his eting"
         case .uzbekCyrillic: return "Сафардан олдин ҳис этинг"
@@ -333,6 +334,7 @@ private enum HomeEmotionalCopy {
     static func tryButton(_ language: AppSettingsStore.Language) -> String {
         switch language {
         case .russian: return "Почувствовать сейчас"
+        case .turkish: return TurkishLocalization.phrase("Experience now")
         case .english: return "Experience now"
         case .uzbek: return "Hozir his eting"
         case .uzbekCyrillic: return "Ҳозир ҳис этинг"
@@ -349,6 +351,15 @@ private enum HomeEmotionalCopy {
                 "Здесь становится тише внутри.",
                 "То, о чём вы просили в тишине…",
                 "А потом — Медина."
+            ][safe: index] ?? ""
+        case .turkish:
+            return [
+                "Bir gün, bu manzara yalnızca ekranda kalmayacak.",
+                "Bazı yerlere ayaklarımızdan önce kalbimiz varır.",
+                "Buradaki herkesin bir hikâyesi var.",
+                "Burada insanın içi biraz daha huzur buluyor.",
+                "Sessizce diledikleriniz…",
+                "Ve sonra — Medine."
             ][safe: index] ?? ""
         case .english:
             return [
@@ -390,6 +401,15 @@ private enum HomeEmotionalCopy {
                 nil,
                 "…однажды может привести вас сюда.",
                 "Город, из которого сердце уезжает не сразу."
+            ][safe: index] ?? nil
+        case .turkish:
+            return [
+                "Siz de burada olacaksınız.",
+                nil,
+                "Ve her birinin kendi duası var.",
+                nil,
+                "…bir gün sizi buraya getirebilir.",
+                "Kalbin bir anda ayrılamadığı şehir."
             ][safe: index] ?? nil
         case .english:
             return [

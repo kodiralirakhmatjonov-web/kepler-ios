@@ -55,6 +55,7 @@ struct ProfileSettingsView: View {
     private var policySectionTitle: String {
         switch settings.language {
         case .russian: return "Конфиденциальность, возвраты и оплата"
+        case .turkish: return TurkishLocalization.phrase("Privacy, refunds & payment")
         case .english: return "Privacy, refunds & payment"
         case .uzbek: return "Maxfiylik, qaytarish va to‘lov"
         case .uzbekCyrillic: return "Махфийлик, қайтариш ва тўлов"

@@ -102,6 +102,7 @@ extension IumrahPackageSharePayload {
     ) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
@@ -208,6 +209,9 @@ enum IumrahPackageShareFactory {
         case .russian:
             header = invitation ? "Присоединяйтесь к моей Умре с iumrah" : "Пакет Умры · iumrah Configurator"
             details = "\(payload.hotelName) · \(payload.tierName)\n\(payload.outboundRoute) · \(payload.inboundRoute)\n\(travelDates(payload, language: language))\n\(payload.durationDays) дн. · \(payload.scopeSummary) · \(travelerBreakdown(payload, language: language)) · \(payload.rooms) комн.\n\(price) за пакет · \(perPerson) на человека\n\(payload.mealsSummary)"
+        case .turkish:
+            header = invitation ? "iumrah ile umre yolculuğuma katılın" : "Umre paketi · iumrah Configurator"
+            details = "\(payload.hotelName) · \(payload.tierName)\n\(payload.outboundRoute) · \(payload.inboundRoute)\n\(travelDates(payload, language: language))\n\(payload.durationDays) gün · \(payload.scopeSummary) · \(travelerBreakdown(payload, language: language)) · \(payload.rooms) oda\nPaket: \(price) · kişi başı: \(perPerson)\n\(payload.mealsSummary)"
         case .english:
             header = invitation ? "Join my Umrah trip with iumrah" : "Umrah package · iumrah Configurator"
             details = "\(payload.hotelName) · \(payload.tierName)\n\(payload.outboundRoute) · \(payload.inboundRoute)\n\(travelDates(payload, language: language))\n\(payload.durationDays) days · \(payload.scopeSummary) · \(travelerBreakdown(payload, language: language)) · \(payload.rooms) rooms\n\(price) package · \(perPerson) per person\n\(payload.mealsSummary)"
@@ -354,6 +358,7 @@ enum IumrahPackageShareFactory {
     private static func localized(_ language: AppSettingsStore.Language, _ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
@@ -391,6 +396,7 @@ enum IumrahPackageShareFactory {
         let formatter = DateFormatter()
         switch language {
         case .russian: formatter.locale = Locale(identifier: "ru_RU")
+        case .turkish: formatter.locale = Locale(identifier: "tr_TR")
         case .english: formatter.locale = Locale(identifier: "en_US")
         case .uzbek, .uzbekCyrillic: formatter.locale = Locale(identifier: "uz_UZ")
         }

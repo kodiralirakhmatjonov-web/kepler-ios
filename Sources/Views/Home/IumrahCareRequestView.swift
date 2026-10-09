@@ -539,6 +539,7 @@ struct IumrahCareRequestView: View {
         let detail = (error as NSError).localizedDescription
         switch settings.language {
         case .russian: return "Не удалось отправить запрос в Iumrah Care. Проверьте интернет и попробуйте ещё раз.\n\n\(detail)"
+        case .turkish: return TurkishLocalization.phrase("We couldn’t send the request to Iumrah Care. Check your connection and try again.\n\n\(detail)")
         case .english: return "We couldn’t send the request to Iumrah Care. Check your connection and try again.\n\n\(detail)"
         case .uzbek: return "So‘rovni Iumrah Care’ga yuborib bo‘lmadi. Internetni tekshirib, qayta urinib ko‘ring.\n\n\(detail)"
         case .uzbekCyrillic: return "Сўровни Iumrah Care’га юбориб бўлмади. Интернетни текшириб, қайта уриниб кўринг.\n\n\(detail)"
@@ -651,6 +652,7 @@ struct IumrahCareRequestView: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ uzc: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzc

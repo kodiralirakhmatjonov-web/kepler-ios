@@ -1971,6 +1971,8 @@ struct BookingsHomeView: View {
             if mod10 == 1 && mod100 != 11 { return "\(count) паломник" }
             if (2...4).contains(mod10) && !(12...14).contains(mod100) { return "\(count) паломника" }
             return "\(count) паломников"
+        case .turkish:
+            return count == 1 ? "1 umre yolcusu" : "\(count) umre yolcusu"
         case .english:
             return count == 1 ? "1 pilgrim" : "\(count) pilgrims"
         case .uzbek:
@@ -2090,6 +2092,7 @@ struct BookingsHomeView: View {
     private func localized(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy

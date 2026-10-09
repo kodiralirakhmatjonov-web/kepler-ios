@@ -1,2 +1,3 @@
 "CFBundleDisplayName" = "iumrah";
 "CFBundleName" = "iumrah";
+"NSLocationWhenInUseUsageDescription" = "iumrah Configurator, bulunduğunuz konuma ve şehrinizin havalimanına göre umre paketinizi oluşturmak için konum erişimi ister.";

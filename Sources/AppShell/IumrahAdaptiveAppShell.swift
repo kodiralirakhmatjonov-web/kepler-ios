@@ -172,6 +172,7 @@ private struct IumrahLargeScreenSidebar: View {
     private var servicesTitle: String {
         switch settings.language {
         case .russian: return "Сервисы"
+        case .turkish: return TurkishLocalization.phrase("Services")
         case .english: return "Services"
         case .uzbek: return "Xizmatlar"
         case .uzbekCyrillic: return "Хизматлар"
@@ -181,6 +182,7 @@ private struct IumrahLargeScreenSidebar: View {
     private var notificationsTitle: String {
         switch settings.language {
         case .russian: return "Уведомления"
+        case .turkish: return TurkishLocalization.phrase("Notifications")
         case .english: return "Notifications"
         case .uzbek: return "Bildirishnomalar"
         case .uzbekCyrillic: return "Билдиришномалар"
@@ -190,6 +192,7 @@ private struct IumrahLargeScreenSidebar: View {
     private var footerTitle: String {
         switch settings.language {
         case .russian: return "iumrah · онлайн"
+        case .turkish: return TurkishLocalization.phrase("iumrah · online")
         case .english: return "iumrah · online"
         case .uzbek: return "iumrah · onlayn"
         case .uzbekCyrillic: return "iumrah · онлайн"
@@ -221,6 +224,7 @@ extension AppTab {
         case .account:
             switch language {
             case .russian: return "Аккаунт"
+            case .turkish: return TurkishLocalization.phrase("Account")
             case .english: return "Account"
             case .uzbek: return "Akkaunt"
             case .uzbekCyrillic: return "Аккаунт"

@@ -1215,7 +1215,7 @@ struct PilgrimCheckoutView: View {
                     )
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Iumrah Gift Cards")
+                        Text(settings.language == .turkish ? "iumrah Hediye Kartları" : "Iumrah Gift Cards")
                             .font(.headline)
                         Text(tr("Gift Card & Iumrah Balance", "Gift Card и Iumrah Balance", "Gift Card va Iumrah Balance", "Gift Card ва Iumrah Balance"))
                             .font(.caption)
@@ -1275,7 +1275,7 @@ struct PilgrimCheckoutView: View {
             }
             if summary.totalDiscountUsd > 0 {
                 HStack {
-                    Text("Iumrah Gift Cards")
+                    Text(settings.language == .turkish ? "iumrah Hediye Kartları" : "Iumrah Gift Cards")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Text("−\(friendMoney(summary.totalDiscountUsd))")
@@ -1959,7 +1959,7 @@ struct PilgrimCheckoutView: View {
         return String(repeating: "0", count: 8 - digits.count) + digits
     }
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
-        switch settings.language { case .russian: return ru; case .english: return en; case .uzbek: return uz; case .uzbekCyrillic: return cyrl }
+        switch settings.language { case .russian: return ru; case .english: return en; case .turkish: return TurkishLocalization.phrase(en); case .uzbek: return uz; case .uzbekCyrillic: return cyrl }
     }
 }
 
@@ -2545,6 +2545,7 @@ private struct TravelerFormEditorSheet: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
@@ -2658,6 +2659,7 @@ private struct CountryPickerSheet: View {
     private var searchPrompt: String {
         switch language {
         case .russian: return "Поиск страны"
+        case .turkish: return TurkishLocalization.phrase("Search country")
         case .english: return "Search country"
         case .uzbek: return "Davlatni qidirish"
         case .uzbekCyrillic: return "Давлатни қидириш"
@@ -2667,6 +2669,7 @@ private struct CountryPickerSheet: View {
     private var closeTitle: String {
         switch language {
         case .russian: return "Закрыть"
+        case .turkish: return TurkishLocalization.phrase("Close")
         case .english: return "Close"
         case .uzbek: return "Yopish"
         case .uzbekCyrillic: return "Ёпиш"

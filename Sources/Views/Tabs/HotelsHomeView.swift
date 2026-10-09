@@ -271,6 +271,7 @@ struct HotelsHomeView: View {
     private var readyPackagesTitle: String {
         switch settings.language {
         case .russian: return "Готовые пакеты"
+        case .turkish: return TurkishLocalization.phrase("Ready packages")
         case .english: return "Ready packages"
         case .uzbek: return "Tayyor paketlar"
         case .uzbekCyrillic: return "Тайёр пакетлар"
@@ -280,6 +281,7 @@ struct HotelsHomeView: View {
     private var readyPackagesEyebrow: String {
         switch settings.language {
         case .russian: return "FLIGHT FIRST"
+        case .turkish: return TurkishLocalization.phrase("FLIGHT FIRST")
         case .english: return "FLIGHT FIRST"
         case .uzbek: return "FLIGHT FIRST"
         case .uzbekCyrillic: return "FLIGHT FIRST"
@@ -289,6 +291,7 @@ struct HotelsHomeView: View {
     private var readyPackagesSubtitle: String {
         switch settings.language {
         case .russian: return "Только полностью собранные пакеты iumrah с рейсами, отелями и сервисами."
+        case .turkish: return TurkishLocalization.phrase("Only fully assembled iumrah packages with flights, hotels and services.")
         case .english: return "Only fully assembled iumrah packages with flights, hotels and services."
         case .uzbek: return "Faqat reyslar, mehmonxonalar va xizmatlar bilan to‘liq yig‘ilgan iumrah paketlari."
         case .uzbekCyrillic: return "Фақат рейслар, меҳмонхоналар ва хизматлар билан тўлиқ йиғилган iumrah пакетлари."
@@ -298,6 +301,7 @@ struct HotelsHomeView: View {
     private var readyPackagesLoadingText: String {
         switch settings.language {
         case .russian: return "Обновляем готовые пакеты…"
+        case .turkish: return TurkishLocalization.phrase("Refreshing ready packages…")
         case .english: return "Refreshing ready packages…"
         case .uzbek: return "Tayyor paketlar yangilanmoqda…"
         case .uzbekCyrillic: return "Тайёр пакетлар янгиланмоқда…"
@@ -369,6 +373,7 @@ struct HotelsHomeView: View {
     private var sundayClubSoonBadge: String {
         switch settings.language {
         case .russian: return "Скоро"
+        case .turkish: return TurkishLocalization.phrase("Coming soon")
         case .english: return "Coming soon"
         case .uzbek: return "Tez orada"
         case .uzbekCyrillic: return "Тез орада"
@@ -378,6 +383,7 @@ struct HotelsHomeView: View {
     private var sundayClubSoonTitle: String {
         switch settings.language {
         case .russian: return "Умра для выходных"
+        case .turkish: return TurkishLocalization.phrase("Umrah for the weekend")
         case .english: return "Umrah for the weekend"
         case .uzbek: return "Dam olish kunlari uchun Umra"
         case .uzbekCyrillic: return "Дам олиш кунлари учун Умра"
@@ -387,6 +393,7 @@ struct HotelsHomeView: View {
     private var sundayClubSoonBody: String {
         switch settings.language {
         case .russian: return "Скоро здесь появятся готовые пакеты Sunday Umrah Club — короткие поездки на выходные с уже собранными датами и маршрутом."
+        case .turkish: return TurkishLocalization.phrase("Ready Sunday Umrah Club packages are coming here soon — short weekend trips with dates and route already prepared.")
         case .english: return "Ready Sunday Umrah Club packages are coming here soon — short weekend trips with dates and route already prepared."
         case .uzbek: return "Tez orada bu yerda Sunday Umrah Club tayyor paketlari paydo bo‘ladi — dam olish kunlariga mos, sanalari va yo‘nalishi oldindan tuzilgan qisqa safarlar."
         case .uzbekCyrillic: return "Тез орада бу ерда Sunday Umrah Club тайёр пакетлари пайдо бўлади — дам олиш кунларига мос, саналари ва йўналиши олдиндан тузилган қисқа сафарлар."
@@ -416,6 +423,7 @@ struct HotelsHomeView: View {
     private var packageShareUnavailableText: String {
         switch settings.language {
         case .russian: return "Не удалось подготовить пакет для отправки. Обновите цены и попробуйте ещё раз."
+        case .turkish: return TurkishLocalization.phrase("The package could not be prepared for sharing. Refresh pricing and try again.")
         case .english: return "The package could not be prepared for sharing. Refresh pricing and try again."
         case .uzbek: return "Paketni ulashish uchun tayyorlab bo‘lmadi. Narxlarni yangilang va qayta urinib ko‘ring."
         case .uzbekCyrillic: return "Пакетни улашиш учун тайёрлаб бўлмади. Нархларни янгиланг ва қайта уриниб кўринг."
@@ -425,6 +433,7 @@ struct HotelsHomeView: View {
     private var packageShareErrorTitle: String {
         switch settings.language {
         case .russian: return "Не удалось поделиться"
+        case .turkish: return TurkishLocalization.phrase("Could not share")
         case .english: return "Could not share"
         case .uzbek: return "Ulashib bo‘lmadi"
         case .uzbekCyrillic: return "Улашиб бўлмади"
@@ -434,6 +443,7 @@ struct HotelsHomeView: View {
     private var packageShareErrorDismiss: String {
         switch settings.language {
         case .russian: return "Понятно"
+        case .turkish: return TurkishLocalization.phrase("OK")
         case .english: return "OK"
         case .uzbek: return "Tushunarli"
         case .uzbekCyrillic: return "Тушунарли"
@@ -705,6 +715,7 @@ private struct IumrahPackageAssemblyBar: View {
         let f = DateFormatter()
         switch language {
         case .russian: f.locale = Locale(identifier: "ru_RU")
+        case .turkish: f.locale = Locale(identifier: "tr_TR")
         case .english: f.locale = Locale(identifier: "en_US")
         case .uzbek: f.locale = Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: f.locale = Locale(identifier: "uz_Cyrl_UZ")
@@ -716,6 +727,7 @@ private struct IumrahPackageAssemblyBar: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -778,6 +790,7 @@ private struct IumrahFriendsShowcaseCard: View {
     private var bodyText: String {
         switch language {
         case .russian: return "Соберите друзей или близких и сразу посмотрите итоговую стоимость Umrah-пакета для всей группы — от 1 до 16 человек."
+        case .turkish: return TurkishLocalization.phrase("Bring friends or family together and instantly see the total Umrah package price for a group of 1 to 16 travelers.")
         case .english: return "Bring friends or family together and instantly see the total Umrah package price for a group of 1 to 16 travelers."
         case .uzbek: return "Do‘stlar yoki yaqinlaringizni yig‘ing va 1 dan 16 kishigacha bo‘lgan guruh uchun Umra paketining umumiy narxini darhol ko‘ring."
         case .uzbekCyrillic: return "Дўстлар ёки яқинларингизни йиғинг ва 1 дан 16 кишигача бўлган гуруҳ учун Умра пакетининг умумий нархини дарҳол кўринг."
@@ -787,6 +800,7 @@ private struct IumrahFriendsShowcaseCard: View {
     private var groupText: String {
         switch language {
         case .russian: return "1–16 человек"
+        case .turkish: return TurkishLocalization.phrase("1–16 travelers")
         case .english: return "1–16 travelers"
         case .uzbek: return "1–16 kishi"
         case .uzbekCyrillic: return "1–16 киши"
@@ -796,6 +810,7 @@ private struct IumrahFriendsShowcaseCard: View {
     private var calculateText: String {
         switch language {
         case .russian: return "Рассчитать"
+        case .turkish: return TurkishLocalization.phrase("Calculate")
         case .english: return "Calculate"
         case .uzbek: return "Hisoblash"
         case .uzbekCyrillic: return "Ҳисоблаш"
@@ -1126,6 +1141,7 @@ private struct IumrahFriendsCalculatorCard: View {
         let formatted = money(value)
         switch settings.language {
         case .russian: return "\(formatted) / чел."
+        case .turkish: return TurkishLocalization.phrase("\(formatted) / person")
         case .english: return "\(formatted) / person"
         case .uzbek: return "\(formatted) / kishi"
         case .uzbekCyrillic: return "\(formatted) / киши"
@@ -1135,6 +1151,7 @@ private struct IumrahFriendsCalculatorCard: View {
     private func durationText(_ days: Int) -> String {
         switch settings.language {
         case .russian: return "Прямые опубликованные рейсы · \(days) дней"
+        case .turkish: return TurkishLocalization.phrase("Published direct flights · \(days) days")
         case .english: return "Published direct flights · \(days) days"
         case .uzbek: return "E’lon qilingan to‘g‘ridan-to‘g‘ri reyslar · \(days) kun"
         case .uzbekCyrillic: return "Эълон қилинган тўғридан-тўғри рейслар · \(days) кун"
@@ -1162,6 +1179,7 @@ private struct IumrahFriendsCalculatorCard: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
@@ -1228,6 +1246,7 @@ private struct IumrahFriendsIncludedSheet: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
@@ -1613,6 +1632,7 @@ private struct StorefrontFlightOptionCard: View {
         let route = "\(preview.outbound.origin) → \(preview.outbound.destination) + \(preview.inbound.origin) → \(preview.inbound.destination)"
         switch language {
         case .russian: return "\(route) · \(preview.durationDays) дн. · \(packageScopeText(preview))"
+        case .turkish: return TurkishLocalization.phrase("\(route) · \(preview.durationDays) days · \(packageScopeText(preview))")
         case .english: return "\(route) · \(preview.durationDays) days · \(packageScopeText(preview))"
         case .uzbek: return "\(route) · \(preview.durationDays) kun · \(packageScopeText(preview))"
         case .uzbekCyrillic: return "\(route) · \(preview.durationDays) кун · \(packageScopeText(preview))"
@@ -1626,10 +1646,12 @@ private struct StorefrontFlightOptionCard: View {
     private func packageScopeText(_ preview: StorefrontFlightPackagePreview) -> String {
         switch (preview.kind, language) {
         case (.makkahComfortShort, .russian), (.hotelFirstMakkah, .russian): return "Только Мекка"
+        case (.makkahComfortShort, .turkish), (.hotelFirstMakkah, .turkish): return TurkishLocalization.phrase("Makkah only")
         case (.makkahComfortShort, .english), (.hotelFirstMakkah, .english): return "Makkah only"
         case (.makkahComfortShort, .uzbek), (.hotelFirstMakkah, .uzbek): return "Faqat Makka"
         case (.makkahComfortShort, .uzbekCyrillic), (.hotelFirstMakkah, .uzbekCyrillic): return "Фақат Макка"
         case (.makkahMadinahStandard, .russian): return "Мекка + Медина"
+        case (.makkahMadinahStandard, .turkish): return TurkishLocalization.phrase("Makkah + Madinah")
         case (.makkahMadinahStandard, .english): return "Makkah + Madinah"
         case (.makkahMadinahStandard, .uzbek): return "Makka + Madina"
         case (.makkahMadinahStandard, .uzbekCyrillic): return "Макка + Мадина"
@@ -1639,6 +1661,7 @@ private struct StorefrontFlightOptionCard: View {
     private var generatedStampText: String {
         switch language {
         case .russian: return packagePreview == nil ? "iumrah Flights Scanner" : "Сгенерировано iumrah Configurator"
+        case .turkish: return packagePreview == nil ? "iumrah Flights Scanner" : "iumrah Configurator tarafından oluşturuldu"
         case .english: return packagePreview == nil ? "iumrah Flights Scanner" : "Generated by iumrah Configurator"
         case .uzbek: return packagePreview == nil ? "iumrah Flights Scanner" : "iumrah Configurator yaratdi"
         case .uzbekCyrillic: return packagePreview == nil ? "iumrah Flights Scanner" : "iumrah Configurator яратди"
@@ -1648,6 +1671,7 @@ private struct StorefrontFlightOptionCard: View {
     private var packagePerPersonText: String {
         switch language {
         case .russian: return "пакет · 1 человек"
+        case .turkish: return TurkishLocalization.phrase("package · 1 person")
         case .english: return "package · 1 person"
         case .uzbek: return "paket · 1 kishi"
         case .uzbekCyrillic: return "пакет · 1 киши"
@@ -1657,6 +1681,7 @@ private struct StorefrontFlightOptionCard: View {
     private var calculatingPackageText: String {
         switch language {
         case .russian: return "Считаем пакет"
+        case .turkish: return TurkishLocalization.phrase("Calculating package")
         case .english: return "Calculating package"
         case .uzbek: return "Paket hisoblanmoqda"
         case .uzbekCyrillic: return "Пакет ҳисобланмоқда"
@@ -1666,6 +1691,7 @@ private struct StorefrontFlightOptionCard: View {
     private var packageUnavailableText: String {
         switch language {
         case .russian: return "нет пары 2–15 дней"
+        case .turkish: return TurkishLocalization.phrase("no 2–15 day pair")
         case .english: return "no 2–15 day pair"
         case .uzbek: return "2–15 kunlik juftlik yo‘q"
         case .uzbekCyrillic: return "2–15 кунлик жуфтлик йўқ"
@@ -2396,8 +2422,11 @@ struct StorefrontUmrahPackageDetailView: View {
         case (.russian, .breakfast): return "Завтрак"
         case (.russian, .lunch): return "Обед"
         case (.russian, .dinner): return "Ужин"
+        case (.turkish, .breakfast): return TurkishLocalization.phrase("Breakfast")
         case (.english, .breakfast): return "Breakfast"
+        case (.turkish, .lunch): return TurkishLocalization.phrase("Lunch")
         case (.english, .lunch): return "Lunch"
+        case (.turkish, .dinner): return TurkishLocalization.phrase("Dinner")
         case (.english, .dinner): return "Dinner"
         case (.uzbek, .breakfast): return "Nonushta"
         case (.uzbek, .lunch): return "Tushlik"
@@ -3462,6 +3491,7 @@ struct StorefrontUmrahPackageDetailView: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
@@ -3748,6 +3778,7 @@ private struct PackageFlightPickerSheet: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
@@ -3833,6 +3864,7 @@ private struct PackageFlightChoiceCard: View {
     private var directTitle: String {
         switch language {
         case .russian: return "прямой"
+        case .turkish: return TurkishLocalization.phrase("direct")
         case .english: return "direct"
         case .uzbek: return "to‘g‘ri"
         case .uzbekCyrillic: return "тўғри"
@@ -3978,6 +4010,7 @@ private struct PackageFlightLegDetailCard: View {
     private var directText: String {
         switch language {
         case .russian: return leg.stops == 0 ? "прямой" : "\(leg.stops) пересад."
+        case .turkish: return leg.stops == 0 ? "direkt" : "\(leg.stops) aktarma"
         case .english: return leg.stops == 0 ? "direct" : "\(leg.stops) stops"
         case .uzbek: return leg.stops == 0 ? "to‘g‘ridan-to‘g‘ri" : "\(leg.stops) ulanish"
         case .uzbekCyrillic: return leg.stops == 0 ? "тўғридан-тўғри" : "\(leg.stops) уланиш"
@@ -3995,6 +4028,7 @@ private struct PackageFlightLegDetailCard: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
@@ -4087,6 +4121,7 @@ private struct PackageHotelDetailCard: View {
     private var nightsText: String {
         switch language {
         case .russian: return "\(hotel.nights) ноч."
+        case .turkish: return TurkishLocalization.phrase("\(hotel.nights) nights")
         case .english: return "\(hotel.nights) nights"
         case .uzbek: return "\(hotel.nights) tun"
         case .uzbekCyrillic: return "\(hotel.nights) тун"
@@ -4133,6 +4168,7 @@ private struct PackagePurchaseTrustCard: View {
     private var title: String {
         switch language {
         case .russian: return "Доверие и подтверждение бронирования"
+        case .turkish: return TurkishLocalization.phrase("Booking trust and confirmation")
         case .english: return "Booking trust and confirmation"
         case .uzbek: return "Bron ishonchi va tasdig‘i"
         case .uzbekCyrillic: return "Брон ишончи ва тасдиғи"
@@ -4142,6 +4178,7 @@ private struct PackagePurchaseTrustCard: View {
     private var subtitle: String {
         switch language {
         case .russian: return "Прямой контакт с основателем · инвойс и чек · ответственность iumrah за отель и iumrah Services"
+        case .turkish: return TurkishLocalization.phrase("Direct founder contact · invoice and receipt · iumrah responsibility for the hotel and iumrah Services")
         case .english: return "Direct founder contact · invoice and receipt · iumrah responsibility for the hotel and iumrah Services"
         case .uzbek: return "Asoschi bilan bevosita aloqa · invoice va chek · mehmonxona hamda iumrah Services uchun iumrah javobgarligi"
         case .uzbekCyrillic: return "Асосчи билан бевосита алоқа · invoice ва чек · меҳмонхона ҳамда iumrah Services учун iumrah жавобгарлиги"
@@ -4518,6 +4555,7 @@ private struct StorefrontPackageInformationSheet: View {
     private func tr(_ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy

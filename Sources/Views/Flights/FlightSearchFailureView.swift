@@ -61,6 +61,7 @@ struct FlightSearchGateView: View {
     private var title: String {
         switch settings.language {
         case .russian: return "Поиск перелёта"
+        case .turkish: return TurkishLocalization.phrase("Flight search")
         case .english: return "Flight search"
         case .uzbek: return "Parvoz qidiruvi"
         case .uzbekCyrillic: return "Парвоз қидируви"
@@ -70,6 +71,7 @@ struct FlightSearchGateView: View {
     private var statusTitle: String {
         switch settings.language {
         case .russian: return "Рейсы пока не загружены"
+        case .turkish: return TurkishLocalization.phrase("Flights are not loaded yet")
         case .english: return "Flights are not loaded yet"
         case .uzbek: return "Reyslar hali yuklanmadi"
         case .uzbekCyrillic: return "Рейслар ҳали юкланмади"
@@ -79,6 +81,7 @@ struct FlightSearchGateView: View {
     private var subtitle: String {
         switch settings.language {
         case .russian: return "Экран выбора откроется только после получения хотя бы одного подтверждённого варианта."
+        case .turkish: return TurkishLocalization.phrase("Flight selection opens only after at least one verified option is available.")
         case .english: return "Flight selection opens only after at least one verified option is available."
         case .uzbek: return "Kamida bitta tasdiqlangan variant kelgandan keyin tanlov ekrani ochiladi."
         case .uzbekCyrillic: return "Камида битта тасдиқланган вариант келгандан кейин танлов экрани очилади."
@@ -94,6 +97,7 @@ struct FlightSearchGateView: View {
         if flexibility.isWeeklyDiscovery {
             switch settings.language {
             case .russian: return "Неделя вокруг \(date)"
+            case .turkish: return TurkishLocalization.phrase("Week around \(date)")
             case .english: return "Week around \(date)"
             case .uzbek: return "\(date) atrofidagi hafta"
             case .uzbekCyrillic: return "\(date) атрофидаги ҳафта"
@@ -105,6 +109,7 @@ struct FlightSearchGateView: View {
     private var retryTitle: String {
         switch settings.language {
         case .russian: return "Повторить поиск"
+        case .turkish: return TurkishLocalization.phrase("Retry search")
         case .english: return "Retry search"
         case .uzbek: return "Qidiruvni takrorlash"
         case .uzbekCyrillic: return "Қидирувни такрорлаш"
@@ -114,6 +119,7 @@ struct FlightSearchGateView: View {
     private var outboundEyebrow: String {
         switch settings.language {
         case .russian: return "ТУДА"
+        case .turkish: return TurkishLocalization.phrase("OUTBOUND")
         case .english: return "OUTBOUND"
         case .uzbek: return "BORISH"
         case .uzbekCyrillic: return "БОРИШ"
@@ -123,6 +129,7 @@ struct FlightSearchGateView: View {
     private var returnEyebrow: String {
         switch settings.language {
         case .russian: return "ОБРАТНО"
+        case .turkish: return TurkishLocalization.phrase("RETURN")
         case .english: return "RETURN"
         case .uzbek: return "QAYTISH"
         case .uzbekCyrillic: return "ҚАЙТИШ"

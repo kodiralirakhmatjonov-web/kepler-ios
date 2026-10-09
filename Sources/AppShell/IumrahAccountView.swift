@@ -92,7 +92,6 @@ struct IumrahAccountView: View {
     @State private var showProfileEditor = false
     @State private var identityCardFlipped = false
     @State private var showIdentityFullscreen = false
-    @State private var showLanguageSheet = false
     @State private var showIdentityUnlockSheet = false
     @State private var identityRevealProgress: CGFloat = 0
     @State private var loginScrollNonce = 0
@@ -175,10 +174,6 @@ struct IumrahAccountView: View {
         .sheet(isPresented: $showProfileEditor) {
             profileEditorSheet
         }
-        .sheet(isPresented: $showLanguageSheet) {
-            IumrahLanguageSelectionSheet()
-                .environmentObject(settings)
-        }
         .sheet(isPresented: $showIdentityUnlockSheet) {
             IumrahIdentityUnlockSheet(language: settings.language) {
                 loginScrollNonce += 1
@@ -229,7 +224,7 @@ struct IumrahAccountView: View {
     private var accountHeader: some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Account")
+                Text(settings.language == .turkish ? "Hesabım" : "Account")
                     .font(.system(size: 38, weight: .bold, design: .rounded))
                     .tracking(-1)
                 Text(account.isAuthenticated ? tr("Your iumrah profile and trips", "Ваш профиль и поездки iumrah", "iumrah profilingiz va safarlaringiz", "iumrah профилингиз ва сафарларингиз") : tr("Sign in or create your permanent iumrah account", "Войдите или создайте постоянный аккаунт iumrah", "Doimiy iumrah akkauntingizga kiring yoki uni yarating", "Доимий iumrah аккаунтингизга киринг ёки уни яратинг"))
@@ -1168,24 +1163,6 @@ struct IumrahAccountView: View {
             Divider().padding(.leading, 54)
 
             NavigationLink {
-                IumrahPrayerTimesView()
-            } label: {
-                settingsRow(
-                    icon: "moon.stars.fill",
-                    title: "iumrah Prayer Times",
-                    value: tr(
-                        "Prayer times, reminders and wallpaper themes",
-                        "Времена молитв, напоминания и обои",
-                        "Namoz vaqtlari, eslatmalar va oboylar",
-                        "Намоз вақтлари, эслатмалар ва обойлар"
-                    )
-                )
-            }
-            .buttonStyle(.plain)
-
-            Divider().padding(.leading, 54)
-
-            NavigationLink {
                 ESIMView()
             } label: {
                 settingsRow(
@@ -1251,9 +1228,9 @@ struct IumrahAccountView: View {
                 Divider().padding(.leading, 54)
             }
 
-            Button {
-                IumrahHaptics.soft()
-                showLanguageSheet = true
+            NavigationLink {
+                IumrahLanguageSelectionSheet(currentLanguage: settings.language)
+                    .environmentObject(settings)
             } label: {
                 settingsRow(icon: "globe", title: tr("Language", "Язык", "Til", "Тил"), value: settings.language.title)
             }
@@ -1860,9 +1837,9 @@ struct IumrahAccountView: View {
             )
             .padding(.bottom, 8)
 
-            Button {
-                IumrahHaptics.soft()
-                showLanguageSheet = true
+            NavigationLink {
+                IumrahLanguageSelectionSheet(currentLanguage: settings.language)
+                    .environmentObject(settings)
             } label: {
                 settingsRow(icon: "globe", title: tr("Language", "Язык", "Til", "Тил"), value: settings.language.title)
             }
@@ -2797,6 +2774,7 @@ struct IumrahAccountView: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl

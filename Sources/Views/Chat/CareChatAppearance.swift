@@ -181,6 +181,7 @@ enum CareChatWallpaper: String, CaseIterable, Identifiable {
         _ cyrl: String
     ) -> String {
         switch language {
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .russian: return ru
         case .uzbek: return uz

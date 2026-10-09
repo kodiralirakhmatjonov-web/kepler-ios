@@ -167,12 +167,19 @@ struct SidebarDrawerView: View {
         case (.russian, .esimBody): return "Активация и остаток интернета прямо в приложении."
         case (.russian, .insidePackage): return "В СОСТАВЕ ПАКЕТА"
         case (.russian, .footer): return "Independent Umrah · iumrah"
+        case (.turkish, .subtitle): return TurkishLocalization.phrase("Your Umrah in one place")
         case (.english, .subtitle): return "Your Umrah in one place"
+        case (.turkish, .home): return TurkishLocalization.phrase("Home")
         case (.english, .home): return "Home"
+        case (.turkish, .bookings): return TurkishLocalization.phrase("Trips")
         case (.english, .bookings): return "Trips"
+        case (.turkish, .account): return TurkishLocalization.phrase("Account")
         case (.english, .account): return "Account"
+        case (.turkish, .esimBody): return TurkishLocalization.phrase("Activation and data balance directly in the app.")
         case (.english, .esimBody): return "Activation and data balance directly in the app."
+        case (.turkish, .insidePackage): return TurkishLocalization.phrase("INCLUDED WITH PACKAGE")
         case (.english, .insidePackage): return "INCLUDED WITH PACKAGE"
+        case (.turkish, .footer): return TurkishLocalization.phrase("Independent Umrah · iumrah")
         case (.english, .footer): return "Independent Umrah · iumrah"
         case (.uzbek, .subtitle): return "Umrangiz — bir joyda"
         case (.uzbek, .home): return "Bosh sahifa"

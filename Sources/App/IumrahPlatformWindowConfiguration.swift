@@ -45,23 +45,28 @@ private struct IumrahMacCatalystWindowConfigurator: UIViewControllerRepresentabl
 /// iPadOS SwiftUI exposes the keyboard shortcuts as system key commands.
 struct IumrahNavigationCommands: Commands {
     @ObservedObject var chrome: AppChromeStore
+    @AppStorage("iumrah.language") private var languageRaw = "uz"
+
+    private func localized(_ english: String) -> String {
+        languageRaw == "tr" ? TurkishLocalization.phrase(english) : english
+    }
 
     var body: some Commands {
-        CommandMenu("Navigate") {
-            Button("Home") { chrome.navigate(to: .home) }
+        CommandMenu(localized("Navigate")) {
+            Button(localized("Home")) { chrome.navigate(to: .home) }
                 .keyboardShortcut("1", modifiers: .command)
-            Button("Hotels") { chrome.navigate(to: .hotels) }
+            Button(localized("Hotels")) { chrome.navigate(to: .hotels) }
                 .keyboardShortcut("2", modifiers: .command)
-            Button("Trips") { chrome.navigate(to: .booking) }
+            Button(localized("Trips")) { chrome.navigate(to: .booking) }
                 .keyboardShortcut("3", modifiers: .command)
-            Button("Care") { chrome.navigate(to: .care) }
+            Button(localized("Care")) { chrome.navigate(to: .care) }
                 .keyboardShortcut("4", modifiers: .command)
-            Button("Account") { chrome.navigate(to: .account) }
+            Button(localized("Account")) { chrome.navigate(to: .account) }
                 .keyboardShortcut("5", modifiers: .command)
 
             Divider()
 
-            Button("Notifications") { chrome.openNotifications() }
+            Button(localized("Notifications")) { chrome.openNotifications() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
         }
     }

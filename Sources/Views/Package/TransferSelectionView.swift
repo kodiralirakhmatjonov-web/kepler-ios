@@ -902,6 +902,7 @@ struct TransferSelectionView: View {
     private var localeIdentifier: String {
         switch settings.language {
         case .russian: return "ru_RU"
+        case .turkish: return TurkishLocalization.phrase("en_US")
         case .english: return "en_US"
         case .uzbek: return "uz_Latn_UZ"
         case .uzbekCyrillic: return "uz_Cyrl_UZ"
@@ -1205,6 +1206,7 @@ private func transferLocalized(
 ) -> String {
     switch language {
     case .russian: return russian
+    case .turkish: return TurkishLocalization.phrase(english)
     case .english: return english
     case .uzbek: return uzbek
     case .uzbekCyrillic: return uzbekCyrillic

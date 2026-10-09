@@ -19,6 +19,7 @@ struct RootView: View {
             rootContent
         }
             .preferredColorScheme(settings.appearance.colorScheme)
+            .environment(\.locale, Locale(identifier: settings.language.localeIdentifier))
             .environmentObject(settings)
             .environmentObject(chrome)
             .environmentObject(journey)
@@ -384,7 +385,7 @@ struct RootView: View {
                 .tag(AppTab.care)
 
             tabScreen(for: .account) { IumrahAccountView() }
-                .tabItem { Label("Account", systemImage: "person.crop.circle") }
+                .tabItem { Label(settings.language == .turkish ? "Hesabım" : "Account", systemImage: "person.crop.circle") }
                 .tag(AppTab.account)
         }
         // Navigation chrome uses one restrained app accent; content icons carry

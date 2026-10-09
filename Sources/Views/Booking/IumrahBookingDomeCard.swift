@@ -365,6 +365,7 @@ enum BookingCardCopy {
     static func yourBookingID(_ language: AppSettingsStore.Language) -> String {
         switch language {
         case .russian: return "Ваш Booking ID"
+        case .turkish: return TurkishLocalization.phrase("Your Booking ID")
         case .english: return "Your Booking ID"
         case .uzbek: return "Sizning Booking ID"
         case .uzbekCyrillic: return "Сизнинг Booking ID"
@@ -374,6 +375,7 @@ enum BookingCardCopy {
     static func releaseToFlip(_ language: AppSettingsStore.Language) -> String {
         switch language {
         case .russian: return "Отпустите, чтобы перевернуть карточку"
+        case .turkish: return TurkishLocalization.phrase("Release to flip the card")
         case .english: return "Release to flip the card"
         case .uzbek: return "Kartani aylantirish uchun qo‘yib yuboring"
         case .uzbekCyrillic: return "Картани айлантириш учун қўйиб юборинг"
@@ -383,6 +385,7 @@ enum BookingCardCopy {
     static func tapToFlip(_ language: AppSettingsStore.Language) -> String {
         switch language {
         case .russian: return "Нажмите, чтобы перевернуть карточку"
+        case .turkish: return TurkishLocalization.phrase("Tap to flip the card")
         case .english: return "Tap to flip the card"
         case .uzbek: return "Kartani aylantirish uchun bosing"
         case .uzbekCyrillic: return "Картани айлантириш учун босинг"

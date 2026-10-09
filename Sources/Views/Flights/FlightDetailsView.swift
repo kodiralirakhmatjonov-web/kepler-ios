@@ -65,6 +65,7 @@ struct FlightDetailsView: View {
     private var flightTypeTitle: String {
         switch settings.language {
         case .russian: return "Перелёт"
+        case .turkish: return TurkishLocalization.phrase("Flight")
         case .english: return "Flight"
         case .uzbek: return "Parvoz"
         case .uzbekCyrillic: return "Парвоз"
@@ -74,6 +75,7 @@ struct FlightDetailsView: View {
     private var flightNumberPendingTitle: String {
         switch settings.language {
         case .russian: return "Номер уточняется"
+        case .turkish: return TurkishLocalization.phrase("Flight number pending")
         case .english: return "Flight number pending"
         case .uzbek: return "Reys raqami aniqlanmoqda"
         case .uzbekCyrillic: return "Рейс рақами аниқланмоқда"
@@ -235,6 +237,7 @@ struct FlightDetailsView: View {
     private func flightNumberLabel(_ number: String) -> String {
         switch settings.language {
         case .russian: return "Рейс \(number)"
+        case .turkish: return TurkishLocalization.phrase("Flight \(number)")
         case .english: return "Flight \(number)"
         case .uzbek: return "Reys \(number)"
         case .uzbekCyrillic: return "Рейс \(number)"
@@ -244,6 +247,7 @@ struct FlightDetailsView: View {
     private var routeSectionTitle: String {
         switch settings.language {
         case .russian: return "Маршрут"
+        case .turkish: return TurkishLocalization.phrase("Itinerary")
         case .english: return "Itinerary"
         case .uzbek: return "Yo‘nalish"
         case .uzbekCyrillic: return "Йўналиш"
@@ -253,6 +257,7 @@ struct FlightDetailsView: View {
     private func connectionTitle(_ city: String) -> String {
         switch settings.language {
         case .russian: return "Пересадка · \(city)"
+        case .turkish: return TurkishLocalization.phrase("Connection · \(city)")
         case .english: return "Connection · \(city)"
         case .uzbek: return "Ulanish · \(city)"
         case .uzbekCyrillic: return "Уланиш · \(city)"
@@ -288,6 +293,7 @@ struct FlightDetailsView: View {
     private var ticketInfoTitle: String {
         switch settings.language {
         case .russian: return "Условия перелёта"
+        case .turkish: return TurkishLocalization.phrase("Flight conditions")
         case .english: return "Flight conditions"
         case .uzbek: return "Parvoz shartlari"
         case .uzbekCyrillic: return "Парвоз шартлари"
@@ -297,6 +303,7 @@ struct FlightDetailsView: View {
     private var ticketInfoBody: String {
         switch settings.language {
         case .russian: return "Выбранный перелёт уже учтён в общей цене пакета. Здесь показаны только детали маршрута."
+        case .turkish: return TurkishLocalization.phrase("Your selected flight is already included in the package total. Only itinerary details are shown here.")
         case .english: return "Your selected flight is already included in the package total. Only itinerary details are shown here."
         case .uzbek: return "Tanlangan reys paketning umumiy narxiga kiritilgan. Bu yerda faqat yo‘nalish tafsilotlari ko‘rsatiladi."
         case .uzbekCyrillic: return "Танланган рейс пакетнинг умумий нархига киритилган. Бу ерда фақат йўналиш тафсилотлари кўрсатилади."
@@ -316,6 +323,7 @@ struct FlightDetailsView: View {
     private func baggageTitle(carryOn: Bool) -> String {
         switch settings.language {
         case .russian: return carryOn ? "Ручная кладь" : "Багаж"
+        case .turkish: return carryOn ? "Kabin bagajı" : "Kayıtlı bagaj"
         case .english: return carryOn ? "Carry-on" : "Checked baggage"
         case .uzbek: return carryOn ? "Qo‘l yuki" : "Bagaj"
         case .uzbekCyrillic: return carryOn ? "Қўл юки" : "Багаж"
@@ -325,6 +333,7 @@ struct FlightDetailsView: View {
     private var selfTransferTitle: String {
         switch settings.language {
         case .russian: return "Пересадка"
+        case .turkish: return TurkishLocalization.phrase("Connection")
         case .english: return "Connection"
         case .uzbek: return "Ulanish"
         case .uzbekCyrillic: return "Уланиш"
@@ -333,6 +342,7 @@ struct FlightDetailsView: View {
     private var selfTransferRequired: String {
         switch settings.language {
         case .russian: return "Самостоятельная пересадка"
+        case .turkish: return TurkishLocalization.phrase("Self-transfer")
         case .english: return "Self-transfer"
         case .uzbek: return "Mustaqil transfer"
         case .uzbekCyrillic: return "Мустақил трансфер"
@@ -341,6 +351,7 @@ struct FlightDetailsView: View {
     private var selfTransferNotRequired: String {
         switch settings.language {
         case .russian: return "Не требуется"
+        case .turkish: return TurkishLocalization.phrase("Not required")
         case .english: return "Not required"
         case .uzbek: return "Talab qilinmaydi"
         case .uzbekCyrillic: return "Талаб қилинмайди"
@@ -365,6 +376,7 @@ struct FlightDetailsView: View {
         if minutes <= 0 {
             switch settings.language {
             case .russian: return "Время по данным источника"
+            case .turkish: return TurkishLocalization.phrase("Duration from source")
             case .english: return "Duration from source"
             case .uzbek: return "Vaqt manba ma’lumotida"
             case .uzbekCyrillic: return "Вақт манба маълумотида"

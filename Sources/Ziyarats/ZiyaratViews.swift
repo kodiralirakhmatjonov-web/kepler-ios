@@ -19,6 +19,7 @@ private struct ZiyaratCopy {
     func text(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy

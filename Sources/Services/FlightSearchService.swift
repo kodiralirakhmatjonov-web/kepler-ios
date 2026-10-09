@@ -11,26 +11,32 @@ enum GeneratorSearchStage: Hashable {
     func text(_ language: AppSettingsStore.Language) -> String {
         switch (self, language) {
         case (.starting, .russian): return "Запускаем умный поиск"
+        case (.starting, .turkish): return TurkishLocalization.phrase("Starting smart search")
         case (.starting, .english): return "Starting smart search"
         case (.starting, .uzbek): return "Aqlli qidiruv boshlanmoqda"
         case (.starting, .uzbekCyrillic): return "Ақлли қидирув бошланмоқда"
         case (.checkingProvider(let name), .russian): return "Проверяем \(name)"
+        case (.checkingProvider(let name), .turkish): return "\(name) kontrol ediliyor"
         case (.checkingProvider(let name), .english): return "Checking \(name)"
         case (.checkingProvider(let name), .uzbek): return "\(name) tekshirilmoqda"
         case (.checkingProvider(let name), .uzbekCyrillic): return "\(name) текширилмоқда"
         case (.checkingAirlines, .russian): return "Подбираем актуальные рейсы"
+        case (.checkingAirlines, .turkish): return TurkishLocalization.phrase("Finding current flights")
         case (.checkingAirlines, .english): return "Finding current flights"
         case (.checkingAirlines, .uzbek): return "Dolzarb reyslarni qidiryapmiz"
         case (.checkingAirlines, .uzbekCyrillic): return "Долзарб рейсларни қидиряпмиз"
         case (.checkingHotels, .russian): return "Проверяем цены выбранных Primary Hotels"
+        case (.checkingHotels, .turkish): return TurkishLocalization.phrase("Checking your selected Primary Hotels")
         case (.checkingHotels, .english): return "Checking your selected Primary Hotels"
         case (.checkingHotels, .uzbek): return "Tanlangan Primary Hotel narxlarini tekshiryapmiz"
         case (.checkingHotels, .uzbekCyrillic): return "Танланган Primary Hotel нархларини текширяпмиз"
         case (.comparingFares, .russian): return "Сравниваем найденные тарифы"
+        case (.comparingFares, .turkish): return TurkishLocalization.phrase("Comparing current fares")
         case (.comparingFares, .english): return "Comparing current fares"
         case (.comparingFares, .uzbek): return "Topilgan tariflarni solishtiryapmiz"
         case (.comparingFares, .uzbekCyrillic): return "Топилган тарифларни солиштиряпмиз"
         case (.continuing, .russian): return "Продолжаем искать другие варианты"
+        case (.continuing, .turkish): return TurkishLocalization.phrase("Searching for more options")
         case (.continuing, .english): return "Searching for more options"
         case (.continuing, .uzbek): return "Yana variantlarni qidiryapmiz"
         case (.continuing, .uzbekCyrillic): return "Яна вариантларни қидиряпмиз"

@@ -65,6 +65,7 @@ enum FlowCopy {
         switch language {
         case .russian: return ru(key)
         case .english: return en(key)
+        case .turkish: return TurkishLocalization.phrase(en(key))
         case .uzbek: return uz(key)
         case .uzbekCyrillic: return uzCyr(key)
         }

@@ -157,6 +157,7 @@ struct IumrahTripsHistoryView: View {
     private func localized(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy

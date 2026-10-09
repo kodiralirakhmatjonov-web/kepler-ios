@@ -252,6 +252,7 @@ struct PrimaryHotelView: View {
     private var unverifiedReturnFlightNote: String {
         switch settings.language {
         case .russian: return "Data API не указал авиакомпанию или номер обратного рейса. Проверьте эти данные у продавца до покупки билета."
+        case .turkish: return TurkishLocalization.phrase("Data API did not provide the return carrier or flight number. Confirm these with the seller before buying.")
         case .english: return "Data API did not provide the return carrier or flight number. Confirm these with the seller before buying."
         case .uzbek: return "Data API qaytish aviakompaniyasi yoki reys raqamini bermagan. Xarid qilishdan oldin sotuvchidan tekshiring."
         case .uzbekCyrillic: return "Data API қайтиш авиакомпанияси ёки рейс рақамини бермаган. Харид қилишдан олдин сотувчидан текширинг."
@@ -261,6 +262,7 @@ struct PrimaryHotelView: View {
     private var flightFirstHotelLevelTitle: String {
         switch settings.language {
         case .russian: return "Уровень отеля"
+        case .turkish: return TurkishLocalization.phrase("Hotel level")
         case .english: return "Hotel level"
         case .uzbek: return "Mehmonxona darajasi"
         case .uzbekCyrillic: return "Меҳмонхона даражаси"
@@ -270,6 +272,7 @@ struct PrimaryHotelView: View {
     private var flightFirstHotelLevelSubtitle: String {
         switch settings.language {
         case .russian: return "Выберите звёздность — iumrah автоматически подберёт Primary Hotel для нужных городов."
+        case .turkish: return TurkishLocalization.phrase("Choose the hotel level and iumrah will automatically resolve the Primary Hotel for each required city.")
         case .english: return "Choose the hotel level and iumrah will automatically resolve the Primary Hotel for each required city."
         case .uzbek: return "Yulduz darajasini tanlang — iumrah kerakli shaharlardagi Primary Hotel’ni avtomatik tavsiya qiladi."
         case .uzbekCyrillic: return "Юлдуз даражасини танланг — iumrah керакли шаҳарлардаги Primary Hotel’ни автоматик тавсия қилади."
@@ -279,6 +282,7 @@ struct PrimaryHotelView: View {
     private var flightFirstTitle: String {
         switch settings.language {
         case .russian: return "Flight First · авиабилет выбран"
+        case .turkish: return TurkishLocalization.phrase("Flight First · flight selected")
         case .english: return "Flight First · flight selected"
         case .uzbek: return "Flight First · aviachipta tanlangan"
         case .uzbekCyrillic: return "Flight First · авиачипта танланган"
@@ -288,6 +292,7 @@ struct PrimaryHotelView: View {
     private var flightFirstSubtitle: String {
         switch settings.language {
         case .russian: return "Теперь выберите Primary Hotels. После этого flow продолжится к трансферу и итоговому сравнению пакета."
+        case .turkish: return TurkishLocalization.phrase("Choose Primary Hotels next. The flow then continues to transfer and final package comparison.")
         case .english: return "Choose Primary Hotels next. The flow then continues to transfer and final package comparison."
         case .uzbek: return "Endi Primary Hotels’ni tanlang. Keyin flow transfer va yakuniy paket taqqoslashiga o‘tadi."
         case .uzbekCyrillic: return "Энди Primary Hotels’ни танланг. Кейин flow трансфер ва якуний пакет таққослашига ўтади."
@@ -297,6 +302,7 @@ struct PrimaryHotelView: View {
     private var publishedContinueTitle: String {
         switch settings.language {
         case .russian: return "Продолжить к трансферу"
+        case .turkish: return TurkishLocalization.phrase("Continue to transfer")
         case .english: return "Continue to transfer"
         case .uzbek: return "Transferga davom etish"
         case .uzbekCyrillic: return "Трансферга давом этиш"
@@ -306,6 +312,7 @@ struct PrimaryHotelView: View {
     private var publishedErrorTitle: String {
         switch settings.language {
         case .russian: return "Не удалось собрать пакет"
+        case .turkish: return TurkishLocalization.phrase("Could not build package")
         case .english: return "Could not build package"
         case .uzbek: return "Paketni yig‘ib bo‘lmadi"
         case .uzbekCyrillic: return "Пакетни йиғиб бўлмади"
@@ -315,6 +322,7 @@ struct PrimaryHotelView: View {
     private var publishedFallbackError: String {
         switch settings.language {
         case .russian: return "Не удалось получить опубликованный рейс или актуальную цену отеля. Попробуйте ещё раз."
+        case .turkish: return TurkishLocalization.phrase("The published flight or current hotel price could not be resolved. Please try again.")
         case .english: return "The published flight or current hotel price could not be resolved. Please try again."
         case .uzbek: return "E’lon qilingan reys yoki mehmonxonaning dolzarb narxini olib bo‘lmadi. Qayta urinib ko‘ring."
         case .uzbekCyrillic: return "Эълон қилинган рейс ёки меҳмонхонанинг долзарб нархини олиб бўлмади. Қайта уриниб кўринг."
@@ -380,6 +388,8 @@ struct PrimaryHotelView: View {
 
     private func recommendedTitle(role: HotelSelectionRole) -> String {
         switch settings.language {
+        case .turkish:
+            return "iumrah Öneriyor"
         case .english:
             return "iumrah Recommended"
         case .russian:
@@ -612,6 +622,7 @@ struct PrimaryHotelView: View {
     private var mealPlanTitle: String {
         switch settings.language {
         case .russian: return "Питание в отеле"
+        case .turkish: return TurkishLocalization.phrase("Hotel meals")
         case .english: return "Hotel meals"
         case .uzbek: return "Mehmonxonada ovqatlanish"
         case .uzbekCyrillic: return "Меҳмонхонада овқатланиш"
@@ -622,7 +633,9 @@ struct PrimaryHotelView: View {
         switch (settings.language, role) {
         case (.russian, .makkah): return "Мекка · завтрак, обед и ужин"
         case (.russian, .madinah): return "Медина · завтрак и ужин"
+        case (.turkish, .makkah): return TurkishLocalization.phrase("Makkah · breakfast, lunch and dinner")
         case (.english, .makkah): return "Makkah · breakfast, lunch and dinner"
+        case (.turkish, .madinah): return TurkishLocalization.phrase("Madinah · breakfast and dinner")
         case (.english, .madinah): return "Madinah · breakfast and dinner"
         case (.uzbek, .makkah): return "Makka · nonushta, tushlik va kechki ovqat"
         case (.uzbek, .madinah): return "Madina · nonushta va kechki ovqat"
@@ -636,8 +649,11 @@ struct PrimaryHotelView: View {
         case (.russian, .breakfast): return "Завтрак"
         case (.russian, .lunch): return "Обед"
         case (.russian, .dinner): return "Ужин"
+        case (.turkish, .breakfast): return TurkishLocalization.phrase("Breakfast")
         case (.english, .breakfast): return "Breakfast"
+        case (.turkish, .lunch): return TurkishLocalization.phrase("Lunch")
         case (.english, .lunch): return "Lunch"
+        case (.turkish, .dinner): return TurkishLocalization.phrase("Dinner")
         case (.english, .dinner): return "Dinner"
         case (.uzbek, .breakfast): return "Nonushta"
         case (.uzbek, .lunch): return "Tushlik"
@@ -651,6 +667,7 @@ struct PrimaryHotelView: View {
     private var mealIncludedText: String {
         switch settings.language {
         case .russian: return "Включено · без доплаты"
+        case .turkish: return TurkishLocalization.phrase("Included · no extra charge")
         case .english: return "Included · no extra charge"
         case .uzbek: return "Kiritilgan · qo‘shimcha to‘lovsiz"
         case .uzbekCyrillic: return "Киритилган · қўшимча тўловсиз"
@@ -661,6 +678,7 @@ struct PrimaryHotelView: View {
         let amount = NSDecimalNumber(decimal: price).intValue
         switch settings.language {
         case .russian: return "$\(amount) · за человека / день"
+        case .turkish: return TurkishLocalization.phrase("$\(amount) · per person / day")
         case .english: return "$\(amount) · per person / day"
         case .uzbek: return "$\(amount) · kishi / kun"
         case .uzbekCyrillic: return "$\(amount) · киши / кун"
@@ -670,6 +688,7 @@ struct PrimaryHotelView: View {
     private var localizedMakkah: String {
         switch settings.language {
         case .russian: return "Мекка"
+        case .turkish: return TurkishLocalization.phrase("Makkah")
         case .english: return "Makkah"
         case .uzbek: return "Makka"
         case .uzbekCyrillic: return "Макка"
@@ -679,6 +698,7 @@ struct PrimaryHotelView: View {
     private var localizedMadinah: String {
         switch settings.language {
         case .russian: return "Медина"
+        case .turkish: return TurkishLocalization.phrase("Madinah")
         case .english: return "Madinah"
         case .uzbek: return "Madina"
         case .uzbekCyrillic: return "Мадина"

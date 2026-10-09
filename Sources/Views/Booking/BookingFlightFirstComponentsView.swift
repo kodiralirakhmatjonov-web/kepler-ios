@@ -248,6 +248,7 @@ struct BookingFlightFirstComponentsView: View {
     private func localized(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -446,6 +447,7 @@ private struct BookingIncludedServiceDetailSheet: View {
     private func localized(_ ru: String, _ en: String, _ uz: String, _ cyrl: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
@@ -539,6 +541,7 @@ private struct BookingFlightFirstLegCard: View {
     private var directText: String {
         switch language {
         case .russian: return flight.stops == 0 ? "прямой" : "\(flight.stops) пересад."
+        case .turkish: return flight.stops == 0 ? "direkt" : "\(flight.stops) aktarma"
         case .english: return flight.stops == 0 ? "direct" : "\(flight.stops) stops"
         case .uzbek: return flight.stops == 0 ? "to‘g‘ridan-to‘g‘ri" : "\(flight.stops) ulanish"
         case .uzbekCyrillic: return flight.stops == 0 ? "тўғридан-тўғри" : "\(flight.stops) уланиш"
@@ -591,6 +594,7 @@ private struct BookingFlightFirstLegCard: View {
     private func localized(_ ru: String, _ en: String, _ uz: String, _ cy: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
@@ -674,6 +678,7 @@ private struct BookingFlightFirstHotelCard: View {
     private var nightsText: String {
         switch language {
         case .russian: return "\(nights) ноч."
+        case .turkish: return TurkishLocalization.phrase("\(nights) nights")
         case .english: return "\(nights) nights"
         case .uzbek: return "\(nights) tun"
         case .uzbekCyrillic: return "\(nights) тун"
@@ -683,6 +688,7 @@ private struct BookingFlightFirstHotelCard: View {
     private var chooseRoomText: String {
         switch language {
         case .russian: return "Открыть отель"
+        case .turkish: return TurkishLocalization.phrase("Open hotel")
         case .english: return "Open hotel"
         case .uzbek: return "Mehmonxonani ochish"
         case .uzbekCyrillic: return "Меҳмонхонани очиш"

@@ -142,7 +142,7 @@ struct IumrahSecurityConfirmationView: View {
                 VStack(spacing: 1) {
                     Text("Iumrah Security")
                         .font(.headline)
-                    Text("Security Confirmation · KYC")
+                    Text(settings.language == .turkish ? "Güvenlik Doğrulaması · KYC" : "Security Confirmation · KYC")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
@@ -1353,6 +1353,7 @@ struct IumrahSecurityConfirmationView: View {
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ uzCyrl: String) -> String {
         switch settings.language {
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .russian: return ru
         case .uzbek: return uz

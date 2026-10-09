@@ -870,6 +870,7 @@ struct IumrahAccountSecurityView: View {
         let locale: Locale
         switch settings.language {
         case .russian: locale = Locale(identifier: "ru_RU")
+        case .turkish: locale = Locale(identifier: "tr_TR")
         case .english: locale = Locale(identifier: "en_US")
         case .uzbek: locale = Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: locale = Locale(identifier: "uz_Cyrl_UZ")
@@ -888,6 +889,7 @@ struct IumrahAccountSecurityView: View {
         relative.unitsStyle = .full
         switch settings.language {
         case .russian: relative.locale = Locale(identifier: "ru_RU")
+        case .turkish: relative.locale = Locale(identifier: "tr_TR")
         case .english: relative.locale = Locale(identifier: "en_US")
         case .uzbek: relative.locale = Locale(identifier: "uz-Latn")
         case .uzbekCyrillic: relative.locale = Locale(identifier: "uz-Cyrl")
@@ -898,6 +900,7 @@ struct IumrahAccountSecurityView: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
@@ -1079,6 +1082,7 @@ enum IumrahAccountSecurityCopy {
         }
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl

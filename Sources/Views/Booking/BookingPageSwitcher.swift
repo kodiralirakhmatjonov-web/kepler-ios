@@ -44,6 +44,7 @@ struct BookingPageSwitcher: View {
     private func localized(_ ru: String, _ en: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl

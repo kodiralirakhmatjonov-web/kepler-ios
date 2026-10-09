@@ -168,6 +168,7 @@ struct IumrahTelegramConnectCard: View {
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .russian: return ru
         case .uzbek: return uz
@@ -302,6 +303,7 @@ struct IumrahTelegramEntryCard: View {
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ uzCy: String) -> String {
         switch language {
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .russian: return ru
         case .uzbek: return uz
@@ -465,6 +467,7 @@ struct IumrahTelegramIntegrationView: View {
 
     private func tr(_ en: String, _ ru: String, _ uz: String, _ uzCy: String) -> String {
         switch settings.language {
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .russian: return ru
         case .uzbek: return uz

@@ -36,13 +36,22 @@ private enum IumrahBackendModule: String, CaseIterable, Identifiable {
         case (.russian, .payment): return "Оплата"
         case (.russian, .pricing): return "Расчёт"
 
+        case (.turkish, .flights): return TurkishLocalization.phrase("Flights")
+
         case (.english, .flights): return "Flights"
+        case (.turkish, .hotels): return TurkishLocalization.phrase("Hotels")
         case (.english, .hotels): return "Hotels"
+        case (.turkish, .transfer): return TurkishLocalization.phrase("Transfer")
         case (.english, .transfer): return "Transfer"
+        case (.turkish, .guide): return TurkishLocalization.phrase("Guide")
         case (.english, .guide): return "Guide"
+        case (.turkish, .esim): return TurkishLocalization.phrase("eSIM")
         case (.english, .esim): return "eSIM"
+        case (.turkish, .orders): return TurkishLocalization.phrase("Orders")
         case (.english, .orders): return "Orders"
+        case (.turkish, .payment): return TurkishLocalization.phrase("Payment")
         case (.english, .payment): return "Payment"
+        case (.turkish, .pricing): return TurkishLocalization.phrase("Pricing")
         case (.english, .pricing): return "Pricing"
 
         case (.uzbek, .flights): return "Aviachiptalar"
@@ -108,6 +117,26 @@ private enum IumrahBackendCopy {
             case .underHoodBody: return "iumrah Configurator связывает поставщиков и внутренние сервисы, нормализует заказы, собирает стоимость и возвращает клиентскому приложению один понятный результат."
             case .finalTitle: return "Не восемь отдельных заказов. Один iumrah Booking."
             case .finalBody: return "Система скрывает сложность инфраструктуры и оставляет паломнику только то, что ему действительно нужно для поездки."
+            }
+        case .turkish:
+            switch key {
+            case .homeEyebrow: return "iumrah Configurator"
+            case .homeTitle: return "Tüm yolculuğunuz, tek sistem"
+            case .homeBody: return "Uçuşlar, oteller, transfer, rehber, eSIM, fiyatlandırma ve ödeme tek rezervasyon olarak çalışır."
+            case .homeCTA: return "iumrah nasıl çalışır?"
+            case .pageEyebrow: return "TEK YOLCULUK ALTYAPISI"
+            case .pageTitle: return "Tek rezervasyon. Tek ödeme. Tek yolculuk."
+            case .pageBody: return "Ayrı sekmeler, siparişler ve onaylar yerine iumrah her seyahat bileşenini tek bir rezervasyon numarası ve süreçte birleştirir."
+            case .oneBooking: return "1 rezervasyon"
+            case .onePayment: return "1 ödeme"
+            case .oneJourney: return "1 yolculuk"
+            case .oneBookingBody: return "Her bileşen tek bir rezervasyon numarasına bağlıdır."
+            case .onePaymentBody: return "Umre yolcusu seyahatin ücretini tek bir paket olarak öder."
+            case .oneJourneyBody: return "Durumlar ve hizmetler tek bir seyahat planında yer alır."
+            case .underHood: return "Arka planda neler oluyor?"
+            case .underHoodBody: return "iumrah Configurator tedarikçileri ve iç hizmetleri birbirine bağlar, siparişleri standartlaştırır, paket fiyatını hesaplar ve müşteriye tek, anlaşılır bir sonuç sunar."
+            case .finalTitle: return "Sekiz ayrı sipariş değil. Tek bir iumrah rezervasyonu."
+            case .finalBody: return "Sistem, karmaşık altyapıyı arka planda yönetir ve umre yolcusuna yalnızca yolculuğu için gerekenleri gösterir."
             }
         case .english:
             switch key {

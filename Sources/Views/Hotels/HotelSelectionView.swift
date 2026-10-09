@@ -85,6 +85,7 @@ struct HotelSelectionView: View {
     private var economyHotelsTitle: String {
         switch settings.language {
         case .russian: return "Эконом · 2★"
+        case .turkish: return TurkishLocalization.phrase("Economy · 2★")
         case .english: return "Economy · 2★"
         case .uzbek: return "Ekonom · 2★"
         case .uzbekCyrillic: return "Эконом · 2★"
@@ -94,6 +95,7 @@ struct HotelSelectionView: View {
     private var economyHotelsBody: String {
         switch settings.language {
         case .russian: return "Основной выбор категории — практичные 2★ отели."
+        case .turkish: return TurkishLocalization.phrase("The main Economy selection: practical 2★ hotels.")
         case .english: return "The main Economy selection: practical 2★ hotels."
         case .uzbek: return "Ekonom toifasining asosiy tanlovi — amaliy 2★ mehmonxonalar."
         case .uzbekCyrillic: return "Эконом тоифасининг асосий танлови — амалий 2★ меҳмонхоналар."
@@ -103,6 +105,7 @@ struct HotelSelectionView: View {
     private var superEconomyTitle: String {
         switch settings.language {
         case .russian: return "Super Economy · 1★"
+        case .turkish: return TurkishLocalization.phrase("Super Economy · 1★")
         case .english: return "Super Economy · 1★"
         case .uzbek: return "Super Economy · 1★"
         case .uzbekCyrillic: return "Super Economy · 1★"
@@ -112,6 +115,7 @@ struct HotelSelectionView: View {
     private var superEconomyBody: String {
         switch settings.language {
         case .russian: return "Если важнее минимальная стоимость пакета — доступны и 1★ варианты."
+        case .turkish: return TurkishLocalization.phrase("If the lowest package price matters most, 1★ options are also available.")
         case .english: return "If the lowest package price matters most, 1★ options are also available."
         case .uzbek: return "Paket narxini yanada kamaytirish muhim bo‘lsa, 1★ variantlar ham mavjud."
         case .uzbekCyrillic: return "Пакет нархини янада камайтириш муҳим бўлса, 1★ вариантлар ҳам мавжуд."

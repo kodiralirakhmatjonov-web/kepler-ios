@@ -218,6 +218,7 @@ struct IumrahBookingCelebrationView: View {
     private var title: String {
         switch settings.language {
         case .russian: return "Ваша Umrah создана"
+        case .turkish: return TurkishLocalization.phrase("Your Umrah is created")
         case .english: return "Your Umrah is created"
         case .uzbek: return "Umrangiz yaratildi"
         case .uzbekCyrillic: return "Умрангиз яратилди"
@@ -228,6 +229,8 @@ struct IumrahBookingCelebrationView: View {
         switch settings.language {
         case .russian:
             return "Бронирование создано и передано на проверку наличия. Вам ничего не нужно делать прямо сейчас."
+        case .turkish:
+            return "Rezervasyonunuz oluşturuldu ve müsaitlik onayına gönderildi. Şu anda başka bir işlem yapmanız gerekmiyor."
         case .english:
             return "Your booking has been created and sent for availability confirmation. Nothing else is required from you right now."
         case .uzbek:
@@ -240,6 +243,7 @@ struct IumrahBookingCelebrationView: View {
     private var timerEyebrow: String {
         switch settings.language {
         case .russian: return "ПРОВЕРКА НАЛИЧИЯ"
+        case .turkish: return TurkishLocalization.phrase("AVAILABILITY CHECK")
         case .english: return "AVAILABILITY CHECK"
         case .uzbek: return "MAVJUDLIK TEKSHIRUVI"
         case .uzbekCyrillic: return "МАВЖУДЛИК ТЕКШИРУВИ"
@@ -250,6 +254,8 @@ struct IumrahBookingCelebrationView: View {
         switch settings.language {
         case .russian:
             return "После проверки наличия статус изменится автоматически. Можно закрыть приложение — iumrah обновит бронь и уведомит Вас."
+        case .turkish:
+            return "Müsaitlik kontrolünün ardından durum otomatik güncellenir. Uygulamayı kapatabilirsiniz; iumrah rezervasyonu güncelleyip size bildirim gönderir."
         case .english:
             return "After availability is checked, the status will update automatically. You can close the app — iumrah will update the booking and notify you."
         case .uzbek:
@@ -262,6 +268,7 @@ struct IumrahBookingCelebrationView: View {
     private var openBookingTitle: String {
         switch settings.language {
         case .russian: return "Открыть бронирование"
+        case .turkish: return TurkishLocalization.phrase("Open booking")
         case .english: return "Open booking"
         case .uzbek: return "Bronni ochish"
         case .uzbekCyrillic: return "Бронни очиш"
@@ -271,6 +278,7 @@ struct IumrahBookingCelebrationView: View {
     private var homeTitle: String {
         switch settings.language {
         case .russian: return "На главную"
+        case .turkish: return TurkishLocalization.phrase("Home")
         case .english: return "Home"
         case .uzbek: return "Asosiy sahifa"
         case .uzbekCyrillic: return "Асосий саҳифа"

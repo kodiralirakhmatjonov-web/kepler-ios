@@ -319,7 +319,7 @@ private struct ESIMProfileCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 18) {
-                ESIMUsageRing(profile: profile)
+                ESIMUsageRing(profile: profile, language: language)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(profile.label.isEmpty ? "Saudi Arabia eSIM" : profile.label)
                         .font(.headline)
@@ -503,6 +503,7 @@ private struct ESIMProfileCard: View {
 
 private struct ESIMUsageRing: View {
     let profile: ClientESIMProfile
+    let language: AppSettingsStore.Language
 
     var body: some View {
         ZStack {
@@ -516,21 +517,21 @@ private struct ESIMUsageRing: View {
                 VStack(spacing: 1) {
                     Text(dataText(profile.remainingMB))
                         .font(.system(size: 15, weight: .bold, design: .rounded))
-                    Text("left")
+                    Text(language == .turkish ? "Kalan" : "left")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             } else {
                 VStack(spacing: 4) {
                     ProgressView().controlSize(.small)
-                    Text("AUTO")
+                    Text(language == .turkish ? "OTOMATİK" : "AUTO")
                         .font(.caption2.bold())
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .frame(width: 104, height: 104)
-        .accessibilityLabel(profile.usageAvailable ? "Remaining data \(dataText(profile.remainingMB))" : "Data balance syncing")
+        .accessibilityLabel(profile.usageAvailable ? (language == .turkish ? "Kalan internet: \(dataText(profile.remainingMB))" : "Remaining data \(dataText(profile.remainingMB))") : (language == .turkish ? "İnternet bakiyesi güncelleniyor" : "Data balance syncing"))
     }
 
     private func dataText(_ mb: Double) -> String {
@@ -578,6 +579,45 @@ private enum ESIMCopy {
         let en: [String: String] = [
             "header_subtitle":"Connectivity in Saudi Arabia", "package_badge":"PACKAGE ONLY · V1", "intro_title":"Internet is part of your Umrah", "intro_body":"In the first version, eSIM is available only as part of an iumrah package. Standalone purchase will come later. Activation, status and data balance are available directly in the app.", "waiting_title":"Your eSIM will be assigned to this trip", "waiting_body":"Once the trip is prepared, iumrah will attach an eSIM to your booking. Activation, QR code and data balance will appear here automatically.", "not_included_title":"eSIM is not included in this package", "not_included_body":"This trip was created without eSIM. New iumrah packages are prepared for package-included eSIM; standalone purchase will come later.", "refresh":"Check eSIM", "no_trip_title":"Build an Umrah package first", "no_trip_body":"Standalone eSIM sales are disabled in this version. Add connectivity with your Umrah package.", "build_package":"Build package", "tariffs_title":"Available formats", "tariffs_subtitle":"The plan is selected for your trip", "preview_disclaimer":"Displayed data sizes are interface previews. Your exact plan and validity will be shown after the eSIM is assigned.", "recommended":"RECOMMENDED", "in_package":"In package", "days":"days", "privacy_title":"Activation data is protected", "privacy_body":"QR, Activation Code and ICCID are available only to the owner of the specific trip after authorization.", "refresh_unavailable":"eSIM could not be refreshed right now. Previously loaded data remains available.", "your_plan":"Your plan", "valid_until":"Valid until", "remaining":"Remaining", "used":"Used", "activate":"Activate eSIM", "qr_help":"Scan this QR from another device if system installation is unavailable.", "activation_code":"Activation code", "manual_install":"Manual installation data", "status_active":"Active", "status_installed":"Installed", "status_expired":"Expired", "status_used_up":"Data used up", "status_ready":"Ready to activate", "provider_sync":"Balance updates automatically", "pending_sync":"Connecting automatic balance", "usage_pending":"Fetching your data balance from the carrier…"
         ]
+        let tr: [String: String] = [
+            "header_subtitle": "Suudi Arabistan’da internet bağlantısı",
+            "package_badge": "YALNIZCA PAKETTE · V1",
+            "intro_title": "İnternet umre paketinize dahil",
+            "intro_body": "İlk sürümde eSIM yalnızca iumrah paketinin bir parçası olarak sunulur. Ayrı satın alma seçeneği daha sonra eklenecektir. Etkinleştirme, durum ve kalan internet hakkı doğrudan uygulamada görüntülenir.",
+            "waiting_title": "eSIM seyahatinize atanacak",
+            "waiting_body": "Seyahatiniz hazırlandığında iumrah, rezervasyonunuza bir eSIM tanımlar. Etkinleştirme, QR kodu ve kalan internet hakkı burada otomatik olarak görünür.",
+            "not_included_title": "Bu pakete eSIM dahil değil",
+            "not_included_body": "Bu seyahat eSIM olmadan oluşturuldu. Yeni iumrah paketleri paket içi eSIM için hazır; ayrı satın alma özelliği daha sonra eklenecek.",
+            "refresh": "eSIM’i kontrol et",
+            "no_trip_title": "Önce umre paketi oluşturun",
+            "no_trip_body": "Bu sürümde eSIM tek başına satılmamaktadır. İnternet bağlantısını umre paketinizle birlikte edinin.",
+            "build_package": "Paket oluştur",
+            "tariffs_title": "Mevcut seçenekler",
+            "tariffs_subtitle": "Tarife seyahatinize göre seçilir",
+            "preview_disclaimer": "Gösterilen internet miktarları arayüz örnekleridir. eSIM atandıktan sonra kesin tarifeniz ve geçerlilik süreniz gösterilir.",
+            "recommended": "ÖNERİLEN",
+            "in_package": "Pakete dahil",
+            "days": "gün",
+            "privacy_title": "Etkinleştirme bilgileriniz güvende",
+            "privacy_body": "QR, etkinleştirme kodu ve ICCID, yalnızca ilgili seyahatin hesap sahibi tarafından giriş yapıldıktan sonra görüntülenebilir.",
+            "refresh_unavailable": "eSIM şu anda güncellenemedi. Önceden yüklenen bilgiler kullanılabilir durumda.",
+            "your_plan": "Tarifeniz",
+            "valid_until": "Geçerlilik bitişi",
+            "remaining": "Kalan",
+            "used": "Kullanılan",
+            "activate": "eSIM’i etkinleştir",
+            "qr_help": "Sistem üzerinden kurulum kullanılamıyorsa bu QR kodunu başka bir cihazla tarayın.",
+            "activation_code": "Etkinleştirme kodu",
+            "manual_install": "Elle kurulum bilgileri",
+            "status_active": "Etkin",
+            "status_installed": "Yüklendi",
+            "status_expired": "Süresi doldu",
+            "status_used_up": "İnternet hakkı tükendi",
+            "status_ready": "Etkinleştirmeye hazır",
+            "provider_sync": "Kalan internet hakkı otomatik güncellenir",
+            "pending_sync": "Otomatik bakiye kontrolü bağlanıyor",
+            "usage_pending": "Operatörden kalan internet hakkı alınıyor…"
+        ]
         let uz: [String: String] = [
             "header_subtitle":"Saudiya Arabistonida aloqa", "package_badge":"FAQAT PAKETDA · V1", "intro_title":"Internet Umra paketingiz ichida", "intro_body":"Birinchi versiyada eSIM faqat iumrah paketi tarkibida beriladi. Alohida xarid keyinroq qo‘shiladi. Faollashtirish, holat va trafik qoldig‘i ilovaning o‘zida ko‘rinadi.", "waiting_title":"eSIM safaringizga biriktiriladi", "waiting_body":"Safar tayyorlangach iumrah eSIM’ni broningizga qo‘shadi. Faollashtirish, QR-kod va internet qoldig‘i shu yerda avtomatik paydo bo‘ladi.", "not_included_title":"eSIM bu paketga kiritilmagan", "not_included_body":"Bu safar eSIM’siz yaratilgan. Yangi iumrah paketlari paket ichidagi eSIM uchun tayyor; alohida xarid keyinroq qo‘shiladi.", "refresh":"eSIM’ni tekshirish", "no_trip_title":"Avval Umra paketini yarating", "no_trip_body":"Bu versiyada alohida eSIM savdosi o‘chirilgan. eSIM’ni Umra paketingiz bilan oling.", "build_package":"Paket yaratish", "tariffs_title":"Mavjud formatlar", "tariffs_subtitle":"Tarif safaringiz uchun tanlanadi", "preview_disclaimer":"Ko‘rsatilgan hajmlar interfeys namunalari. Aniq tarif va muddat eSIM biriktirilgach ko‘rsatiladi.", "recommended":"TAVSIYA", "in_package":"Paketda", "days":"kun", "privacy_title":"Faollashtirish ma’lumotlari himoyalangan", "privacy_body":"QR, Activation Code va ICCID faqat shu safar egasiga avtorizatsiyadan keyin ko‘rsatiladi.", "refresh_unavailable":"Hozir eSIM yangilanmadi. Oldin yuklangan ma’lumotlar saqlanadi.", "your_plan":"Tarifingiz", "valid_until":"Amal qiladi", "remaining":"Qoldi", "used":"Ishlatildi", "activate":"eSIM’ni faollashtirish", "qr_help":"Tizimli o‘rnatish ishlamasa QR-kodni boshqa qurilmadan skanerlang.", "activation_code":"Faollashtirish kodi", "manual_install":"Qo‘lda o‘rnatish ma’lumotlari", "status_active":"Faol", "status_installed":"O‘rnatilgan", "status_expired":"Muddati tugagan", "status_used_up":"Trafik tugagan", "status_ready":"Faollashtirishga tayyor", "provider_sync":"Qoldiq avtomatik yangilanadi", "pending_sync":"Avtomatik qoldiq ulanmoqda", "usage_pending":"Operator orqali trafik qoldig‘i olinmoqda…"
         ]
@@ -586,6 +626,7 @@ private enum ESIMCopy {
         ]
         switch language {
         case .russian: return ru[key] ?? key
+        case .turkish: return tr[key] ?? en[key] ?? key
         case .english: return en[key] ?? ru[key] ?? key
         case .uzbek: return uz[key] ?? ru[key] ?? key
         case .uzbekCyrillic: return cy[key] ?? ru[key] ?? key

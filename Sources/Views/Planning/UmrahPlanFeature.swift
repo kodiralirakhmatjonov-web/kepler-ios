@@ -174,6 +174,8 @@ enum UmrahPlanNotificationScheduler {
         switch language {
         case .russian:
             return daysBefore == 1 ? "Umrah уже завтра" : "До Umrah осталось \(daysBefore) дней"
+        case .turkish:
+            return daysBefore == 1 ? "Umreniz yarın başlıyor" : "Umrenize \(daysBefore) gün kaldı"
         case .english:
             return daysBefore == 1 ? "Your Umrah starts tomorrow" : "\(daysBefore) days until your Umrah"
         case .uzbek:
@@ -192,6 +194,12 @@ enum UmrahPlanNotificationScheduler {
             if daysBefore >= 15 { return "Поездка становится ближе. Проверьте документы, трансфер и список подготовки." }
             if daysBefore >= 7 { return "Umrah уже скоро. Проверьте финальные детали поездки и всё необходимое в дороге." }
             return "Финальная подготовка к Umrah. Откройте план и проверьте даты, документы и маршрут."
+        case .turkish:
+            if daysBefore >= 60 { return "Planınız kaydedildi. Belgeleri, tarihleri ve bütçenizi kendi hızınızda hazırlamaya başlayın." }
+            if daysBefore >= 30 { return "Bir ay kaldı. iumrah planınızdaki pasaport, uçuş ve otel bilgilerini kontrol edin." }
+            if daysBefore >= 15 { return "Yolculuğunuz yaklaşıyor. Belgeleri, transferleri ve hazırlıklarınızı gözden geçirin." }
+            if daysBefore >= 7 { return "Umreniz yaklaştı. Son seyahat ayrıntılarını ve yanınıza alacaklarınızı kontrol edin." }
+            return "Umre için son hazırlıklar. Planınızı açıp tarihleri, belgeleri ve rotayı kontrol edin."
         case .english:
             if daysBefore >= 60 { return "Your plan is saved. Start preparing documents, dates and budget at your own pace." }
             if daysBefore >= 30 { return "One month to go. Check your passport, flight and hotel in your iumrah plan." }
@@ -433,6 +441,7 @@ struct UmrahPlanHomeEntryCard: View {
         let duration = PlanDate.durationDays(trip.startDate, trip.endDate)
         switch language {
         case .russian: return days > 0 ? "Через \(days) дн. · \(duration) дн. поездки" : "Поездка начинается сегодня · \(duration) дн."
+        case .turkish: return days > 0 ? "\(days) gün sonra · \(duration) günlük seyahat" : "Bugün başlıyor · \(duration) günlük seyahat"
         case .english: return days > 0 ? "In \(days) days · \(duration)-day trip" : "Starts today · \(duration)-day trip"
         case .uzbek: return days > 0 ? "\(days) kundan keyin · \(duration) kunlik safar" : "Bugun boshlanadi · \(duration) kun"
         case .uzbekCyrillic: return days > 0 ? "\(days) кундан кейин · \(duration) кунлик сафар" : "Бугун бошланади · \(duration) кун"
@@ -536,6 +545,7 @@ struct UmrahPlanReminderCenterView: View {
     private func reminderDayLabel(_ day: Int) -> String {
         switch settings.language {
         case .russian: return day >= 30 ? "\(day / 30) мес." : "\(day) дн."
+        case .turkish: return day >= 30 ? "\(day / 30) ay" : "\(day)d"
         case .english: return day >= 30 ? "\(day / 30) mo" : "\(day)d"
         case .uzbek: return day >= 30 ? "\(day / 30) oy" : "\(day) kun"
         case .uzbekCyrillic: return day >= 30 ? "\(day / 30) ой" : "\(day) кун"
@@ -895,6 +905,7 @@ struct UmrahPlanHubView: View {
         let duration = PlanDate.durationDays(trip.startDate, trip.endDate)
         switch settings.language {
         case .russian: return days > 0 ? "Начнётся через \(days) дней · \(duration) дней поездки" : "Начинается сегодня · \(duration) дней поездки"
+        case .turkish: return days > 0 ? "\(days) gün sonra başlıyor · \(duration) günlük seyahat" : "Bugün başlıyor · \(duration) günlük seyahat"
         case .english: return days > 0 ? "Starts in \(days) days · \(duration)-day trip" : "Starts today · \(duration)-day trip"
         case .uzbek: return days > 0 ? "\(days) kundan keyin boshlanadi · \(duration) kun" : "Bugun boshlanadi · \(duration) kun"
         case .uzbekCyrillic: return days > 0 ? "\(days) кундан кейин бошланади · \(duration) кун" : "Бугун бошланади · \(duration) кун"
@@ -1480,6 +1491,7 @@ private enum PlanCopy {
     static func text(_ language: AppSettingsStore.Language, _ ru: String, _ en: String, _ uz: String, _ uzCy: String) -> String {
         switch language {
         case .russian: return ru
+        case .turkish: return TurkishLocalization.phrase(en)
         case .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
@@ -1492,6 +1504,10 @@ private enum PlanCopy {
             if days == 60 { return "За 2 месяца" }
             if days == 30 { return "За 1 месяц" }
             return "За \(days) дней"
+        case .turkish:
+            if days == 60 { return "2 ay önce" }
+            if days == 30 { return "1 ay önce" }
+            return "\\(days) gün önce"
         case .english:
             if days == 60 { return "2 months before" }
             if days == 30 { return "1 month before" }

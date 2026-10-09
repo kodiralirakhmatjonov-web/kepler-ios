@@ -3,6 +3,9 @@ import Foundation
 struct L10n {
     static func text(_ key: String, _ language: AppSettingsStore.Language) -> String {
         let code = language.rawValue
+        if language == .turkish {
+            return TurkishLocalization.key(key, english: dictionary["en"]?[key] ?? key)
+        }
         return dictionary[code]?[key] ?? dictionary["en"]?[key] ?? key
     }
 
