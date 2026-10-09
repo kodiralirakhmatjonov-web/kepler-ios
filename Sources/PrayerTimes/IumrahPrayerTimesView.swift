@@ -638,6 +638,8 @@ private struct IumrahPrayerMethodSheet: View {
     }
 }
 
+// Keep notification controls split into small views. Large nested SwiftUI expressions
+// cause the Xcode type-checker to time out, particularly with inline Bindings.
 private struct IumrahPrayerNotificationSheet: View {
     @EnvironmentObject private var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
@@ -656,191 +658,310 @@ private struct IumrahPrayerNotificationSheet: View {
     private func preference(_ kind: IumrahPrayerKind) -> IumrahPrayerNotificationPreference {
         edited[kind.rawValue] ?? .init()
     }
+
     private func enabled(_ kind: IumrahPrayerKind) -> Binding<Bool> {
-        Binding(get: { preference(kind).enabled }, set: { value in
-            var item = preference(kind)
-            item.enabled = value
-            edited[kind.rawValue] = item
-        })
+        Binding<Bool>(
+            get: { preference(kind).enabled },
+            set: { value in
+                var item = preference(kind)
+                item.enabled = value
+                edited[kind.rawValue] = item
+            }
+        )
     }
+
     private func sound(_ kind: IumrahPrayerKind) -> Binding<Bool> {
-        Binding(get: { preference(kind).sound }, set: { value in
-            var item = preference(kind)
-            item.sound = value
-            edited[kind.rawValue] = item
-        })
+        Binding<Bool>(
+            get: { preference(kind).sound },
+            set: { value in
+                var item = preference(kind)
+                item.sound = value
+                edited[kind.rawValue] = item
+            }
+        )
     }
+
     private func offset(_ kind: IumrahPrayerKind) -> Binding<Double> {
-        Binding(get: { Double(preference(kind).offsetMinutes) }, set: { value in
-            var item = preference(kind)
-            item.offsetMinutes = Int(value)
-            edited[kind.rawValue] = item
-        })
+        Binding<Double>(
+            get: { Double(preference(kind).offsetMinutes) },
+            set: { value in
+                var item = preference(kind)
+                item.offsetMinutes = Int(value)
+                edited[kind.rawValue] = item
+            }
+        )
+    }
+
+    private func earlyEnabled(_ kind: IumrahPrayerKind) -> Binding<Bool> {
+        Binding<Bool>(
+            get: { preference(kind).earlyReminderMinutes != nil },
+            set: { value in
+                var item = preference(kind)
+                item.earlyReminderMinutes = value ? (item.earlyReminderMinutes ?? 10) : nil
+                edited[kind.rawValue] = item
+            }
+        )
+    }
+
+    private func earlyMinutes(_ kind: IumrahPrayerKind) -> Binding<Int> {
+        Binding<Int>(
+            get: { preference(kind).earlyReminderMinutes ?? 10 },
+            set: { value in
+                var item = preference(kind)
+                item.earlyReminderMinutes = value
+                edited[kind.rawValue] = item
+            }
+        )
+    }
+
+    private var showingMessage: Binding<Bool> {
+        Binding<Bool>(
+            get: { message != nil },
+            set: { if !$0 { message = nil } }
+        )
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 8) {
-                TabView(selection: $selected) {
-                    ForEach(IumrahPrayerKind.allCases) { kind in
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 22) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: kind.symbol)
-                                        .font(.system(size: 29))
-                                        .foregroundStyle(.orange)
-                                        .frame(width: 58, height: 58)
-                                        .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 20))
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(kind.title)
-                                            .font(.system(size: 29, weight: .bold, design: .rounded))
-                                        Text(prayerText(settings.language, "Configure reminder and sound", "Напоминание и звук", "Eslatma va ovoz", "Эслатма ва овоз"))
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                VStack(spacing: 0) {
-                                    Toggle(isOn: enabled(kind)) {
-                                        Label(prayerText(settings.language, "Notification", "Уведомление", "Bildirishnoma", "Билдиришнома"), systemImage: "bell")
-                                    }
-                                    .tint(.green)
-                                    .padding(16)
-                                    Divider().padding(.leading, 18)
-                                    Toggle(isOn: sound(kind)) {
-                                        Label(prayerText(settings.language, "System notification sound", "Системный звук", "Tizim ovozi", "Тизим овози"), systemImage: "speaker.wave.2")
-                                    }
-                                    .padding(16)
-                                }
-                                .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22))
-
-                                VStack(alignment: .leading, spacing: 12) {
-                                    HStack {
-                                        Label(prayerText(settings.language, "Reminder offset", "Время уведомления", "Eslatma vaqti", "Эслатма вақти"), systemImage: "clock.arrow.circlepath")
-                                            .font(.headline)
-                                        Spacer()
-                                        Text(offsetDescription(preference(kind).offsetMinutes))
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(.orange)
-                                    }
-                                    Slider(value: offset(kind), in: -30...30, step: 5)
-                                        .tint(.orange)
-                                        .accessibilityLabel("Minutes before or after prayer")
-                                    HStack {
-                                        Text("−30 min")
-                                        Spacer()
-                                        Text(prayerText(settings.language, "At prayer time", "Вовремя", "O‘z vaqtida", "Ўз вақтида"))
-                                        Spacer()
-                                        Text("+30 min")
-                                    }
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    Button(prayerText(settings.language, "Reset offset", "Сбросить", "Qaytarish", "Қайтариш")) {
-                                        edited[kind.rawValue, default: .init()].offsetMinutes = 0
-                                    }
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(.orange)
-                                }
-                                .padding(18)
-                                .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22))
-
-                                VStack(alignment: .leading, spacing: 13) {
-                                    Toggle(isOn: Binding(
-                                        get: { preference(kind).earlyReminderMinutes != nil },
-                                        set: { enabled in
-                                            var item = preference(kind)
-                                            item.earlyReminderMinutes = enabled ? (item.earlyReminderMinutes ?? 10) : nil
-                                            edited[kind.rawValue] = item
-                                        }
-                                    )) {
-                                        Label(prayerText(settings.language, "Early reminder", "Предварительное уведомление", "Oldindan eslatma", "Олдиндан эслатма"), systemImage: "bell.badge")
-                                    }
-                                    .tint(.orange)
-                                    if preference(kind).earlyReminderMinutes != nil {
-                                        Picker(prayerText(settings.language, "Before prayer", "До молитвы", "Namozgacha", "Намозгача"), selection: Binding(
-                                            get: { preference(kind).earlyReminderMinutes ?? 10 },
-                                            set: { minutes in
-                                                var item = preference(kind)
-                                                item.earlyReminderMinutes = minutes
-                                                edited[kind.rawValue] = item
-                                            }
-                                        )) {
-                                            ForEach([5, 10, 15, 30], id: \.self) { minutes in
-                                                Text("\(minutes) min").tag(minutes)
-                                            }
-                                        }
-                                        .pickerStyle(.segmented)
-                                    }
-                                }
-                                .padding(17)
-                                .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22))
-
-                                Button {
-                                    Task {
-                                        let success = await IumrahPrayerNotifications.preview(kind: kind, sound: preference(kind).sound)
-                                        message = success
-                                            ? prayerText(settings.language, "A test notification is scheduled in 5 seconds.", "Тестовое уведомление придёт через 5 секунд.", "Sinov bildirishnomasi 5 soniyada keladi.", "Синов билдиришномаси 5 сонияда келади.")
-                                            : prayerText(settings.language, "Enable notifications for iumrah in iOS Settings to receive reminders.", "Включите уведомления для iumrah в настройках iOS.", "Eslatmalar uchun iOS sozlamalarida iumrah bildirishnomalarini yoqing.", "Эслатмалар учун iOS созламаларида iumrah билдиришномаларини ёқинг.")
-                                    }
-                                } label: {
-                                    Label(prayerText(settings.language, "Test notification", "Проверить уведомление", "Eslatmani sinash", "Эслатмани синаш"), systemImage: "bell.badge")
-                                        .font(.subheadline.weight(.semibold))
-                                }
-                                .buttonStyle(.bordered)
-                                Text(prayerText(settings.language, "Swipe left or right to configure another prayer. Alerts use the selected city's local prayer times. Custom adhan audio is not included.", "Свайпайте влево или вправо, чтобы настроить другой намаз. Напоминания используют время выбранного города. Пользовательский азан пока не включён.", "Boshqa namozni sozlash uchun chapga yoki o‘ngga suring. Eslatmalar tanlangan shahar vaqtlaridan foydalanadi. Maxsus azon ovozi hozircha yo‘q.", "Бошқа намозни созлаш учун чапга ёки ўнгга суринг. Эслатмалар танланган шаҳар вақтларидан фойдаланади. Махсус азон овози ҳозирча йўқ."))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 22)
-                            .frame(maxWidth: 650)
-                            .frame(maxWidth: .infinity)
-                        }
-                        .tag(kind)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .always))
-                Button {
-                    saving = true
-                    state.notifications = edited
-                    Task {
-                        let success = await IumrahPrayerNotifications.synchronize(state: state, allowPermissionPrompt: true)
-                        saving = false
-                        if success { dismiss() }
-                        else { message = prayerText(settings.language, "Enable notifications for iumrah in iOS Settings. Your choices have been saved.", "Включите уведомления для iumrah в настройках iOS. Ваши настройки сохранены.", "iOS sozlamalarida iumrah bildirishnomalarini yoqing. Tanlovlaringiz saqlandi.", "iOS созламаларида iumrah билдиришномаларини ёқинг. Танловларингиз сақланди.") }
-                    }
-                } label: {
-                    HStack {
-                        if saving { ProgressView().tint(.white) }
-                        Text(prayerText(settings.language, "Save settings", "Сохранить", "Saqlash", "Сақлаш")).font(.headline)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 49)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white)
-                .background(.green, in: Capsule())
-                .disabled(saving)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
+                prayerPager
+                saveButton
             }
             .background(Color.iumrahPageBackground.ignoresSafeArea())
             .navigationTitle(prayerText(settings.language, "Prayer notifications", "Уведомления о намазе", "Namoz eslatmalari", "Намоз эслатмалари"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(prayerText(settings.language, "Close", "Закрыть", "Yopish", "Ёпиш")) { dismiss() } } }
-            .alert(prayerText(settings.language, "Prayer notifications", "Уведомления о намазе", "Namoz eslatmalari", "Намоз эслатмалари"), isPresented: Binding(
-                get: { message != nil }, set: { if !$0 { message = nil } }
-            )) {
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(prayerText(settings.language, "Close", "Закрыть", "Yopish", "Ёпиш")) {
+                        dismiss()
+                    }
+                }
+            }
+            .alert(
+                prayerText(settings.language, "Prayer notifications", "Уведомления о намазе", "Namoz eslatmalari", "Намоз эслатмалари"),
+                isPresented: showingMessage
+            ) {
                 Button("OK", role: .cancel) { message = nil }
-            } message: { Text(message ?? "") }
+            } message: {
+                Text(message ?? "")
+            }
         }
         .presentationDetents([.large])
     }
 
+    private var prayerPager: some View {
+        TabView(selection: $selected) {
+            ForEach(IumrahPrayerKind.allCases) { kind in
+                prayerPage(kind)
+                    .tag(kind)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .always))
+    }
+
+    private func prayerPage(_ kind: IumrahPrayerKind) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                prayerHeading(kind)
+                notificationControls(kind)
+                offsetControls(kind)
+                earlyReminderControls(kind)
+                testNotificationButton(kind)
+                explanation
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 22)
+            .frame(maxWidth: 650)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func prayerHeading(_ kind: IumrahPrayerKind) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: kind.symbol)
+                .font(.system(size: 29))
+                .foregroundStyle(.orange)
+                .frame(width: 58, height: 58)
+                .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 20))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(kind.title)
+                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                Text(prayerText(settings.language, "Configure reminder and sound", "Напоминание и звук", "Eslatma va ovoz", "Эслатма ва овоз"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func notificationControls(_ kind: IumrahPrayerKind) -> some View {
+        VStack(spacing: 0) {
+            Toggle(isOn: enabled(kind)) {
+                Label(
+                    prayerText(settings.language, "Notification", "Уведомление", "Bildirishnoma", "Билдиришнома"),
+                    systemImage: "bell"
+                )
+            }
+            .tint(.green)
+            .padding(16)
+
+            Divider().padding(.leading, 18)
+
+            Toggle(isOn: sound(kind)) {
+                Label(
+                    prayerText(settings.language, "System notification sound", "Системный звук", "Tizim ovozi", "Тизим овози"),
+                    systemImage: "speaker.wave.2"
+                )
+            }
+            .padding(16)
+        }
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22))
+    }
+
+    private func offsetControls(_ kind: IumrahPrayerKind) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label(
+                    prayerText(settings.language, "Reminder offset", "Время уведомления", "Eslatma vaqti", "Эслатма вақти"),
+                    systemImage: "clock.arrow.circlepath"
+                )
+                .font(.headline)
+                Spacer()
+                Text(offsetDescription(preference(kind).offsetMinutes))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.orange)
+            }
+            Slider(value: offset(kind), in: -30...30, step: 5)
+                .tint(.orange)
+                .accessibilityLabel("Minutes before or after prayer")
+            HStack {
+                Text("−30 min")
+                Spacer()
+                Text(prayerText(settings.language, "At prayer time", "Вовремя", "O‘z vaqtida", "Ўз вақтида"))
+                Spacer()
+                Text("+30 min")
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            Button(prayerText(settings.language, "Reset offset", "Сбросить", "Qaytarish", "Қайтариш")) {
+                var item = preference(kind)
+                item.offsetMinutes = 0
+                edited[kind.rawValue] = item
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.orange)
+        }
+        .padding(18)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22))
+    }
+
+    @ViewBuilder
+    private func earlyReminderControls(_ kind: IumrahPrayerKind) -> some View {
+        VStack(alignment: .leading, spacing: 13) {
+            Toggle(isOn: earlyEnabled(kind)) {
+                Label(
+                    prayerText(settings.language, "Early reminder", "Предварительное уведомление", "Oldindan eslatma", "Олдиндан эслатма"),
+                    systemImage: "bell.badge"
+                )
+            }
+            .tint(.orange)
+            if preference(kind).earlyReminderMinutes != nil {
+                earlyReminderPicker(kind)
+            }
+        }
+        .padding(17)
+        .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22))
+    }
+
+    private func earlyReminderPicker(_ kind: IumrahPrayerKind) -> some View {
+        Picker(
+            prayerText(settings.language, "Before prayer", "До молитвы", "Namozgacha", "Намозгача"),
+            selection: earlyMinutes(kind)
+        ) {
+            ForEach([5, 10, 15, 30], id: \.self) { minutes in
+                Text("\(minutes) min").tag(minutes)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private func testNotificationButton(_ kind: IumrahPrayerKind) -> some View {
+        Button {
+            Task { await sendPreview(kind) }
+        } label: {
+            Label(
+                prayerText(settings.language, "Test notification", "Проверить уведомление", "Eslatmani sinash", "Эслатмани синаш"),
+                systemImage: "bell.badge"
+            )
+            .font(.subheadline.weight(.semibold))
+        }
+        .buttonStyle(.bordered)
+    }
+
+    private var explanation: some View {
+        Text(prayerText(
+            settings.language,
+            "Swipe left or right to configure another prayer. Alerts use the selected city's local prayer times. Custom adhan audio is not included.",
+            "Свайпайте влево или вправо, чтобы настроить другой намаз. Напоминания используют время выбранного города. Пользовательский азан пока не включён.",
+            "Boshqa namozni sozlash uchun chapga yoki o‘ngga suring. Eslatmalar tanlangan shahar vaqtlaridan foydalanadi. Maxsus azon ovozi hozircha yo‘q.",
+            "Бошқа намозни созлаш учун чапга ёки ўнгга суринг. Эслатмалар танланган шаҳар вақтларидан фойдаланади. Махсус азон овози ҳозирча йўқ."
+        ))
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
+    private var saveButton: some View {
+        Button {
+            Task { await saveSettings() }
+        } label: {
+            HStack {
+                if saving { ProgressView().tint(.white) }
+                Text(prayerText(settings.language, "Save settings", "Сохранить", "Saqlash", "Сақлаш"))
+                    .font(.headline)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 49)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .background(Color.green, in: Capsule())
+        .disabled(saving)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12)
+    }
+
+    @MainActor
+    private func sendPreview(_ kind: IumrahPrayerKind) async {
+        let success = await IumrahPrayerNotifications.preview(kind: kind, sound: preference(kind).sound)
+        message = success
+            ? prayerText(settings.language, "A test notification is scheduled in 5 seconds.", "Тестовое уведомление придёт через 5 секунд.", "Sinov bildirishnomasi 5 soniyada keladi.", "Синов билдиришномаси 5 сонияда келади.")
+            : prayerText(settings.language, "Enable notifications for iumrah in iOS Settings to receive reminders.", "Включите уведомления для iumrah в настройках iOS.", "Eslatmalar uchun iOS sozlamalarida iumrah bildirishnomalarini yoqing.", "Эслатмалар учун iOS созламаларида iumrah билдиришномаларини ёқинг.")
+    }
+
+    @MainActor
+    private func saveSettings() async {
+        guard !saving else { return }
+        saving = true
+        state.notifications = edited
+        let success = await IumrahPrayerNotifications.synchronize(state: state, allowPermissionPrompt: true)
+        saving = false
+        if success {
+            dismiss()
+        } else {
+            message = prayerText(
+                settings.language,
+                "Enable notifications for iumrah in iOS Settings. Your choices have been saved.",
+                "Включите уведомления для iumrah в настройках iOS. Ваши настройки сохранены.",
+                "iOS sozlamalarida iumrah bildirishnomalarini yoqing. Tanlovlaringiz saqlandi.",
+                "iOS созламаларида iumrah билдиришномаларини ёқинг. Танловларингиз сақланди."
+            )
+        }
+    }
+
     private func offsetDescription(_ minutes: Int) -> String {
-        if minutes == 0 { return prayerText(settings.language, "On time", "Вовремя", "O‘z vaqtida", "Ўз вақтида") }
+        if minutes == 0 {
+            return prayerText(settings.language, "On time", "Вовремя", "O‘z vaqtida", "Ўз вақтида")
+        }
         let sign = minutes < 0 ? "−" : "+"
         return "\(sign)\(abs(minutes)) min"
     }
 }
-
-
