@@ -11,6 +11,9 @@ final class IumrahAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
 
         Task { @MainActor in
             await PushNotificationManager.shared.refreshAndRegisterIfAllowed()
+            // Restore local prayer reminders after normal launches, without
+            // requesting permissions or touching flight/booking notifications.
+            _ = await IumrahPrayerNotifications.synchronize(state: IumrahPrayerState())
         }
 
         return true
@@ -50,8 +53,10 @@ final class IumrahAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        await MainActor.run {
-            PushNotificationManager.shared.receiveRemotePayload(notification.request.content.userInfo, opened: false)
+        if !notification.request.identifier.hasPrefix("iumrah.prayer.") {
+            await MainActor.run {
+                PushNotificationManager.shared.receiveRemotePayload(notification.request.content.userInfo, opened: false)
+            }
         }
         return [.banner, .list, .sound, .badge]
     }
@@ -60,6 +65,8 @@ final class IumrahAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
+        // Prayer alerts are local reminders, not server booking events.
+        guard !response.notification.request.identifier.hasPrefix("iumrah.prayer.") else { return }
         await MainActor.run {
             PushNotificationManager.shared.receiveRemotePayload(response.notification.request.content.userInfo, opened: true)
         }

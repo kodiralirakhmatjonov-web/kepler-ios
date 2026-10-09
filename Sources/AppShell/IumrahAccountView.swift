@@ -1168,6 +1168,24 @@ struct IumrahAccountView: View {
             Divider().padding(.leading, 54)
 
             NavigationLink {
+                IumrahPrayerTimesView()
+            } label: {
+                settingsRow(
+                    icon: "moon.stars.fill",
+                    title: "iumrah Prayer Times",
+                    value: tr(
+                        "Prayer times, reminders and wallpaper themes",
+                        "Времена молитв, напоминания и обои",
+                        "Namoz vaqtlari, eslatmalar va oboylar",
+                        "Намоз вақтлари, эслатмалар ва обойлар"
+                    )
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().padding(.leading, 54)
+
+            NavigationLink {
                 ESIMView()
             } label: {
                 settingsRow(
