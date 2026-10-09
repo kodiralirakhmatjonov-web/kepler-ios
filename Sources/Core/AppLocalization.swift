@@ -6,6 +6,9 @@ struct L10n {
         if language == .turkish {
             return TurkishLocalization.key(key, english: dictionary["en"]?[key] ?? key)
         }
+        if language == .indonesian {
+            return IndonesianLocalization.key(key, english: dictionary["en"]?[key] ?? key)
+        }
         return dictionary[code]?[key] ?? dictionary["en"]?[key] ?? key
     }
 

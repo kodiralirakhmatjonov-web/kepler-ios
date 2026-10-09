@@ -889,7 +889,7 @@ struct IumrahUserDataView: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .turkish: return TurkishLocalization.phrase(en)
-        case .english: return en
+        case .indonesian, .english: return en
         case .russian: return ru
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl

@@ -23,6 +23,7 @@ struct IumrahLanguageSelectionSheet: View {
             LanguageOption(language: .english, flag: "EN", nativeName: "English", subtitle: "Global · Latin"),
             LanguageOption(language: .russian, flag: "RU", nativeName: "Русский", subtitle: "Россия · Кириллица"),
             LanguageOption(language: .turkish, flag: "TR", nativeName: "Türkçe", subtitle: "Türkiye · Latin"),
+            LanguageOption(language: .indonesian, flag: "ID", nativeName: "Bahasa Indonesia", subtitle: "Indonesia · Latin"),
             LanguageOption(language: .uzbek, flag: "UZ", nativeName: "O‘zbekcha", subtitle: "O‘zbekiston · Lotin"),
             LanguageOption(language: .uzbekCyrillic, flag: "ЎЗ", nativeName: "Ўзбекча", subtitle: "Ўзбекистон · Кирилл")
         ]
@@ -278,6 +279,8 @@ struct IumrahLanguageSelectionSheet: View {
             return "Change to English"
         case .turkish:
             return "Türkçe’ye geç"
+        case .indonesian:
+            return "Ganti ke Bahasa Indonesia"
         case .uzbek:
             return "O‘zbekchaga o‘tish"
         case .uzbekCyrillic:
@@ -290,6 +293,7 @@ struct IumrahLanguageSelectionSheet: View {
         case .russian: return ru
         case .english: return en
         case .turkish: return tr
+        case .indonesian: return IndonesianLocalization.phrase(en)
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
         }

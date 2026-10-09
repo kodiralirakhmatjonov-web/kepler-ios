@@ -1973,7 +1973,7 @@ struct BookingsHomeView: View {
             return "\(count) паломников"
         case .turkish:
             return count == 1 ? "1 umre yolcusu" : "\(count) umre yolcusu"
-        case .english:
+        case .indonesian, .english:
             return count == 1 ? "1 pilgrim" : "\(count) pilgrims"
         case .uzbek:
             return "\(count) ziyoratchi"
@@ -2093,7 +2093,7 @@ struct BookingsHomeView: View {
         switch settings.language {
         case .russian: return ru
         case .turkish: return TurkishLocalization.phrase(en)
-        case .english: return en
+        case .indonesian, .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
         }

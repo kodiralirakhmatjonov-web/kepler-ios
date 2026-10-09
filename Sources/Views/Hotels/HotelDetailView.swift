@@ -186,7 +186,7 @@ struct HotelDetailView: View {
         switch settings.language {
         case .russian: return "Не удалось подготовить пакет для отправки. Обновите цены и попробуйте ещё раз."
         case .turkish: return TurkishLocalization.phrase("The package could not be prepared for sharing. Refresh pricing and try again.")
-        case .english: return "The package could not be prepared for sharing. Refresh pricing and try again."
+        case .indonesian, .english: return "The package could not be prepared for sharing. Refresh pricing and try again."
         case .uzbek: return "Paketni ulashish uchun tayyorlab bo‘lmadi. Narxlarni yangilang va qayta urinib ko‘ring."
         case .uzbekCyrillic: return "Пакетни улашиш учун тайёрлаб бўлмади. Нархларни янгиланг ва қайта уриниб кўринг."
         }
@@ -196,7 +196,7 @@ struct HotelDetailView: View {
         switch settings.language {
         case .russian: return "Не удалось поделиться"
         case .turkish: return TurkishLocalization.phrase("Could not share")
-        case .english: return "Could not share"
+        case .indonesian, .english: return "Could not share"
         case .uzbek: return "Ulashib bo‘lmadi"
         case .uzbekCyrillic: return "Улашиб бўлмади"
         }
@@ -206,7 +206,7 @@ struct HotelDetailView: View {
         switch settings.language {
         case .russian: return "Понятно"
         case .turkish: return TurkishLocalization.phrase("OK")
-        case .english: return "OK"
+        case .indonesian, .english: return "OK"
         case .uzbek: return "Tushunarli"
         case .uzbekCyrillic: return "Тушунарли"
         }
@@ -563,7 +563,7 @@ struct HotelDetailView: View {
         switch settings.language {
         case .russian: return "паломников"
         case .turkish: return TurkishLocalization.phrase("travelers")
-        case .english: return "travelers"
+        case .indonesian, .english: return "travelers"
         case .uzbek: return "ziyoratchi"
         case .uzbekCyrillic: return "зиёратчи"
         }
@@ -596,7 +596,7 @@ struct HotelDetailView: View {
         switch settings.language {
         case .russian: return "ДЛИТЕЛЬНОСТЬ"
         case .turkish: return TurkishLocalization.phrase("DURATION")
-        case .english: return "DURATION"
+        case .indonesian, .english: return "DURATION"
         case .uzbek: return "DAVOMIYLIGI"
         case .uzbekCyrillic: return "ДАВОМИЙЛИГИ"
         }
@@ -1116,7 +1116,7 @@ struct HotelDetailView: View {
         if normalized.contains("twin") && normalized.contains("city view") {
             switch settings.language {
             case .turkish: return TurkishLocalization.phrase("Twin Room · City View")
-            case .english: return "Twin Room · City View"
+            case .indonesian, .english: return "Twin Room · City View"
             case .russian: return "Twin · Вид на город"
             case .uzbek: return "Twin xona · Shahar manzarasi"
             case .uzbekCyrillic: return "Twin хона · Шаҳар манзараси"
@@ -1125,7 +1125,7 @@ struct HotelDetailView: View {
         if normalized.contains("king") && normalized.contains("city view") {
             switch settings.language {
             case .turkish: return TurkishLocalization.phrase("King Room · City View")
-            case .english: return "King Room · City View"
+            case .indonesian, .english: return "King Room · City View"
             case .russian: return "King · Вид на город"
             case .uzbek: return "King xona · Shahar manzarasi"
             case .uzbekCyrillic: return "King хона · Шаҳар манзараси"
@@ -1134,7 +1134,7 @@ struct HotelDetailView: View {
         if normalized.contains("double") && normalized.contains("city view") {
             switch settings.language {
             case .turkish: return TurkishLocalization.phrase("Double Room · City View")
-            case .english: return "Double Room · City View"
+            case .indonesian, .english: return "Double Room · City View"
             case .russian: return "Двухместный · Вид на город"
             case .uzbek: return "Ikki kishilik xona · Shahar manzarasi"
             case .uzbekCyrillic: return "Икки кишилик хона · Шаҳар манзараси"

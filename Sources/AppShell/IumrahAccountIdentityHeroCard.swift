@@ -196,7 +196,7 @@ struct IumrahIdentityDomeCard: View {
         switch language {
         case .russian: return "QR-код открывает Вашу iumrah ID на сайте"
         case .turkish: return TurkishLocalization.phrase("Scan to open your iumrah ID on the web")
-        case .english: return "Scan to open your iumrah ID on the web"
+        case .indonesian, .english: return "Scan to open your iumrah ID on the web"
         case .uzbek: return "QR-kod iumrah ID’ingizni saytda ochadi"
         case .uzbekCyrillic: return "QR-код iumrah ID’ингизни сайтда очади"
         }
@@ -251,7 +251,7 @@ struct IumrahIdentityDomeCard: View {
         switch language {
         case .russian: return "Нажмите, чтобы перевернуть карту"
         case .turkish: return TurkishLocalization.phrase("Tap to flip the card")
-        case .english: return "Tap to flip the card"
+        case .indonesian, .english: return "Tap to flip the card"
         case .uzbek: return "Kartani aylantirish uchun bosing"
         case .uzbekCyrillic: return "Картани айлантириш учун босинг"
         }

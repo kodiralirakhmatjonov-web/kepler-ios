@@ -159,7 +159,7 @@ struct IumrahRootPageTitle: View {
         switch settings.language {
         case .russian: return "Уведомления"
         case .turkish: return TurkishLocalization.phrase("Notifications")
-        case .english: return "Notifications"
+        case .indonesian, .english: return "Notifications"
         case .uzbek: return "Bildirishnomalar"
         case .uzbekCyrillic: return "Билдиришномалар"
         }
@@ -169,7 +169,7 @@ struct IumrahRootPageTitle: View {
         switch settings.language {
         case .russian: return "Меню"
         case .turkish: return TurkishLocalization.phrase("Menu")
-        case .english: return "Menu"
+        case .indonesian, .english: return "Menu"
         case .uzbek: return "Menyu"
         case .uzbekCyrillic: return "Меню"
         }

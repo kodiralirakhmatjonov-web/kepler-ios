@@ -113,7 +113,7 @@ private struct GeneratorProgressStrip: View {
         switch settings.language {
         case .russian: return "ТЕКУЩАЯ ЦЕНА"
         case .turkish: return TurkishLocalization.phrase("CURRENT TOTAL")
-        case .english: return "CURRENT TOTAL"
+        case .indonesian, .english: return "CURRENT TOTAL"
         case .uzbek: return "JORIY NARX"
         case .uzbekCyrillic: return "ЖОРИЙ НАРХ"
         }
@@ -427,7 +427,7 @@ struct IumrahGeneratorHeader: View {
         switch settings.language {
         case .russian: return "Назад"
         case .turkish: return TurkishLocalization.phrase("Back")
-        case .english: return "Back"
+        case .indonesian, .english: return "Back"
         case .uzbek: return "Orqaga"
         case .uzbekCyrillic: return "Орқага"
         }

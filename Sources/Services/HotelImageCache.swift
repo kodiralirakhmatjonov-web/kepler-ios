@@ -10,19 +10,27 @@ import UIKit
 actor HotelImageCache {
     static let shared = HotelImageCache()
 
-    private let memory = NSCache<NSURL, UIImage>()
-    private let fileManager = FileManager.default
+    private let memory: NSCache<NSURL, UIImage>
+    private let fileManager: FileManager
     private let directory: URL
     private let maximumCompressedBytes = 16 * 1024 * 1024
     private let maximumPixelDimension = 1600
 
     private init() {
+        // Build the cache and filesystem dependencies as locals first. Calling
+        // actor-isolated properties from an actor's nonisolated initializer is
+        // rejected in Swift 6 language mode.
+        let fileManager = FileManager.default
+        let memory = NSCache<NSURL, UIImage>()
         let caches = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
-        directory = caches.appendingPathComponent("iumrah-hotel-images-v1", isDirectory: true)
+        let directory = caches.appendingPathComponent("iumrah-hotel-images-v1", isDirectory: true)
         try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         memory.countLimit = 24
         memory.totalCostLimit = 48 * 1024 * 1024
+        self.fileManager = fileManager
+        self.memory = memory
+        self.directory = directory
     }
 
     func image(for url: URL) async -> UIImage? {
@@ -42,7 +50,7 @@ actor HotelImageCache {
         }
 
         do {
-            var request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 20)
+            let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 20)
             let (data, response) = try await URLSession.shared.data(for: request)
             guard !Task.isCancelled,
                   let http = response as? HTTPURLResponse,

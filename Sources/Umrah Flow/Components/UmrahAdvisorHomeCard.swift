@@ -158,7 +158,7 @@ struct UmrahAdvisorHomeCard: View {
                 "10 dil",
                 "Umre için sesli rehber"
             )
-        case .english:
+        case .indonesian, .english:
             return (
                 "Start Umrah",
                 "Advisor guides you by voice through Tawaf, Safa & Marwa and the completion of Umrah.",

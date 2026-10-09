@@ -627,7 +627,7 @@ private enum ESIMCopy {
         switch language {
         case .russian: return ru[key] ?? key
         case .turkish: return tr[key] ?? en[key] ?? key
-        case .english: return en[key] ?? ru[key] ?? key
+        case .indonesian, .english: return en[key] ?? ru[key] ?? key
         case .uzbek: return uz[key] ?? ru[key] ?? key
         case .uzbekCyrillic: return cy[key] ?? ru[key] ?? key
         }

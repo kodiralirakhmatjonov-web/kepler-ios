@@ -587,7 +587,7 @@ struct FlightDateCalendarView: View {
     private var locale: Locale {
         switch settings.language {
         case .turkish: return Locale(identifier: "tr_TR")
-        case .english: return Locale(identifier: "en_US")
+        case .indonesian, .english: return Locale(identifier: "en_US")
         case .russian: return Locale(identifier: "ru_RU")
         case .uzbek: return Locale(identifier: "uz_Latn_UZ")
         case .uzbekCyrillic: return Locale(identifier: "uz_Cyrl_UZ")
@@ -598,7 +598,7 @@ struct FlightDateCalendarView: View {
         switch settings.language {
         case .russian: return "Закрыть"
         case .turkish: return TurkishLocalization.phrase("Close")
-        case .english: return "Close"
+        case .indonesian, .english: return "Close"
         case .uzbek: return "Yopish"
         case .uzbekCyrillic: return "Ёпиш"
         }
@@ -630,35 +630,35 @@ struct FlightDateCalendarView: View {
 
         case (.turkish, .title): return TurkishLocalization.phrase("Choose your dates")
 
-        case (.english, .title): return "Choose your dates"
+        case (.indonesian, .title), (.english, .title): return "Choose your dates"
         case (.turkish, .subtitle): return TurkishLocalization.phrase("Green days are iumrah-published direct flights")
-        case (.english, .subtitle): return "Green days are iumrah-published direct flights"
+        case (.indonesian, .subtitle), (.english, .subtitle): return "Green days are iumrah-published direct flights"
         case (.turkish, .recommendedDirect): return TurkishLocalization.phrase("Recommended by iumrah AI")
-        case (.english, .recommendedDirect): return "Recommended by iumrah AI"
+        case (.indonesian, .recommendedDirect), (.english, .recommendedDirect): return "Recommended by iumrah AI"
         case (.turkish, .loading): return TurkishLocalization.phrase("Checking published direct flights…")
-        case (.english, .loading): return "Checking published direct flights…"
+        case (.indonesian, .loading), (.english, .loading): return "Checking published direct flights…"
         case (.turkish, .directHint): return TurkishLocalization.phrase("Green days are available in iumrah inventory: direct flights that are usually more convenient and better value than connecting options.")
-        case (.english, .directHint): return "Green days are available in iumrah inventory: direct flights that are usually more convenient and better value than connecting options."
+        case (.indonesian, .directHint), (.english, .directHint): return "Green days are available in iumrah inventory: direct flights that are usually more convenient and better value than connecting options."
         case (.turkish, .retry): return TurkishLocalization.phrase("Refresh")
-        case (.english, .retry): return "Refresh"
+        case (.indonesian, .retry), (.english, .retry): return "Refresh"
         case (.turkish, .noDirectTitle): return TurkishLocalization.phrase("No direct flights on these dates")
-        case (.english, .noDirectTitle): return "No direct flights on these dates"
+        case (.indonesian, .noDirectTitle), (.english, .noDirectTitle): return "No direct flights on these dates"
         case (.turkish, .noDirectInlineBody): return TurkishLocalization.phrase("You can continue with flexible dates, but the system may offer one- or two-stop flights at a higher fare. This affects your final package total.")
-        case (.english, .noDirectInlineBody): return "You can continue with flexible dates, but the system may offer one- or two-stop flights at a higher fare. This affects your final package total."
+        case (.indonesian, .noDirectInlineBody), (.english, .noDirectInlineBody): return "You can continue with flexible dates, but the system may offer one- or two-stop flights at a higher fare. This affects your final package total."
         case (.turkish, .noDirectPopupBody): return TurkishLocalization.phrase("iumrah currently has no published direct-flight pair for these dates. Flexible search may return one- or two-stop options at a higher fare, increasing your final package total.")
-        case (.english, .noDirectPopupBody): return "iumrah currently has no published direct-flight pair for these dates. Flexible search may return one- or two-stop options at a higher fare, increasing your final package total."
+        case (.indonesian, .noDirectPopupBody), (.english, .noDirectPopupBody): return "iumrah currently has no published direct-flight pair for these dates. Flexible search may return one- or two-stop options at a higher fare, increasing your final package total."
         case (.turkish, .inventoryNote): return TurkishLocalization.phrase("Green days come only from flights published in the iumrah database. Other dates are never marked direct automatically.")
-        case (.english, .inventoryNote): return "Green days come only from flights published in the iumrah database. Other dates are never marked direct automatically."
+        case (.indonesian, .inventoryNote), (.english, .inventoryNote): return "Green days come only from flights published in the iumrah database. Other dates are never marked direct automatically."
         case (.turkish, .reset): return TurkishLocalization.phrase("Reset")
-        case (.english, .reset): return "Reset"
+        case (.indonesian, .reset), (.english, .reset): return "Reset"
         case (.turkish, .chooseDates): return TurkishLocalization.phrase("Continue")
-        case (.english, .chooseDates): return "Continue"
+        case (.indonesian, .chooseDates), (.english, .chooseDates): return "Continue"
         case (.turkish, .chooseDirectDates): return TurkishLocalization.phrase("Choose direct-flight dates")
-        case (.english, .chooseDirectDates): return "Choose direct-flight dates"
+        case (.indonesian, .chooseDirectDates), (.english, .chooseDirectDates): return "Choose direct-flight dates"
         case (.turkish, .continueFlexible): return TurkishLocalization.phrase("Continue with flexible dates")
-        case (.english, .continueFlexible): return "Continue with flexible dates"
+        case (.indonesian, .continueFlexible), (.english, .continueFlexible): return "Continue with flexible dates"
         case (.turkish, .directAccessibility): return TurkishLocalization.phrase("Published direct flight")
-        case (.english, .directAccessibility): return "Published direct flight"
+        case (.indonesian, .directAccessibility), (.english, .directAccessibility): return "Published direct flight"
 
         case (.uzbek, .title): return "Sanalarni tanlang"
         case (.uzbek, .subtitle): return "Yashil kunlar — iumrah e’lon qilgan to‘g‘ridan-to‘g‘ri reyslar"

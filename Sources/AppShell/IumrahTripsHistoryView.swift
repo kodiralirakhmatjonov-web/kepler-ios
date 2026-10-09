@@ -158,7 +158,7 @@ struct IumrahTripsHistoryView: View {
         switch settings.language {
         case .russian: return ru
         case .turkish: return TurkishLocalization.phrase(en)
-        case .english: return en
+        case .indonesian, .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
         }

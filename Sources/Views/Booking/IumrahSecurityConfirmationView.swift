@@ -1354,7 +1354,7 @@ struct IumrahSecurityConfirmationView: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ uzCyrl: String) -> String {
         switch settings.language {
         case .turkish: return TurkishLocalization.phrase(en)
-        case .english: return en
+        case .indonesian, .english: return en
         case .russian: return ru
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCyrl

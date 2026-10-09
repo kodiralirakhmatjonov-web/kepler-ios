@@ -899,105 +899,105 @@ private enum IumrahFlightsCopy {
 
         case (.turkish, .back): return TurkishLocalization.phrase("Back")
 
-        case (.english, .back): return "Back"
+        case (.indonesian, .back), (.english, .back): return "Back"
         case (.turkish, .heroTitle): return TurkishLocalization.phrase("Your flight belongs to your journey")
-        case (.english, .heroTitle): return "Your flight belongs to your journey"
+        case (.indonesian, .heroTitle), (.english, .heroTitle): return "Your flight belongs to your journey"
         case (.turkish, .heroBody): return TurkishLocalization.phrase("iumrah Flights keeps the important parts of your flight next to your Umrah journey: schedule, delays and meaningful changes.")
-        case (.english, .heroBody): return "iumrah Flights keeps the important parts of your flight next to your Umrah journey: schedule, delays and meaningful changes."
+        case (.indonesian, .heroBody), (.english, .heroBody): return "iumrah Flights keeps the important parts of your flight next to your Umrah journey: schedule, delays and meaningful changes."
         case (.turkish, .accessActive): return TurkishLocalization.phrase("Connected to an active trip")
-        case (.english, .accessActive): return "Connected to an active trip"
+        case (.indonesian, .accessActive), (.english, .accessActive): return "Connected to an active trip"
         case (.turkish, .accessLocked): return TurkishLocalization.phrase("Available for active trips")
-        case (.english, .accessLocked): return "Available for active trips"
+        case (.indonesian, .accessLocked), (.english, .accessLocked): return "Available for active trips"
         case (.turkish, .liveEyebrow): return TurkishLocalization.phrase("FLIGHT STATUS")
-        case (.english, .liveEyebrow): return "FLIGHT STATUS"
+        case (.indonesian, .liveEyebrow), (.english, .liveEyebrow): return "FLIGHT STATUS"
         case (.turkish, .liveTitle): return TurkishLocalization.phrase("Know what is happening with your flight")
-        case (.english, .liveTitle): return "Know what is happening with your flight"
+        case (.indonesian, .liveTitle), (.english, .liveTitle): return "Know what is happening with your flight"
         case (.turkish, .liveBody): return TurkishLocalization.phrase("Not a public tracker for curiosity. It is part of your iumrah journey. Once a trip is booked, Flights keeps the most important flight changes close.")
-        case (.english, .liveBody): return "Not a public tracker for curiosity. It is part of your iumrah journey. Once a trip is booked, Flights keeps the most important flight changes close."
+        case (.indonesian, .liveBody), (.english, .liveBody): return "Not a public tracker for curiosity. It is part of your iumrah journey. Once a trip is booked, Flights keeps the most important flight changes close."
         case (.turkish, .featureDelay): return TurkishLocalization.phrase("Delay")
-        case (.english, .featureDelay): return "Delay"
+        case (.indonesian, .featureDelay), (.english, .featureDelay): return "Delay"
         case (.turkish, .featureGate): return TurkishLocalization.phrase("Boarding")
-        case (.english, .featureGate): return "Boarding"
+        case (.indonesian, .featureGate), (.english, .featureGate): return "Boarding"
         case (.turkish, .featureAlerts): return TurkishLocalization.phrase("Alerts")
-        case (.english, .featureAlerts): return "Alerts"
+        case (.indonesian, .featureAlerts), (.english, .featureAlerts): return "Alerts"
         case (.turkish, .monitoring): return TurkishLocalization.phrase("MONITORING")
-        case (.english, .monitoring): return "MONITORING"
+        case (.indonesian, .monitoring), (.english, .monitoring): return "MONITORING"
         case (.turkish, .demo): return TurkishLocalization.phrase("DEMO")
-        case (.english, .demo): return "DEMO"
+        case (.indonesian, .demo), (.english, .demo): return "DEMO"
         case (.turkish, .departure): return TurkishLocalization.phrase("Departure")
-        case (.english, .departure): return "Departure"
+        case (.indonesian, .departure), (.english, .departure): return "Departure"
         case (.turkish, .arrival): return TurkishLocalization.phrase("Arrival")
-        case (.english, .arrival): return "Arrival"
+        case (.indonesian, .arrival), (.english, .arrival): return "Arrival"
         case (.turkish, .notificationEyebrow): return TurkishLocalization.phrase("PRECISE ALERTS")
-        case (.english, .notificationEyebrow): return "PRECISE ALERTS"
+        case (.indonesian, .notificationEyebrow), (.english, .notificationEyebrow): return "PRECISE ALERTS"
         case (.turkish, .notificationTitle): return TurkishLocalization.phrase("Flight changes come to you")
-        case (.english, .notificationTitle): return "Flight changes come to you"
+        case (.indonesian, .notificationTitle), (.english, .notificationTitle): return "Flight changes come to you"
         case (.turkish, .notificationBody): return TurkishLocalization.phrase("See what an iumrah Flights alert feels like. The button below sends a test example directly to this iPhone.")
-        case (.english, .notificationBody): return "See what an iumrah Flights alert feels like. The button below sends a test example directly to this iPhone."
+        case (.indonesian, .notificationBody), (.english, .notificationBody): return "See what an iumrah Flights alert feels like. The button below sends a test example directly to this iPhone."
         case (.turkish, .notificationButton): return TurkishLocalization.phrase("Preview notification")
-        case (.english, .notificationButton): return "Preview notification"
+        case (.indonesian, .notificationButton), (.english, .notificationButton): return "Preview notification"
         case (.turkish, .notificationSent): return TurkishLocalization.phrase("Notification sent")
-        case (.english, .notificationSent): return "Notification sent"
+        case (.indonesian, .notificationSent), (.english, .notificationSent): return "Notification sent"
         case (.turkish, .now): return TurkishLocalization.phrase("now")
-        case (.english, .now): return "now"
+        case (.indonesian, .now), (.english, .now): return "now"
         case (.turkish, .sampleNotificationTitle): return TurkishLocalization.phrase("HY123 is delayed by 15 minutes")
-        case (.english, .sampleNotificationTitle): return "HY123 is delayed by 15 minutes"
+        case (.indonesian, .sampleNotificationTitle), (.english, .sampleNotificationTitle): return "HY123 is delayed by 15 minutes"
         case (.turkish, .sampleNotificationBody): return TurkishLocalization.phrase("Uzbekistan Airways · new departure 23:05. We will keep watching the flight.")
-        case (.english, .sampleNotificationBody): return "Uzbekistan Airways · new departure 23:05. We will keep watching the flight."
+        case (.indonesian, .sampleNotificationBody), (.english, .sampleNotificationBody): return "Uzbekistan Airways · new departure 23:05. We will keep watching the flight."
         case (.turkish, .localNotificationTitle): return TurkishLocalization.phrase("iumrah Flights · demo")
-        case (.english, .localNotificationTitle): return "iumrah Flights · demo"
+        case (.indonesian, .localNotificationTitle), (.english, .localNotificationTitle): return "iumrah Flights · demo"
         case (.turkish, .localNotificationBody): return TurkishLocalization.phrase("Uzbekistan Airways HY123 is delayed by 15 minutes. New departure — 23:05.")
-        case (.english, .localNotificationBody): return "Uzbekistan Airways HY123 is delayed by 15 minutes. New departure — 23:05."
+        case (.indonesian, .localNotificationBody), (.english, .localNotificationBody): return "Uzbekistan Airways HY123 is delayed by 15 minutes. New departure — 23:05."
         case (.turkish, .notificationsDisabledTitle): return TurkishLocalization.phrase("Notifications are off")
-        case (.english, .notificationsDisabledTitle): return "Notifications are off"
+        case (.indonesian, .notificationsDisabledTitle), (.english, .notificationsDisabledTitle): return "Notifications are off"
         case (.turkish, .notificationsDisabledBody): return TurkishLocalization.phrase("Allow iumrah notifications in iPhone Settings to preview the Flights alert.")
-        case (.english, .notificationsDisabledBody): return "Allow iumrah notifications in iPhone Settings to preview the Flights alert."
+        case (.indonesian, .notificationsDisabledBody), (.english, .notificationsDisabledBody): return "Allow iumrah notifications in iPhone Settings to preview the Flights alert."
         case (.turkish, .openSettings): return TurkishLocalization.phrase("Open Settings")
-        case (.english, .openSettings): return "Open Settings"
+        case (.indonesian, .openSettings), (.english, .openSettings): return "Open Settings"
         case (.turkish, .cancel): return TurkishLocalization.phrase("Cancel")
-        case (.english, .cancel): return "Cancel"
+        case (.indonesian, .cancel), (.english, .cancel): return "Cancel"
         case (.turkish, .searchEyebrow): return TurkishLocalization.phrase("FLIGHT LOOKUP")
-        case (.english, .searchEyebrow): return "FLIGHT LOOKUP"
+        case (.indonesian, .searchEyebrow), (.english, .searchEyebrow): return "FLIGHT LOOKUP"
         case (.turkish, .searchTitle): return TurkishLocalization.phrase("Flights inside your trip only")
-        case (.english, .searchTitle): return "Flights inside your trip only"
+        case (.indonesian, .searchTitle), (.english, .searchTitle): return "Flights inside your trip only"
         case (.turkish, .searchUnlockedBody): return TurkishLocalization.phrase("Flights is already linked to your booked trip. Find one of its flights by number, airline or airport.")
-        case (.english, .searchUnlockedBody): return "Flights is already linked to your booked trip. Find one of its flights by number, airline or airport."
+        case (.indonesian, .searchUnlockedBody), (.english, .searchUnlockedBody): return "Flights is already linked to your booked trip. Find one of its flights by number, airline or airport."
         case (.turkish, .searchLockedBody): return TurkishLocalization.phrase("Flight lookup unlocks only for booked active iumrah trips. Without a trip, this is not a public flight tracker.")
-        case (.english, .searchLockedBody): return "Flight lookup unlocks only for booked active iumrah trips. Without a trip, this is not a public flight tracker."
+        case (.indonesian, .searchLockedBody), (.english, .searchLockedBody): return "Flight lookup unlocks only for booked active iumrah trips. Without a trip, this is not a public flight tracker."
         case (.turkish, .searchPlaceholder): return TurkishLocalization.phrase("Uzbekistan Airways, HY123 or TAS")
-        case (.english, .searchPlaceholder): return "Uzbekistan Airways, HY123 or TAS"
+        case (.indonesian, .searchPlaceholder), (.english, .searchPlaceholder): return "Uzbekistan Airways, HY123 or TAS"
         case (.turkish, .searchNoMatch): return TurkishLocalization.phrase("No flight in the active trip matches this search.")
-        case (.english, .searchNoMatch): return "No flight in the active trip matches this search."
+        case (.indonesian, .searchNoMatch), (.english, .searchNoMatch): return "No flight in the active trip matches this search."
         case (.turkish, .activeTripsOnly): return TurkishLocalization.phrase("Available for active trips")
-        case (.english, .activeTripsOnly): return "Available for active trips"
+        case (.indonesian, .activeTripsOnly), (.english, .activeTripsOnly): return "Available for active trips"
         case (.turkish, .friendsTitle): return TurkishLocalization.phrase("Your loved ones understand where you are")
-        case (.english, .friendsTitle): return "Your loved ones understand where you are"
+        case (.indonesian, .friendsTitle), (.english, .friendsTitle): return "Your loved ones understand where you are"
         case (.turkish, .friendsBody): return TurkishLocalization.phrase("People you add to iumrah Friends can see the trip stages you choose to share: delays, boarding, arrival, airport exit and Umrah timing.")
-        case (.english, .friendsBody): return "People you add to iumrah Friends can see the trip stages you choose to share: delays, boarding, arrival, airport exit and Umrah timing."
+        case (.indonesian, .friendsBody), (.english, .friendsBody): return "People you add to iumrah Friends can see the trip stages you choose to share: delays, boarding, arrival, airport exit and Umrah timing."
         case (.turkish, .friendDelay): return TurkishLocalization.phrase("Flight delayed")
-        case (.english, .friendDelay): return "Flight delayed"
+        case (.indonesian, .friendDelay), (.english, .friendDelay): return "Flight delayed"
         case (.turkish, .friendBoarding): return TurkishLocalization.phrase("Boarding started")
-        case (.english, .friendBoarding): return "Boarding started"
+        case (.indonesian, .friendBoarding), (.english, .friendBoarding): return "Boarding started"
         case (.turkish, .friendArrival): return TurkishLocalization.phrase("Arrival in Jeddah")
-        case (.english, .friendArrival): return "Arrival in Jeddah"
+        case (.indonesian, .friendArrival), (.english, .friendArrival): return "Arrival in Jeddah"
         case (.turkish, .friendAirportExit): return TurkishLocalization.phrase("Leaving the airport")
-        case (.english, .friendAirportExit): return "Leaving the airport"
+        case (.indonesian, .friendAirportExit), (.english, .friendAirportExit): return "Leaving the airport"
         case (.turkish, .friendUmrah): return TurkishLocalization.phrase("Planned Umrah time")
-        case (.english, .friendUmrah): return "Planned Umrah time"
+        case (.indonesian, .friendUmrah), (.english, .friendUmrah): return "Planned Umrah time"
         case (.turkish, .friendsPrivacy): return TurkishLocalization.phrase("You decide who is added and which stages of the journey they can see.")
-        case (.english, .friendsPrivacy): return "You decide who is added and which stages of the journey they can see."
+        case (.indonesian, .friendsPrivacy), (.english, .friendsPrivacy): return "You decide who is added and which stages of the journey they can see."
         case (.turkish, .live): return TurkishLocalization.phrase("LIVE")
-        case (.english, .live): return "LIVE"
+        case (.indonesian, .live), (.english, .live): return "LIVE"
         case (.turkish, .principleTitle): return TurkishLocalization.phrase("iumrah Flights starts with a journey, not a search")
-        case (.english, .principleTitle): return "iumrah Flights starts with a journey, not a search"
+        case (.indonesian, .principleTitle), (.english, .principleTitle): return "iumrah Flights starts with a journey, not a search"
         case (.turkish, .principleBody): return TurkishLocalization.phrase("The feature is designed for pilgrims who booked through iumrah. The flight becomes part of one connected journey alongside hotels, transfer, Care and other services.")
-        case (.english, .principleBody): return "The feature is designed for pilgrims who booked through iumrah. The flight becomes part of one connected journey alongside hotels, transfer, Care and other services."
+        case (.indonesian, .principleBody), (.english, .principleBody): return "The feature is designed for pilgrims who booked through iumrah. The flight becomes part of one connected journey alongside hotels, transfer, Care and other services."
         case (.turkish, .connectedToTrip): return TurkishLocalization.phrase("Connected to trip")
-        case (.english, .connectedToTrip): return "Connected to trip"
+        case (.indonesian, .connectedToTrip), (.english, .connectedToTrip): return "Connected to trip"
         case (.turkish, .buildTrip): return TurkishLocalization.phrase("Build an Umrah trip")
-        case (.english, .buildTrip): return "Build an Umrah trip"
+        case (.indonesian, .buildTrip), (.english, .buildTrip): return "Build an Umrah trip"
         case (.turkish, .homeAccessibility): return TurkishLocalization.phrase("Open iumrah Flights")
-        case (.english, .homeAccessibility): return "Open iumrah Flights"
+        case (.indonesian, .homeAccessibility), (.english, .homeAccessibility): return "Open iumrah Flights"
 
         case (.uzbek, .back): return "Orqaga"
         case (.uzbek, .heroTitle): return "Parvozingiz safaringizning bir qismi"

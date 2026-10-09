@@ -212,7 +212,7 @@ struct FlightCard: View {
         switch settings.language {
         case .russian: return "к пакету / 1 человек"
         case .turkish: return TurkishLocalization.phrase("package difference / traveler")
-        case .english: return "package difference / traveler"
+        case .indonesian, .english: return "package difference / traveler"
         case .uzbek: return "paket farqi / 1 kishi"
         case .uzbekCyrillic: return "пакет фарқи / 1 киши"
         }
@@ -224,7 +224,7 @@ struct FlightCard: View {
             return "\(stopLabel) · \(offer.origin) → \(offer.destination)"
         case .turkish:
             return "\(stopLabel) · \(offer.origin) → \(offer.destination)"
-        case .english:
+        case .indonesian, .english:
             return "\(stopLabel) · \(offer.origin) → \(offer.destination)"
         case .uzbek, .uzbekCyrillic:
             return "\(stopLabel) · \(offer.origin) → \(offer.destination)"
@@ -237,7 +237,7 @@ struct FlightCard: View {
             return offer.stops == 0 ? "прямой" : offer.stops == 1 ? "1 пересадка" : "\(offer.stops) пересадки"
         case .turkish:
             return offer.stops == 0 ? "nonstop" : offer.stops == 1 ? "1 aktarma" : "\(offer.stops) aktarma"
-        case .english:
+        case .indonesian, .english:
             return offer.stops == 0 ? "nonstop" : offer.stops == 1 ? "1 stop" : "\(offer.stops) stops"
         case .uzbek:
             return offer.stops == 0 ? "to‘g‘ridan-to‘g‘ri" : "\(offer.stops) ta to‘xtash"
@@ -250,7 +250,7 @@ struct FlightCard: View {
         switch settings.language {
         case .russian: return "Рекомендуем"
         case .turkish: return TurkishLocalization.phrase("Recommended")
-        case .english: return "Recommended"
+        case .indonesian, .english: return "Recommended"
         case .uzbek: return "Tavsiya"
         case .uzbekCyrillic: return "Тавсия"
         }
@@ -264,13 +264,13 @@ struct FlightCard: View {
         case ("premium_economy", .russian): return "Премиум эконом"
         case (_, .russian): return "Эконом"
         case ("business", .turkish): return TurkishLocalization.phrase("Business")
-        case ("business", .english): return "Business"
+        case ("business", .indonesian), ("business", .english): return "Business"
         case ("first", .turkish): return TurkishLocalization.phrase("First")
-        case ("first", .english): return "First"
+        case ("first", .indonesian), ("first", .english): return "First"
         case ("premium_economy", .turkish): return TurkishLocalization.phrase("Premium economy")
-        case ("premium_economy", .english): return "Premium economy"
+        case ("premium_economy", .indonesian), ("premium_economy", .english): return "Premium economy"
         case (_, .turkish): return TurkishLocalization.phrase("Economy")
-        case (_, .english): return "Economy"
+        case (_, .indonesian), (_, .english): return "Economy"
         case ("business", .uzbek), ("business", .uzbekCyrillic): return "Business"
         case ("first", .uzbek), ("first", .uzbekCyrillic): return "First"
         case ("premium_economy", .uzbek), ("premium_economy", .uzbekCyrillic): return "Premium economy"
@@ -288,7 +288,7 @@ struct FlightCard: View {
         switch settings.language {
         case .russian: return "Пересадка · \(city) (\(layover.airport.code))"
         case .turkish: return TurkishLocalization.phrase("Layover · \(city) (\(layover.airport.code))")
-        case .english: return "Layover · \(city) (\(layover.airport.code))"
+        case .indonesian, .english: return "Layover · \(city) (\(layover.airport.code))"
         case .uzbek: return "To‘xtash · \(city) (\(layover.airport.code))"
         case .uzbekCyrillic: return "Тўхташ · \(city) (\(layover.airport.code))"
         }
@@ -298,7 +298,7 @@ struct FlightCard: View {
         switch settings.language {
         case .russian: return "Пересадка · \(airport.displayCity) (\(airport.code))"
         case .turkish: return TurkishLocalization.phrase("Connection · \(airport.displayCity) (\(airport.code))")
-        case .english: return "Connection · \(airport.displayCity) (\(airport.code))"
+        case .indonesian, .english: return "Connection · \(airport.displayCity) (\(airport.code))"
         case .uzbek: return "Ulanish · \(airport.displayCity) (\(airport.code))"
         case .uzbekCyrillic: return "Уланиш · \(airport.displayCity) (\(airport.code))"
         }
@@ -321,7 +321,7 @@ struct FlightCard: View {
         switch settings.language {
         case .russian: return rest == 0 ? "\(hours)ч" : "\(hours)ч \(rest)м"
         case .turkish: return rest == 0 ? "\(hours)h" : "\(hours) sa. \(rest) dk."
-        case .english: return rest == 0 ? "\(hours)h" : "\(hours)h \(rest)m"
+        case .indonesian, .english: return rest == 0 ? "\(hours)h" : "\(hours)h \(rest)m"
         case .uzbek: return rest == 0 ? "\(hours)soat" : "\(hours)soat \(rest)d"
         case .uzbekCyrillic: return rest == 0 ? "\(hours)соат" : "\(hours)соат \(rest)д"
         }

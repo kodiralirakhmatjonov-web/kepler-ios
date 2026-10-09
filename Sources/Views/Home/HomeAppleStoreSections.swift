@@ -123,7 +123,7 @@ struct IumrahHomeAudienceSection: View {
         switch language {
         case .russian: return "Для кого создан Iumrah"
         case .turkish: return TurkishLocalization.phrase("Who Iumrah is for")
-        case .english: return "Who Iumrah is for"
+        case .indonesian, .english: return "Who Iumrah is for"
         case .uzbek: return "Iumrah kimlar uchun"
         case .uzbekCyrillic: return "Iumrah кимлар учун"
         }
@@ -164,7 +164,7 @@ struct IumrahHomeAudienceSection: View {
                 Item(id: "family", icon: "person.3.fill", title: "Aile ve arkadaşlar", body: "Umrenizi aileniz veya arkadaşlarınızla, kendi grubunuza uygun rahat ve özel bir tempoda düzenleyin.", background: Color(red: 0.94, green: 0.98, blue: 0.92), foreground: Color(red: 0.10, green: 0.28, blue: 0.13)),
                 Item(id: "vip", icon: "sparkles", title: "Özel ve VIP", body: "Premium oteller, özel ulaşım, kişisel hizmet ve yolculuk boyunca daha fazla mahremiyet.", background: Color(red: 0.98, green: 0.94, blue: 0.89), foreground: Color(red: 0.31, green: 0.18, blue: 0.07)),
             ]
-        case .english:
+        case .indonesian, .english:
             return [
                 Item(id: "self", icon: "slider.horizontal.3", title: "Build it your way", body: "Flights, hotels, transfer and services in one personal Umrah package you configure for yourself.", background: Color(red: 0.91, green: 0.95, blue: 1.00), foreground: Color(red: 0.05, green: 0.16, blue: 0.34)),
                 Item(id: "family", icon: "person.3.fill", title: "Family & friends", body: "Organize Umrah together while keeping the journey private, comfortable and paced around your group.", background: Color(red: 0.94, green: 0.98, blue: 0.92), foreground: Color(red: 0.10, green: 0.28, blue: 0.13)),
@@ -237,7 +237,7 @@ struct IumrahHomeServicesSection: View {
         switch language {
         case .russian: return "Что входит в Iumrah Services"
         case .turkish: return TurkishLocalization.phrase("What’s inside Iumrah Services")
-        case .english: return "What’s inside Iumrah Services"
+        case .indonesian, .english: return "What’s inside Iumrah Services"
         case .uzbek: return "Iumrah Services nimalarni o‘z ichiga oladi"
         case .uzbekCyrillic: return "Iumrah Services нималарни ўз ичига олади"
         }
@@ -247,7 +247,7 @@ struct IumrahHomeServicesSection: View {
         switch language {
         case .russian: return "Основные сервисы уже встроены в пакеты Iumrah и сопровождают поездку от вылета до возвращения."
         case .turkish: return TurkishLocalization.phrase("Core services are built into Iumrah packages and stay with the journey from departure to return.")
-        case .english: return "Core services are built into Iumrah packages and stay with the journey from departure to return."
+        case .indonesian, .english: return "Core services are built into Iumrah packages and stay with the journey from departure to return."
         case .uzbek: return "Asosiy servislar Iumrah paketlariga kiritilgan va safarni uchishdan qaytishgacha kuzatadi."
         case .uzbekCyrillic: return "Асосий сервислар Iumrah пакетларига киритилган ва сафарни учишдан қайтишгача кузатади."
         }
@@ -269,7 +269,7 @@ struct IumrahHomeServicesSection: View {
                 Item(id: "esim", assets: ["IumrahESIMHomeCard"], title: "Iumrah eSIM", body: "Havalimanında yerel SIM kart aramadan, varışınızdan itibaren kullanıma hazır Suudi Arabistan interneti.", badge: "Bağlantı", icon: "antenna.radiowaves.left.and.right", action: onESIM),
                 Item(id: "flights", assets: ["IumrahFlightsHomeCard"], title: "Iumrah Flights", body: "Tarife değişiklikleri, gecikmeler ve önemli yolculuk güncellemeleriyle anlık uçuş durumu tek yerde.", badge: "Canlı durum", icon: "airplane", action: onFlights),
             ]
-        case .english:
+        case .indonesian, .english:
             return [
                 Item(id: "transfer", assets: ["TransferMalibu", "TransferCarnival", "TransferYukon"], title: "Iumrah Transfer", body: "Airport pickup and private rides between key stops, with the right vehicle for your journey.", badge: "Included", icon: "car.fill", action: onTransfer),
                 Item(id: "ziyarat", assets: ["ZiyaratQuba1", "ZiyaratQuba2", "ZiyaratQuba3", "ZiyaratQuba4", "ZiyaratQuba5"], title: "Iumrah Ziyarat", body: "Makkah and Madinah places in one route, with context, navigation and a clear visit sequence.", badge: "Routes", icon: "map.fill", action: onZiyarats),
@@ -710,7 +710,7 @@ struct IumrahTransferServiceView: View {
         switch settings.language {
         case .russian: return ru
         case .turkish: return TurkishLocalization.phrase(en)
-        case .english: return en
+        case .indonesian, .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
         }
@@ -937,7 +937,7 @@ struct HomeStorefrontFlightOptionCard: View {
         switch language {
         case .russian: return "\(route) · \(preview.durationDays) дн. · \(packageScopeText(preview))"
         case .turkish: return TurkishLocalization.phrase("\(route) · \(preview.durationDays) days · \(packageScopeText(preview))")
-        case .english: return "\(route) · \(preview.durationDays) days · \(packageScopeText(preview))"
+        case .indonesian, .english: return "\(route) · \(preview.durationDays) days · \(packageScopeText(preview))"
         case .uzbek: return "\(route) · \(preview.durationDays) kun · \(packageScopeText(preview))"
         case .uzbekCyrillic: return "\(route) · \(preview.durationDays) кун · \(packageScopeText(preview))"
         }
@@ -951,12 +951,12 @@ struct HomeStorefrontFlightOptionCard: View {
         switch (preview.kind, language) {
         case (.makkahComfortShort, .russian), (.hotelFirstMakkah, .russian): return "Только Мекка"
         case (.makkahComfortShort, .turkish), (.hotelFirstMakkah, .turkish): return TurkishLocalization.phrase("Makkah only")
-        case (.makkahComfortShort, .english), (.hotelFirstMakkah, .english): return "Makkah only"
+        case (.makkahComfortShort, .indonesian), (.makkahComfortShort, .english), (.hotelFirstMakkah, .indonesian), (.hotelFirstMakkah, .english): return "Makkah only"
         case (.makkahComfortShort, .uzbek), (.hotelFirstMakkah, .uzbek): return "Faqat Makka"
         case (.makkahComfortShort, .uzbekCyrillic), (.hotelFirstMakkah, .uzbekCyrillic): return "Фақат Макка"
         case (.makkahMadinahStandard, .russian): return "Мекка + Медина"
         case (.makkahMadinahStandard, .turkish): return TurkishLocalization.phrase("Makkah + Madinah")
-        case (.makkahMadinahStandard, .english): return "Makkah + Madinah"
+        case (.makkahMadinahStandard, .indonesian), (.makkahMadinahStandard, .english): return "Makkah + Madinah"
         case (.makkahMadinahStandard, .uzbek): return "Makka + Madina"
         case (.makkahMadinahStandard, .uzbekCyrillic): return "Макка + Мадина"
         }
@@ -966,7 +966,7 @@ struct HomeStorefrontFlightOptionCard: View {
         switch language {
         case .russian: return packagePreview == nil ? "Iumrah Flights Scanner" : "Сгенерировано Iumrah Configurator"
         case .turkish: return packagePreview == nil ? "Iumrah Flights Scanner" : "Iumrah Configurator tarafından oluşturuldu"
-        case .english: return packagePreview == nil ? "Iumrah Flights Scanner" : "Generated by Iumrah Configurator"
+        case .indonesian, .english: return packagePreview == nil ? "Iumrah Flights Scanner" : "Generated by Iumrah Configurator"
         case .uzbek: return packagePreview == nil ? "Iumrah Flights Scanner" : "Iumrah Configurator yaratdi"
         case .uzbekCyrillic: return packagePreview == nil ? "Iumrah Flights Scanner" : "Iumrah Configurator яратди"
         }
@@ -976,7 +976,7 @@ struct HomeStorefrontFlightOptionCard: View {
         switch language {
         case .russian: return "пакет · 1 человек"
         case .turkish: return TurkishLocalization.phrase("package · 1 person")
-        case .english: return "package · 1 person"
+        case .indonesian, .english: return "package · 1 person"
         case .uzbek: return "paket · 1 kishi"
         case .uzbekCyrillic: return "пакет · 1 киши"
         }
@@ -986,7 +986,7 @@ struct HomeStorefrontFlightOptionCard: View {
         switch language {
         case .russian: return "Считаем пакет"
         case .turkish: return TurkishLocalization.phrase("Calculating package")
-        case .english: return "Calculating package"
+        case .indonesian, .english: return "Calculating package"
         case .uzbek: return "Paket hisoblanmoqda"
         case .uzbekCyrillic: return "Пакет ҳисобланмоқда"
         }
@@ -996,7 +996,7 @@ struct HomeStorefrontFlightOptionCard: View {
         switch language {
         case .russian: return "нет пары 2–15 дней"
         case .turkish: return TurkishLocalization.phrase("no 2–15 day pair")
-        case .english: return "no 2–15 day pair"
+        case .indonesian, .english: return "no 2–15 day pair"
         case .uzbek: return "2–15 kunlik juftlik yo‘q"
         case .uzbekCyrillic: return "2–15 кунлик жуфтлик йўқ"
         }
