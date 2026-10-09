@@ -117,7 +117,7 @@ struct TransferSelectionView: View {
 
     private var searchExperience: some View {
         ZStack(alignment: .top) {
-            TransferLiveSearchMap(second: searchSecond, searchDuration: searchDuration, reduceMotion: reduceMotion)
+            TransferLiveSearchMap(second: searchSecond, searchDuration: searchDuration, reduceMotion: reduceMotion, language: settings.language)
                 .ignoresSafeArea()
 
             searchCeilingGradient
@@ -953,6 +953,7 @@ private struct TransferLiveSearchMap: View {
     let second: Int
     let searchDuration: Int
     let reduceMotion: Bool
+    let language: AppSettingsStore.Language
 
     @State private var position: MapCameraPosition = .camera(
         MapCamera(
@@ -1011,7 +1012,7 @@ private struct TransferLiveSearchMap: View {
                 )
             }
         }
-        .accessibilityLabel(IumrahAccessibilityCopy.text(settings.language, ru: "Карта поиска трансфера в Мекке", en: "Live transfer search map in Makkah", uz: "Makkadagi transfer qidiruv xaritasi", cy: "Маккадаги трансфер қидирув харитаси", tr: "Mekke’de canlı transfer arama haritası", id: "Peta pencarian transfer langsung di Makkah"))
+        .accessibilityLabel(IumrahAccessibilityCopy.text(language, ru: "Карта поиска трансфера в Мекке", en: "Live transfer search map in Makkah", uz: "Makkadagi transfer qidiruv xaritasi", cy: "Маккадаги трансфер қидирув харитаси", tr: "Mekke’de canlı transfer arama haritası", id: "Peta pencarian transfer langsung di Makkah"))
     }
 
     private var searchRadiusMeters: CLLocationDistance {
