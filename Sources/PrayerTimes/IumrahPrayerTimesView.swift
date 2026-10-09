@@ -9,6 +9,7 @@ struct IumrahPrayerTimesView: View {
     @State private var showingCity = false
     @State private var showingCalculation = false
     @State private var showingWallpapers = false
+    @AppStorage("iumrah.booking.travelInfo.city") private var holyCityRaw = "makkah"
     @State private var editingPrayer: IumrahPrayerKind?
 
     private var schedule: IumrahPrayerSchedule {
@@ -70,7 +71,7 @@ struct IumrahPrayerTimesView: View {
             IumrahPrayerNotificationSheet(start: kind, state: state)
                 .environmentObject(settings)
         }
-        .task { await IumrahPrayerNotifications.synchronize(state: state) }
+        .task { _ = await IumrahPrayerNotifications.synchronize(state: state) }
         .onChange(of: state.place) { _, _ in refreshNotifications() }
         .onChange(of: state.method) { _, _ in refreshNotifications() }
         .onChange(of: state.hanafi) { _, _ in refreshNotifications() }
@@ -131,6 +132,40 @@ struct IumrahPrayerTimesView: View {
                 glassCircleButton(icon: "gearshape.fill") { showingCalculation = true }
             }
         }
+    }
+
+    private var makkahMadinahPicker: some View {
+        HStack(spacing: 8) {
+            ForEach(IumrahHolyCity.allCases) { holyCity in
+                Button {
+                    guard state.place.id != holyCity.rawValue else { return }
+                    if let selected = IumrahPrayerPlace.presets.first(where: { $0.id == holyCity.rawValue }) {
+                        withAnimation(.snappy(duration: 0.26)) {
+                            state.place = selected
+                            holyCityRaw = holyCity.rawValue
+                        }
+                        IumrahHaptics.selection()
+                    }
+                } label: {
+                    Text(holyCity.title(settings.language))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(state.place.id == holyCity.rawValue ? Color.primary : Color.secondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 42)
+                        .background {
+                            if state.place.id == holyCity.rawValue {
+                                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    .fill(Color.iumrahCardBackground)
+                                    .shadow(color: Color.black.opacity(0.045), radius: 4, y: 1)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(state.place.id == holyCity.rawValue ? .isSelected : [])
+            }
+        }
+        .padding(4)
+        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
     }
 
     private var nextPrayerHero: some View {
@@ -397,12 +432,7 @@ struct IumrahPrayerTimesView: View {
         }
     }
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
-        switch settings.language {
-        case .english: return en
-        case .russian: return ru
-        case .uzbek: return uz
-        case .uzbekCyrillic: return cyrl
-        }
+        prayerText(settings.language, en, ru, uz, cyrl)
     }
 }
 
@@ -713,6 +743,37 @@ private struct IumrahPrayerNotificationSheet: View {
                                 .padding(18)
                                 .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22))
 
+                                VStack(alignment: .leading, spacing: 13) {
+                                    Toggle(isOn: Binding(
+                                        get: { preference(kind).earlyReminderMinutes != nil },
+                                        set: { enabled in
+                                            var item = preference(kind)
+                                            item.earlyReminderMinutes = enabled ? (item.earlyReminderMinutes ?? 10) : nil
+                                            edited[kind.rawValue] = item
+                                        }
+                                    )) {
+                                        Label(prayerText(settings.language, "Early reminder", "Предварительное уведомление", "Oldindan eslatma", "Олдиндан эслатма"), systemImage: "bell.badge")
+                                    }
+                                    .tint(.orange)
+                                    if preference(kind).earlyReminderMinutes != nil {
+                                        Picker(prayerText(settings.language, "Before prayer", "До молитвы", "Namozgacha", "Намозгача"), selection: Binding(
+                                            get: { preference(kind).earlyReminderMinutes ?? 10 },
+                                            set: { minutes in
+                                                var item = preference(kind)
+                                                item.earlyReminderMinutes = minutes
+                                                edited[kind.rawValue] = item
+                                            }
+                                        )) {
+                                            ForEach([5, 10, 15, 30], id: \.self) { minutes in
+                                                Text("\(minutes) min").tag(minutes)
+                                            }
+                                        }
+                                        .pickerStyle(.segmented)
+                                    }
+                                }
+                                .padding(17)
+                                .background(Color.iumrahCardBackground, in: RoundedRectangle(cornerRadius: 22))
+
                                 Button {
                                     Task {
                                         let success = await IumrahPrayerNotifications.preview(kind: kind, sound: preference(kind).sound)
@@ -782,11 +843,4 @@ private struct IumrahPrayerNotificationSheet: View {
     }
 }
 
-private func prayerText(_ language: AppSettingsStore.Language, _ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
-    switch language {
-    case .english: return en
-    case .russian: return ru
-    case .uzbek: return uz
-    case .uzbekCyrillic: return cyrl
-    }
-}
+
