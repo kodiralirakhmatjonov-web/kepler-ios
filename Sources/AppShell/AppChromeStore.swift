@@ -34,6 +34,8 @@ final class AppChromeStore: ObservableObject {
     @Published var requestedPackageID: String?
     @Published var isImmersiveMode = false
     @Published var isSidebarOpen = false
+    // Presentation mode only; never grants backend/admin privileges.
+    @Published private(set) var isKeplerBusinessMode = false
     @Published var isESIMPresented = false
     @Published var isNotificationsPresented = false
     @Published var shouldOpenUmrahPlan = false
@@ -101,6 +103,21 @@ final class AppChromeStore: ObservableObject {
         shouldOpenUmrahPlan = true
         currentTab = .home
         requestedTab = .home
+        IumrahHaptics.selection()
+    }
+
+    func enterKeplerBusinessMode() {
+        closeSidebar()
+        withAnimation(.easeInOut(duration: 0.30)) {
+            isKeplerBusinessMode = true
+        }
+        IumrahHaptics.selection()
+    }
+
+    func leaveKeplerBusinessMode() {
+        withAnimation(.easeInOut(duration: 0.30)) {
+            isKeplerBusinessMode = false
+        }
         IumrahHaptics.selection()
     }
 

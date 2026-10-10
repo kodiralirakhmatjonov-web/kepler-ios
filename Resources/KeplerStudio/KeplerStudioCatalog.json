@@ -1,0 +1,146 @@
+{
+  "schema_version": 2,
+  "engine_version": "0.2",
+  "source": "Kepler Studio v0.2 — audited 8 ZIPs",
+  "repository_url": null,
+  "build_url": null,
+  "engine_archive": "kepler-studio-v0.2-engine.zip",
+  "core_skill_archive": "kepler-studio-skill.zip",
+  "original_assets_included": false,
+  "runtime_note": "Python + FFmpeg runtime runs on external infrastructure. The iOS app distributes an engine snapshot and verified source/repository references; no automatic sync or in-app video rendering.",
+  "presets": [
+    {
+      "id": "rise_fade",
+      "title": "Rise & Fade",
+      "detail": "Exact source card, 0.28s alpha fade, 0.32s 16‰ y rise; no distortion or new UI",
+      "entry_ms": 320,
+      "exit_ms": 280,
+      "symbol": "arrow.up"
+    },
+    {
+      "id": "fade",
+      "title": "Clean Fade",
+      "detail": "Original card: opacity-only entrance and exit",
+      "entry_ms": 280,
+      "exit_ms": 280,
+      "symbol": "circle.lefthalf.filled"
+    },
+    {
+      "id": "slide_up_soft",
+      "title": "Soft Slide Up",
+      "detail": "Whole original asset translates upward 3.2% of frame over 340 ms; no card pixel alteration",
+      "entry_ms": 340,
+      "exit_ms": 280,
+      "symbol": "arrow.up.to.line"
+    },
+    {
+      "id": "slide_right_soft",
+      "title": "Soft Slide Right",
+      "detail": "Whole original asset slides right 3.5% of frame over 340 ms; no card pixel alteration",
+      "entry_ms": 340,
+      "exit_ms": 280,
+      "symbol": "arrow.right.to.line"
+    }
+  ],
+  "skills": [
+    {
+      "id": "kepler-studio",
+      "title": "Kepler Studio Core",
+      "category": "Core editing contract",
+      "symbol": "film",
+      "status": "engine",
+      "detail": "Executable engine on server/CI; source snapshot bundled.",
+      "repository_url": null,
+      "guide_file": "KeplerSkillGuide-kepler-studio.md",
+      "archive_file": "kepler-skill-kepler-studio.zip"
+    },
+    {
+      "id": "video-use",
+      "title": "Video Use",
+      "category": "AI editing reference",
+      "symbol": "video",
+      "status": "reference",
+      "detail": "Guidelines, FFmpeg workflows and source-first editing reference; not an iOS renderer.",
+      "repository_url": "https://github.com/browser-use/video-use",
+      "guide_file": "KeplerSkillGuide-video-use.md",
+      "archive_file": "kepler-skill-video-use.zip"
+    },
+    {
+      "id": "videoediting",
+      "title": "Video Editing Skill",
+      "category": "Speech-first cutting",
+      "symbol": "waveform",
+      "status": "reference",
+      "detail": "Timing, subtitles and FFmpeg reference scripts.",
+      "repository_url": "https://github.com/blazerior/videoediting-claude-skill",
+      "guide_file": "KeplerSkillGuide-videoediting.md",
+      "archive_file": "kepler-skill-videoediting.zip"
+    },
+    {
+      "id": "motion-design",
+      "title": "Motion Design Agent",
+      "category": "Component motion rules",
+      "symbol": "square.stack.3d.up",
+      "status": "reference",
+      "detail": "Entrance, exit, easing and sequencing vocabulary; Apple-like rules take priority.",
+      "repository_url": "https://github.com/soilmass/motion-design-agent",
+      "guide_file": "KeplerSkillGuide-motion-design.md",
+      "archive_file": "kepler-skill-motion-design.zip"
+    },
+    {
+      "id": "remotion-motion-graphics",
+      "title": "Remotion Motion Graphics",
+      "category": "Motion graphics reference",
+      "symbol": "sparkles",
+      "status": "reference",
+      "detail": "Remotion editing guidance and presets; runtime not yet integrated.",
+      "repository_url": "https://github.com/Liamrjohnston/remotion-motion-graphics-skill",
+      "guide_file": "KeplerSkillGuide-remotion-motion-graphics.md",
+      "archive_file": "kepler-skill-remotion-motion-graphics.zip"
+    },
+    {
+      "id": "watch",
+      "title": "Watch / Claude Video",
+      "category": "Video inspection reference",
+      "symbol": "eye",
+      "status": "reference",
+      "detail": "Frame analysis procedures; external tools may be required.",
+      "repository_url": "https://github.com/bradautomates/claude-video",
+      "guide_file": "KeplerSkillGuide-watch.md",
+      "archive_file": "kepler-skill-watch.zip"
+    },
+    {
+      "id": "remotion-official",
+      "title": "Official Remotion Skills",
+      "category": "External agent skills",
+      "symbol": "square.stack",
+      "status": "external",
+      "detail": "GitHub source. Install separately. No runtime bundled.",
+      "repository_url": "https://github.com/remotion-dev/skills",
+      "guide_file": null,
+      "archive_file": null
+    },
+    {
+      "id": "motion-ai",
+      "title": "Motion AI Kit",
+      "category": "External UI motion skills",
+      "symbol": "bolt",
+      "status": "external",
+      "detail": "Official Motion.dev guidance; install separately.",
+      "repository_url": "https://github.com/motiondivision/ai-kit",
+      "guide_file": null,
+      "archive_file": null
+    },
+    {
+      "id": "whisperx",
+      "title": "WhisperX",
+      "category": "Optional audio transcription",
+      "symbol": "waveform",
+      "status": "optional",
+      "detail": "ASR/forced alignment dependency. Language-specific accuracy must be verified.",
+      "repository_url": "https://github.com/m-bain/WhisperX",
+      "guide_file": null,
+      "archive_file": null
+    }
+  ]
+}

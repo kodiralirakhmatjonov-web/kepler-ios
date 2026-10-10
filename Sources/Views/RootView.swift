@@ -350,7 +350,10 @@ struct RootView: View {
 
     private var rootContent: some View {
         Group {
-            if hasCompletedOnboarding {
+            if hasCompletedOnboarding && chrome.isKeplerBusinessMode {
+                KeplerBusinessRootView()
+                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+            } else if hasCompletedOnboarding {
                 IumrahAdaptiveAppShell {
                     tabs
                 } detail: { tab in
@@ -367,6 +370,7 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.28), value: hasCompletedOnboarding)
+        .animation(.easeInOut(duration: 0.30), value: chrome.isKeplerBusinessMode)
     }
 
     private var tabs: some View {

@@ -1,0 +1,31 @@
+{
+  "schema_version": 2,
+  "presets": {
+    "rise_fade": {
+      "description": "Exact source card, 0.28s alpha fade, 0.32s 16‰ y rise; no distortion or new UI",
+      "entry_ms": 320,
+      "exit_ms": 280
+    },
+    "fade": {
+      "description": "Original card: opacity-only entrance and exit",
+      "entry_ms": 280,
+      "exit_ms": 280
+    },
+    "slide_up_soft": {
+      "description": "Whole original asset translates upward 3.2% of frame over 340 ms; no card pixel alteration",
+      "entry_ms": 340,
+      "exit_ms": 280
+    },
+    "slide_right_soft": {
+      "description": "Whole original asset slides right 3.5% of frame over 340 ms; no card pixel alteration",
+      "entry_ms": 340,
+      "exit_ms": 280
+    }
+  },
+  "forbidden": [
+    "redraw_source_asset",
+    "stretch_non_uniform",
+    "invent_new_labels",
+    "fake_native_glass"
+  ]
+}

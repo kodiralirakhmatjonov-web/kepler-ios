@@ -80,6 +80,12 @@ private struct IumrahLargeScreenSidebar: View {
 
                 Section(servicesTitle) {
                     Button {
+                        chrome.enterKeplerBusinessMode()
+                    } label: {
+                        Label("Iumrah Business · Kepler Studio", systemImage: "square.stack.3d.up.fill")
+                    }
+
+                    Button {
                         chrome.presentESIM()
                     } label: {
                         Label("iumrah eSIM", systemImage: "simcard.fill")

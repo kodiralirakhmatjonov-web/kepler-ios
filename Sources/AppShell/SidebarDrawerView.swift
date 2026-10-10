@@ -70,6 +70,32 @@ struct SidebarDrawerView: View {
             }
             .padding(.top, 22)
 
+            Button { chrome.enterKeplerBusinessMode() } label: {
+                HStack(spacing: 13) {
+                    Image(systemName: "square.stack.3d.up.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(width: 26)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Iumrah Business")
+                            .font(.headline)
+                        Text("Kepler Studio")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 14)
+                .frame(minHeight: 58)
+                .contentShape(RoundedRectangle(cornerRadius: 19))
+                .iumrahGlass(in: RoundedRectangle(cornerRadius: 19), interactive: true, chrome: true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("kepler.business.enter")
+            .padding(.top, 12)
+
             Button { chrome.presentESIM() } label: {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {

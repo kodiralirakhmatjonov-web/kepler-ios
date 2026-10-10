@@ -45,6 +45,9 @@ targets:
         buildPhase: resources
       - path: Resources/AlternateIcons
         buildPhase: resources
+      # Agent instructions and shareable skill package (no private original photos).
+      - path: Resources/KeplerStudio
+        buildPhase: resources
       - path: Resources/en.lproj
         buildPhase: resources
       - path: Resources/ru.lproj

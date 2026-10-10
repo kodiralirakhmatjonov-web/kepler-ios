@@ -1,0 +1,17 @@
+{
+  "version": "0.2",
+  "engine": {
+    "file": "kepler-studio-v0.2-engine.zip",
+    "sha256": "eda5f81db36544365763559f7580b6bdf3bfbc328dc71c2872581430a3f9d49b",
+    "bytes": 911612
+  },
+  "skills": {
+    "kepler-skill-kepler-studio.zip": "bc0e927d601eff4f3da4cd2dd676c29e5396a344c6613ff34e6697494031c325",
+    "kepler-skill-watch.zip": "3fbb11107977544a0d2d2a3be108b091161256ddbc964c57459d38843ed6ebb2",
+    "kepler-skill-video-use.zip": "93bab7d444e74e9d22763b4728fdcdd2faad78a32419a61ccb060779aa5d3db4",
+    "kepler-skill-videoediting.zip": "daaccaf4192aacde8526306b3aa7cbf235985a13acc1e89b809b899fb8a18f27",
+    "kepler-skill-remotion-motion-graphics.zip": "653307984b6a2cc7f5957cfbe7f8d13abd4da0763f424cf19450c3773281ebcf",
+    "kepler-skill-motion-design.zip": "8765839d9bd5b02f6ca94c62298634c43284b3d2973c25824d4be934433738ae"
+  },
+  "private_original_assets_bundled": false
+}
