@@ -190,18 +190,6 @@ jobs:
           test -d "$PROJECT"
           xcodebuild -project "$PROJECT" -list
 
-      - name: Validate simulator build
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project "$PROJECT" \
-            -scheme "$SCHEME" \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-
       - name: Download prepared signing bundle
         env:
           GH_TOKEN: ${{ github.token }}
@@ -377,6 +365,7 @@ jobs:
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -configuration Release \
+            -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -archivePath "$PWD/$ARCHIVE_PATH" \
             IUMRAH_APPLE_TEAM_ID="$APPLE_TEAM_ID" \
