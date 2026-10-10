@@ -173,7 +173,7 @@ private struct IumrahLargeScreenSidebar: View {
         switch settings.language {
         case .russian: return "Сервисы"
         case .turkish: return TurkishLocalization.phrase("Services")
-        case .indonesian, .english: return "Services"
+        case .indonesian, .malay, .english: return "Services"
         case .uzbek: return "Xizmatlar"
         case .uzbekCyrillic: return "Хизматлар"
         }
@@ -183,7 +183,7 @@ private struct IumrahLargeScreenSidebar: View {
         switch settings.language {
         case .russian: return "Уведомления"
         case .turkish: return TurkishLocalization.phrase("Notifications")
-        case .indonesian, .english: return "Notifications"
+        case .indonesian, .malay, .english: return "Notifications"
         case .uzbek: return "Bildirishnomalar"
         case .uzbekCyrillic: return "Билдиришномалар"
         }
@@ -193,7 +193,7 @@ private struct IumrahLargeScreenSidebar: View {
         switch settings.language {
         case .russian: return "iumrah · онлайн"
         case .turkish: return TurkishLocalization.phrase("iumrah · online")
-        case .indonesian, .english: return "iumrah · online"
+        case .indonesian, .malay, .english: return "iumrah · online"
         case .uzbek: return "iumrah · onlayn"
         case .uzbekCyrillic: return "iumrah · онлайн"
         }
@@ -225,7 +225,7 @@ extension AppTab {
             switch language {
             case .russian: return "Аккаунт"
             case .turkish: return TurkishLocalization.phrase("Account")
-            case .indonesian, .english: return "Account"
+            case .indonesian, .malay, .english: return "Account"
             case .uzbek: return "Akkaunt"
             case .uzbekCyrillic: return "Аккаунт"
             }

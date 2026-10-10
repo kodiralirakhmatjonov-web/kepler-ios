@@ -70,7 +70,7 @@ struct IumrahLockedIdentityCard: View {
         switch language {
         case .russian: return "ЦИФРОВАЯ ID-КАРТА ПАЛОМНИКА"
         case .turkish: return TurkishLocalization.phrase("DIGITAL PILGRIM IDENTITY")
-        case .indonesian, .english: return "DIGITAL PILGRIM IDENTITY"
+        case .indonesian, .malay, .english: return "DIGITAL PILGRIM IDENTITY"
         case .uzbek: return "RAQAMLI ZIYORATCHI ID"
         case .uzbekCyrillic: return "РАҚАМЛИ ЗИЁРАТЧИ ID"
         }
@@ -80,7 +80,7 @@ struct IumrahLockedIdentityCard: View {
         switch language {
         case .russian: return "Ваша цифровая карта"
         case .turkish: return TurkishLocalization.phrase("Your digital identity")
-        case .indonesian, .english: return "Your digital identity"
+        case .indonesian, .malay, .english: return "Your digital identity"
         case .uzbek: return "Sizning raqamli kartangiz"
         case .uzbekCyrillic: return "Сизнинг рақамли картангиз"
         }
@@ -90,7 +90,7 @@ struct IumrahLockedIdentityCard: View {
         switch language {
         case .russian: return "Откройте свою iumrah ID"
         case .turkish: return TurkishLocalization.phrase("Unlock your iumrah ID")
-        case .indonesian, .english: return "Unlock your iumrah ID"
+        case .indonesian, .malay, .english: return "Unlock your iumrah ID"
         case .uzbek: return "iumrah ID kartangizni oching"
         case .uzbekCyrillic: return "iumrah ID картангизни очинг"
         }
@@ -100,7 +100,7 @@ struct IumrahLockedIdentityCard: View {
         switch language {
         case .russian: return "Закрытая iumrah ID. Нажмите, чтобы войти или зарегистрироваться."
         case .turkish: return TurkishLocalization.phrase("Locked iumrah ID. Tap to sign in or register.")
-        case .indonesian, .english: return "Locked iumrah ID. Tap to sign in or register."
+        case .indonesian, .malay, .english: return "Locked iumrah ID. Tap to sign in or register."
         case .uzbek: return "Yopiq iumrah ID. Kirish yoki ro‘yxatdan o‘tish uchun bosing."
         case .uzbekCyrillic: return "Ёпиқ iumrah ID. Кириш ёки рўйхатдан ўтиш учун босинг."
         }
@@ -237,7 +237,7 @@ struct IumrahIdentitySealOverlay: View {
         switch language {
         case .russian: return "Ваша iumrah ID закрыта"
         case .turkish: return TurkishLocalization.phrase("Your iumrah ID is sealed")
-        case .indonesian, .english: return "Your iumrah ID is sealed"
+        case .indonesian, .malay, .english: return "Your iumrah ID is sealed"
         case .uzbek: return "iumrah ID kartangiz yopiq"
         case .uzbekCyrillic: return "iumrah ID картангиз ёпиқ"
         }
@@ -247,7 +247,7 @@ struct IumrahIdentitySealOverlay: View {
         switch language {
         case .russian: return "Войдите или зарегистрируйтесь, чтобы открыть карту"
         case .turkish: return TurkishLocalization.phrase("Sign in or register to reveal your card")
-        case .indonesian, .english: return "Sign in or register to reveal your card"
+        case .indonesian, .malay, .english: return "Sign in or register to reveal your card"
         case .uzbek: return "Kartani ochish uchun kiring yoki ro‘yxatdan o‘ting"
         case .uzbekCyrillic: return "Картани очиш учун киринг ёки рўйхатдан ўтинг"
         }
@@ -349,7 +349,7 @@ struct IumrahIdentityUnlockSheet: View {
         switch language {
         case .russian: return "Откройте свою iumrah ID"
         case .turkish: return TurkishLocalization.phrase("Unlock your iumrah ID")
-        case .indonesian, .english: return "Unlock your iumrah ID"
+        case .indonesian, .malay, .english: return "Unlock your iumrah ID"
         case .uzbek: return "iumrah ID kartangizni oching"
         case .uzbekCyrillic: return "iumrah ID картангизни очинг"
         }
@@ -359,7 +359,7 @@ struct IumrahIdentityUnlockSheet: View {
         switch language {
         case .russian: return "Чтобы активировать виртуальную ID-карту Iumrah, войдите в существующий аккаунт или зарегистрируйтесь через Apple или Google."
         case .turkish: return TurkishLocalization.phrase("To activate your virtual iumrah ID, sign in to your account or create one with Apple or Google.")
-        case .indonesian, .english: return "To activate your virtual iumrah ID, sign in to your account or create one with Apple or Google."
+        case .indonesian, .malay, .english: return "To activate your virtual iumrah ID, sign in to your account or create one with Apple or Google."
         case .uzbek: return "Virtual iumrah ID kartangizni faollashtirish uchun akkauntingizga kiring yoki Apple yoxud Google orqali ro‘yxatdan o‘ting."
         case .uzbekCyrillic: return "Виртуал iumrah ID картангизни фаоллаштириш учун аккаунтингизга киринг ёки Apple ёхуд Google орқали рўйхатдан ўтинг."
         }
@@ -369,7 +369,7 @@ struct IumrahIdentityUnlockSheet: View {
         switch language {
         case .russian: return "Постоянный восьмизначный iumrah ID"
         case .turkish: return TurkishLocalization.phrase("Permanent eight-digit iumrah ID")
-        case .indonesian, .english: return "Permanent eight-digit iumrah ID"
+        case .indonesian, .malay, .english: return "Permanent eight-digit iumrah ID"
         case .uzbek: return "Doimiy sakkiz xonali iumrah ID"
         case .uzbekCyrillic: return "Доимий саккиз хонали iumrah ID"
         }
@@ -379,7 +379,7 @@ struct IumrahIdentityUnlockSheet: View {
         switch language {
         case .russian: return "Добавление цифровой карты в Apple Wallet"
         case .turkish: return TurkishLocalization.phrase("Add your digital card to Apple Wallet")
-        case .indonesian, .english: return "Add your digital card to Apple Wallet"
+        case .indonesian, .malay, .english: return "Add your digital card to Apple Wallet"
         case .uzbek: return "Raqamli kartani Apple Wallet’ga qo‘shish"
         case .uzbekCyrillic: return "Рақамли картани Apple Wallet’га қўшиш"
         }
@@ -389,7 +389,7 @@ struct IumrahIdentityUnlockSheet: View {
         switch language {
         case .russian: return "Все Ваши поездки привязаны к одной ID"
         case .turkish: return TurkishLocalization.phrase("All your trips stay linked to one ID")
-        case .indonesian, .english: return "All your trips stay linked to one ID"
+        case .indonesian, .malay, .english: return "All your trips stay linked to one ID"
         case .uzbek: return "Barcha safarlaringiz bitta ID bilan bog‘lanadi"
         case .uzbekCyrillic: return "Барча сафарларингиз битта ID билан боғланади"
         }
@@ -399,7 +399,7 @@ struct IumrahIdentityUnlockSheet: View {
         switch language {
         case .russian: return "Войти или зарегистрироваться"
         case .turkish: return TurkishLocalization.phrase("Sign in or register")
-        case .indonesian, .english: return "Sign in or register"
+        case .indonesian, .malay, .english: return "Sign in or register"
         case .uzbek: return "Kirish yoki ro‘yxatdan o‘tish"
         case .uzbekCyrillic: return "Кириш ёки рўйхатдан ўтиш"
         }

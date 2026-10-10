@@ -30,6 +30,7 @@ final class AppSettingsStore: ObservableObject {
         case english = "en"
         case turkish = "tr"
         case indonesian = "id"
+        case malay = "ms"
         case uzbek = "uz"
         case uzbekCyrillic = "uz-cyrl"
 
@@ -38,9 +39,10 @@ final class AppSettingsStore: ObservableObject {
         var title: String {
             switch self {
             case .russian: return L10n.text("language_russian", self)
-            case .indonesian, .english: return L10n.text("language_english", self)
+            case .english: return L10n.text("language_english", self)
             case .turkish: return L10n.text("language_turkish", self)
             case .indonesian: return "Bahasa Indonesia"
+            case .malay: return "Bahasa Melayu"
             case .uzbek: return L10n.text("language_uzbek", self)
             case .uzbekCyrillic: return L10n.text("language_uzbek_cyr", self)
             }
@@ -49,9 +51,10 @@ final class AppSettingsStore: ObservableObject {
         var localeIdentifier: String {
             switch self {
             case .russian: return "ru_RU"
-            case .indonesian, .english: return "en_US"
+            case .english: return "en_US"
             case .turkish: return "tr_TR"
             case .indonesian: return "id_ID"
+            case .malay: return "ms_MY"
             case .uzbek: return "uz_Latn_UZ"
             case .uzbekCyrillic: return "uz_Cyrl_UZ"
             }

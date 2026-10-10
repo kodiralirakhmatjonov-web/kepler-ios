@@ -84,7 +84,7 @@ struct UmrahCarePackageExplanationView: View {
         switch settings.language {
         case .russian: return "Как iumrah собирает вашу поездку"
         case .turkish: return TurkishLocalization.phrase("How iumrah builds your journey")
-        case .indonesian, .english: return "How iumrah builds your journey"
+        case .indonesian, .malay, .english: return "How iumrah builds your journey"
         case .uzbek: return "iumrah safaringizni qanday yig‘adi"
         case .uzbekCyrillic: return "iumrah сафарингизни қандай йиғади"
         }
@@ -94,7 +94,7 @@ struct UmrahCarePackageExplanationView: View {
         switch settings.language {
         case .russian: return "iumrah — не просто сервис бронирования. Мы собираем перелёты, проживание, трансферы, сопровождение и ключевые этапы Умры как одну связанную поездку, чтобы паломнику не приходилось самому сводить десятки отдельных деталей."
         case .turkish: return TurkishLocalization.phrase("iumrah is more than a booking service. Flights, stays, transfers, guidance and the key stages of Umrah are assembled as one connected journey so the pilgrim does not have to reconcile dozens of separate details.")
-        case .indonesian, .english: return "iumrah is more than a booking service. Flights, stays, transfers, guidance and the key stages of Umrah are assembled as one connected journey so the pilgrim does not have to reconcile dozens of separate details."
+        case .indonesian, .malay, .english: return "iumrah is more than a booking service. Flights, stays, transfers, guidance and the key stages of Umrah are assembled as one connected journey so the pilgrim does not have to reconcile dozens of separate details."
         case .uzbek: return "iumrah oddiy bronlash xizmati emas. Parvozlar, turar joy, transferlar, yo‘riqnoma va Umraning asosiy bosqichlari yagona bog‘langan safar sifatida yig‘iladi."
         case .uzbekCyrillic: return "iumrah оддий бронлаш хизмати эмас. Парвозлар, турар жой, трансферлар, йўриқнома ва Умранинг асосий босқичлари ягона боғланган сафар сифатида йиғилади."
         }
@@ -119,7 +119,7 @@ struct UmrahCarePackageExplanationView: View {
         switch settings.language {
         case .russian: return ru
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .indonesian, .malay, .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCyrl
         }

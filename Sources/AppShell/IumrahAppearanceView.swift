@@ -291,7 +291,7 @@ struct IumrahAppearanceView: View {
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
         switch settings.language {
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .indonesian, .malay, .english: return en
         case .russian: return ru
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
@@ -372,7 +372,7 @@ private enum AppIconOption: String, CaseIterable, Identifiable {
             case .world: return "Dünya haritalı iumrah uygulama simgesi"
             case .makkah: return "Mekke temalı iumrah uygulama simgesi"
             }
-        case .indonesian, .english:
+        case .indonesian, .malay, .english:
             switch self {
             case .blue: return "Blue iumrah app icon"
             case .cyan: return "Cyan iumrah app icon"

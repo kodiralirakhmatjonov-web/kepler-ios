@@ -189,7 +189,7 @@ struct UmrahLanguagesSheet: View {
                 "Начать Умру",
                 "Закрыть"
             )
-        case .english:
+        case .indonesian, .malay, .english:
             return (
                 "iumrah Advisor language",
                 "Choose the voice-guide language before you begin Umrah.",
@@ -202,20 +202,6 @@ struct UmrahLanguagesSheet: View {
                 "Umreye başlamadan önce sesli rehberin dilini seçin.",
                 "Umreye başla",
                 "Kapat"
-            )
-        case .indonesian:
-            return (
-                "Bahasa iumrah Advisor",
-                "Pilih bahasa panduan suara sebelum memulai Umrah.",
-                "Mulai Umrah",
-                "Tutup"
-            )
-        case .malay:
-            return (
-                "Bahasa iumrah Advisor",
-                "Pilih bahasa panduan suara sebelum memulakan Umrah.",
-                "Mulakan Umrah",
-                "Tutup"
             )
         case .uzbek:
             return (

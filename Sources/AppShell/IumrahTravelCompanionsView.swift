@@ -333,7 +333,7 @@ struct IumrahTravelCompanionsView: View {
         switch settings.language {
         case .russian: return ru
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .indonesian, .malay, .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
         }

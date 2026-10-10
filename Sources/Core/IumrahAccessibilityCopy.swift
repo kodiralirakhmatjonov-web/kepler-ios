@@ -9,7 +9,7 @@ enum IumrahAccessibilityCopy {
     ) -> String {
         switch language {
         case .russian: return ru
-        case .english: return en
+        case .english, .malay: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
         case .turkish: return tr

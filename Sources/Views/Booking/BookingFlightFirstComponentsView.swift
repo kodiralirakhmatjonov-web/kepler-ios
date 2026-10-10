@@ -249,7 +249,7 @@ struct BookingFlightFirstComponentsView: View {
         switch settings.language {
         case .russian: return ru
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .indonesian, .malay, .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
         }
@@ -448,7 +448,7 @@ private struct BookingIncludedServiceDetailSheet: View {
         switch language {
         case .russian: return ru
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .indonesian, .malay, .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
         }
@@ -542,7 +542,7 @@ private struct BookingFlightFirstLegCard: View {
         switch language {
         case .russian: return flight.stops == 0 ? "прямой" : "\(flight.stops) пересад."
         case .turkish: return flight.stops == 0 ? "direkt" : "\(flight.stops) aktarma"
-        case .indonesian, .english: return flight.stops == 0 ? "direct" : "\(flight.stops) stops"
+        case .indonesian, .malay, .english: return flight.stops == 0 ? "direct" : "\(flight.stops) stops"
         case .uzbek: return flight.stops == 0 ? "to‘g‘ridan-to‘g‘ri" : "\(flight.stops) ulanish"
         case .uzbekCyrillic: return flight.stops == 0 ? "тўғридан-тўғри" : "\(flight.stops) уланиш"
         }
@@ -595,7 +595,7 @@ private struct BookingFlightFirstLegCard: View {
         switch language {
         case .russian: return ru
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .indonesian, .malay, .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cy
         }
@@ -679,7 +679,7 @@ private struct BookingFlightFirstHotelCard: View {
         switch language {
         case .russian: return "\(nights) ноч."
         case .turkish: return TurkishLocalization.phrase("\(nights) nights")
-        case .indonesian, .english: return "\(nights) nights"
+        case .indonesian, .malay, .english: return "\(nights) nights"
         case .uzbek: return "\(nights) tun"
         case .uzbekCyrillic: return "\(nights) тун"
         }
@@ -689,7 +689,7 @@ private struct BookingFlightFirstHotelCard: View {
         switch language {
         case .russian: return "Открыть отель"
         case .turkish: return TurkishLocalization.phrase("Open hotel")
-        case .indonesian, .english: return "Open hotel"
+        case .indonesian, .malay, .english: return "Open hotel"
         case .uzbek: return "Mehmonxonani ochish"
         case .uzbekCyrillic: return "Меҳмонхонани очиш"
         }

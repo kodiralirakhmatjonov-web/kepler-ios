@@ -1959,7 +1959,7 @@ struct PilgrimCheckoutView: View {
         return String(repeating: "0", count: 8 - digits.count) + digits
     }
     private func tr(_ en: String, _ ru: String, _ uz: String, _ cyrl: String) -> String {
-        switch settings.language { case .russian: return ru; case .indonesian, .english: return en; case .turkish: return TurkishLocalization.phrase(en); case .uzbek: return uz; case .uzbekCyrillic: return cyrl }
+        switch settings.language { case .russian: return ru; case .indonesian, .malay, .english: return en; case .turkish: return TurkishLocalization.phrase(en); case .uzbek: return uz; case .uzbekCyrillic: return cyrl }
     }
 }
 
@@ -2546,7 +2546,7 @@ private struct TravelerFormEditorSheet: View {
         switch language {
         case .russian: return ru
         case .turkish: return TurkishLocalization.phrase(en)
-        case .indonesian, .english: return en
+        case .indonesian, .malay, .english: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
         }
@@ -2660,7 +2660,7 @@ private struct CountryPickerSheet: View {
         switch language {
         case .russian: return "Поиск страны"
         case .turkish: return TurkishLocalization.phrase("Search country")
-        case .indonesian, .english: return "Search country"
+        case .indonesian, .malay, .english: return "Search country"
         case .uzbek: return "Davlatni qidirish"
         case .uzbekCyrillic: return "Давлатни қидириш"
         }
@@ -2670,7 +2670,7 @@ private struct CountryPickerSheet: View {
         switch language {
         case .russian: return "Закрыть"
         case .turkish: return TurkishLocalization.phrase("Close")
-        case .indonesian, .english: return "Close"
+        case .indonesian, .malay, .english: return "Close"
         case .uzbek: return "Yopish"
         case .uzbekCyrillic: return "Ёпиш"
         }

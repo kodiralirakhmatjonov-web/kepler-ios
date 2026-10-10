@@ -199,7 +199,7 @@ struct IumrahLanguageSelectionSheet: View {
     }
 
     private var buttonForeground: Color {
-        pendingLanguage == settings.language ? .primary : Color.iumrahPageBackground
+        pendingLanguage == settings.language ? .primary : .white
     }
 
     private var navigationTitle: String {
@@ -207,8 +207,6 @@ struct IumrahLanguageSelectionSheet: View {
             ru: "Язык",
             en: "Language",
             tr: "Dil",
-            id: "Bahasa",
-            ms: "Bahasa",
             uz: "Til",
             uzCy: "Тил"
         )
@@ -219,8 +217,6 @@ struct IumrahLanguageSelectionSheet: View {
             ru: "iumrah — международная платформа Umrah",
             en: "iumrah International Umrah Platform",
             tr: "iumrah Uluslararası Umre Platformu",
-            id: "iumrah Platform Umrah Internasional",
-            ms: "iumrah Platform Umrah Antarabangsa",
             uz: "iumrah xalqaro Umra platformasi",
             uzCy: "iumrah халқаро Умра платформаси"
         )
@@ -231,8 +227,6 @@ struct IumrahLanguageSelectionSheet: View {
             ru: "Мир, объединённый намерением",
             en: "A world united by intention",
             tr: "Niyetle birleşen bir dünya",
-            id: "Dunia yang disatukan oleh niat",
-            ms: "Dunia yang disatukan oleh niat",
             uz: "Niyat bilan birlashgan dunyo",
             uzCy: "Ният билан бирлашган дунё"
         )
@@ -243,8 +237,6 @@ struct IumrahLanguageSelectionSheet: View {
             ru: "Выберите язык приложения",
             en: "Choose your app language",
             tr: "Uygulama dilinizi seçin",
-            id: "Pilih bahasa aplikasi Anda",
-            ms: "Pilih bahasa aplikasi anda",
             uz: "Ilova tilini tanlang",
             uzCy: "Илова тилини танланг"
         )
@@ -255,8 +247,6 @@ struct IumrahLanguageSelectionSheet: View {
             ru: "ТЕКУЩИЙ",
             en: "CURRENT",
             tr: "MEVCUT",
-            id: "SAAT INI",
-            ms: "SEDANG DIGUNAKAN",
             uz: "JORIY",
             uzCy: "ЖОРИЙ"
         )
@@ -267,8 +257,6 @@ struct IumrahLanguageSelectionSheet: View {
             ru: "После подтверждения интерфейс iumrah сразу переключится на выбранный язык.",
             en: "After confirmation, the iumrah interface switches to the language you selected.",
             tr: "Onaydan sonra iumrah arayüzü seçtiğiniz dile hemen geçer.",
-            id: "Setelah dikonfirmasi, antarmuka iumrah akan langsung beralih ke bahasa pilihan Anda.",
-            ms: "Selepas disahkan, paparan iumrah akan bertukar kepada bahasa pilihan anda.",
             uz: "Tasdiqlagandan so‘ng iumrah interfeysi darhol tanlangan tilga o‘tadi.",
             uzCy: "Тасдиқлагандан сўнг iumrah интерфейси дарҳол танланган тилга ўтади."
         )
@@ -280,8 +268,6 @@ struct IumrahLanguageSelectionSheet: View {
                 ru: "Текущий язык уже выбран",
                 en: "Current language already selected",
                 tr: "Geçerli dil zaten seçili",
-                id: "Bahasa ini sudah digunakan",
-                ms: "Bahasa ini sedang digunakan",
                 uz: "Joriy til allaqachon tanlangan",
                 uzCy: "Жорий тил аллақачон танланган"
             )
@@ -295,7 +281,7 @@ struct IumrahLanguageSelectionSheet: View {
         case .turkish:
             return "Türkçe’ye geç"
         case .indonesian:
-            return "Ubah ke Bahasa Indonesia"
+            return "Ganti ke Bahasa Indonesia"
         case .malay:
             return "Tukar kepada Bahasa Melayu"
         case .uzbek:
@@ -305,13 +291,13 @@ struct IumrahLanguageSelectionSheet: View {
         }
     }
 
-    private func localized(ru: String, en: String, tr: String, id: String, ms: String, uz: String, uzCy: String) -> String {
+    private func localized(ru: String, en: String, tr: String, uz: String, uzCy: String) -> String {
         switch pendingLanguage {
         case .russian: return ru
         case .english: return en
         case .turkish: return tr
-        case .indonesian: return id
-        case .malay: return ms
+        case .indonesian: return IndonesianLocalization.phrase(en)
+        case .malay: return MalayLocalization.phrase(en)
         case .uzbek: return uz
         case .uzbekCyrillic: return uzCy
         }

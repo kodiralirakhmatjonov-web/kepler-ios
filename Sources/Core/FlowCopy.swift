@@ -64,7 +64,7 @@ enum FlowCopy {
     static func text(_ key: Key, _ language: AppSettingsStore.Language) -> String {
         switch language {
         case .russian: return ru(key)
-        case .indonesian, .english: return en(key)
+        case .indonesian, .malay, .english: return en(key)
         case .turkish: return TurkishLocalization.phrase(en(key))
         case .uzbek: return uz(key)
         case .uzbekCyrillic: return uzCyr(key)

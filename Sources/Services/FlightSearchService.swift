@@ -12,7 +12,7 @@ enum GeneratorSearchStage: Hashable {
         switch (self, language) {
         case (.starting, .russian): return "Запускаем умный поиск"
         case (.starting, .turkish): return TurkishLocalization.phrase("Starting smart search")
-        case (.starting, .indonesian), (.starting, .english): return "Starting smart search"
+        case (.starting, .indonesian), (.starting, .malay), (.starting, .english): return "Starting smart search"
         case (.starting, .uzbek): return "Aqlli qidiruv boshlanmoqda"
         case (.starting, .uzbekCyrillic): return "Ақлли қидирув бошланмоқда"
         case (.checkingProvider(let name), .russian): return "Проверяем \(name)"
@@ -22,22 +22,22 @@ enum GeneratorSearchStage: Hashable {
         case (.checkingProvider(let name), .uzbekCyrillic): return "\(name) текширилмоқда"
         case (.checkingAirlines, .russian): return "Подбираем актуальные рейсы"
         case (.checkingAirlines, .turkish): return TurkishLocalization.phrase("Finding current flights")
-        case (.checkingAirlines, .indonesian), (.checkingAirlines, .english): return "Finding current flights"
+        case (.checkingAirlines, .indonesian), (.checkingAirlines, .malay), (.checkingAirlines, .english): return "Finding current flights"
         case (.checkingAirlines, .uzbek): return "Dolzarb reyslarni qidiryapmiz"
         case (.checkingAirlines, .uzbekCyrillic): return "Долзарб рейсларни қидиряпмиз"
         case (.checkingHotels, .russian): return "Проверяем цены выбранных Primary Hotels"
         case (.checkingHotels, .turkish): return TurkishLocalization.phrase("Checking your selected Primary Hotels")
-        case (.checkingHotels, .indonesian), (.checkingHotels, .english): return "Checking your selected Primary Hotels"
+        case (.checkingHotels, .indonesian), (.checkingHotels, .malay), (.checkingHotels, .english): return "Checking your selected Primary Hotels"
         case (.checkingHotels, .uzbek): return "Tanlangan Primary Hotel narxlarini tekshiryapmiz"
         case (.checkingHotels, .uzbekCyrillic): return "Танланган Primary Hotel нархларини текширяпмиз"
         case (.comparingFares, .russian): return "Сравниваем найденные тарифы"
         case (.comparingFares, .turkish): return TurkishLocalization.phrase("Comparing current fares")
-        case (.comparingFares, .indonesian), (.comparingFares, .english): return "Comparing current fares"
+        case (.comparingFares, .indonesian), (.comparingFares, .malay), (.comparingFares, .english): return "Comparing current fares"
         case (.comparingFares, .uzbek): return "Topilgan tariflarni solishtiryapmiz"
         case (.comparingFares, .uzbekCyrillic): return "Топилган тарифларни солиштиряпмиз"
         case (.continuing, .russian): return "Продолжаем искать другие варианты"
         case (.continuing, .turkish): return TurkishLocalization.phrase("Searching for more options")
-        case (.continuing, .indonesian), (.continuing, .english): return "Searching for more options"
+        case (.continuing, .indonesian), (.continuing, .malay), (.continuing, .english): return "Searching for more options"
         case (.continuing, .uzbek): return "Yana variantlarni qidiryapmiz"
         case (.continuing, .uzbekCyrillic): return "Яна вариантларни қидиряпмиз"
         }

@@ -334,7 +334,7 @@ private enum HomeEmotionalCopy {
         case .russian: return "Почувствуйте перед поездкой"
         case .indonesian: return IndonesianLocalization.phrase("Feel it before your journey")
         case .turkish: return TurkishLocalization.phrase("Feel it before your journey")
-        case .english: return "Feel it before your journey"
+        case .english, .malay: return "Feel it before your journey"
         case .uzbek: return "Safardan oldin his eting"
         case .uzbekCyrillic: return "Сафардан олдин ҳис этинг"
         }
@@ -345,7 +345,7 @@ private enum HomeEmotionalCopy {
         case .russian: return "Почувствовать сейчас"
         case .indonesian: return IndonesianLocalization.phrase("Experience now")
         case .turkish: return TurkishLocalization.phrase("Experience now")
-        case .english: return "Experience now"
+        case .english, .malay: return "Experience now"
         case .uzbek: return "Hozir his eting"
         case .uzbekCyrillic: return "Ҳозир ҳис этинг"
         }
@@ -380,7 +380,7 @@ private enum HomeEmotionalCopy {
                 "Sessizce diledikleriniz…",
                 "Ve sonra — Medine."
             ][safe: index] ?? ""
-        case .english:
+        case .english, .malay:
             return [
                 "One day, this will not be on a screen.",
                 "Some places are reached by the heart before we arrive.",
@@ -439,7 +439,7 @@ private enum HomeEmotionalCopy {
                 "…bir gün sizi buraya getirebilir.",
                 "Kalbin bir anda ayrılamadığı şehir."
             ][safe: index] ?? nil
-        case .english:
+        case .english, .malay:
             return [
                 "You will be here.",
                 nil,

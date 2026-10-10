@@ -38,21 +38,21 @@ private enum IumrahBackendModule: String, CaseIterable, Identifiable {
 
         case (.turkish, .flights): return TurkishLocalization.phrase("Flights")
 
-        case (.indonesian, .flights), (.english, .flights): return "Flights"
+        case (.indonesian, .flights), (.malay, .flights), (.english, .flights): return "Flights"
         case (.turkish, .hotels): return TurkishLocalization.phrase("Hotels")
-        case (.indonesian, .hotels), (.english, .hotels): return "Hotels"
+        case (.indonesian, .hotels), (.malay, .hotels), (.english, .hotels): return "Hotels"
         case (.turkish, .transfer): return TurkishLocalization.phrase("Transfer")
-        case (.indonesian, .transfer), (.english, .transfer): return "Transfer"
+        case (.indonesian, .transfer), (.malay, .transfer), (.english, .transfer): return "Transfer"
         case (.turkish, .guide): return TurkishLocalization.phrase("Guide")
-        case (.indonesian, .guide), (.english, .guide): return "Guide"
+        case (.indonesian, .guide), (.malay, .guide), (.english, .guide): return "Guide"
         case (.turkish, .esim): return TurkishLocalization.phrase("eSIM")
-        case (.indonesian, .esim), (.english, .esim): return "eSIM"
+        case (.indonesian, .esim), (.malay, .esim), (.english, .esim): return "eSIM"
         case (.turkish, .orders): return TurkishLocalization.phrase("Orders")
-        case (.indonesian, .orders), (.english, .orders): return "Orders"
+        case (.indonesian, .orders), (.malay, .orders), (.english, .orders): return "Orders"
         case (.turkish, .payment): return TurkishLocalization.phrase("Payment")
-        case (.indonesian, .payment), (.english, .payment): return "Payment"
+        case (.indonesian, .payment), (.malay, .payment), (.english, .payment): return "Payment"
         case (.turkish, .pricing): return TurkishLocalization.phrase("Pricing")
-        case (.indonesian, .pricing), (.english, .pricing): return "Pricing"
+        case (.indonesian, .pricing), (.malay, .pricing), (.english, .pricing): return "Pricing"
 
         case (.uzbek, .flights): return "Aviachiptalar"
         case (.uzbek, .hotels): return "Mehmonxonalar"
@@ -138,7 +138,7 @@ private enum IumrahBackendCopy {
             case .finalTitle: return "Sekiz ayrı sipariş değil. Tek bir iumrah rezervasyonu."
             case .finalBody: return "Sistem, karmaşık altyapıyı arka planda yönetir ve umre yolcusuna yalnızca yolculuğu için gerekenleri gösterir."
             }
-        case .indonesian, .english:
+        case .indonesian, .malay, .english:
             switch key {
             case .homeEyebrow: return "iumrah Configurator"
             case .homeTitle: return "Your whole trip, one system"

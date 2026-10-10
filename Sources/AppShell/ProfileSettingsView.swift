@@ -56,7 +56,7 @@ struct ProfileSettingsView: View {
         switch settings.language {
         case .russian: return "Конфиденциальность, возвраты и оплата"
         case .turkish: return TurkishLocalization.phrase("Privacy, refunds & payment")
-        case .indonesian, .english: return "Privacy, refunds & payment"
+        case .indonesian, .malay, .english: return "Privacy, refunds & payment"
         case .uzbek: return "Maxfiylik, qaytarish va to‘lov"
         case .uzbekCyrillic: return "Махфийлик, қайтариш ва тўлов"
         }

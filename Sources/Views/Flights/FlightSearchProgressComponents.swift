@@ -95,7 +95,7 @@ struct FlightCandidatePreviewCard: View {
         switch settings.language {
         case .russian: return "Рейс \(candidate.flightNumber)"
         case .turkish: return TurkishLocalization.phrase("Flight \(candidate.flightNumber)")
-        case .indonesian, .english: return "Flight \(candidate.flightNumber)"
+        case .indonesian, .malay, .english: return "Flight \(candidate.flightNumber)"
         case .uzbek: return "Reys \(candidate.flightNumber)"
         case .uzbekCyrillic: return "Рейс \(candidate.flightNumber)"
         }
@@ -115,7 +115,7 @@ struct FlightCandidatePreviewCard: View {
         switch settings.language {
         case .russian: return "Проверяем тариф"
         case .turkish: return TurkishLocalization.phrase("Verifying fare")
-        case .indonesian, .english: return "Verifying fare"
+        case .indonesian, .malay, .english: return "Verifying fare"
         case .uzbek: return "Tarif tekshirilmoqda"
         case .uzbekCyrillic: return "Тариф текширилмоқда"
         }
@@ -125,7 +125,7 @@ struct FlightCandidatePreviewCard: View {
         switch settings.language {
         case .russian: return "Рейс найден. Подтверждаем цену и детали у источника."
         case .turkish: return TurkishLocalization.phrase("Flight found. Verifying the fare and details with the source.")
-        case .indonesian, .english: return "Flight found. Verifying the fare and details with the source."
+        case .indonesian, .malay, .english: return "Flight found. Verifying the fare and details with the source."
         case .uzbek: return "Reys topildi. Tarif va tafsilotlar manbada tekshirilmoqda."
         case .uzbekCyrillic: return "Рейс топилди. Тариф ва тафсилотлар манбада текширилмоқда."
         }
@@ -215,7 +215,7 @@ struct FlightSearchProgressCard: View {
         switch settings.language {
         case .russian: return isSearching ? "Продолжаем поиск" : "Ищем ещё варианты"
         case .turkish: return isSearching ? "Daha fazla seçenek aranıyor" : "Daha fazla seçenek bul"
-        case .indonesian, .english: return isSearching ? "Searching for more" : "Find more options"
+        case .indonesian, .malay, .english: return isSearching ? "Searching for more" : "Find more options"
         case .uzbek: return isSearching ? "Qidiruv davom etmoqda" : "Yana variant izlash"
         case .uzbekCyrillic: return isSearching ? "Қидирув давом этмоқда" : "Яна вариант излаш"
         }
@@ -231,7 +231,7 @@ struct FlightSearchProgressCard: View {
             return hasResults
                 ? "Doğrulanmış uçuşları şimdiden karşılaştırabilirsiniz. Yeni seçenekler otomatik olarak görünür."
                 : "Güncel uçuşlar getiriliyor. Doğrulanan ilk seçenek hemen görünecek."
-        case .indonesian, .english:
+        case .indonesian, .malay, .english:
             return hasResults
                 ? "You can already compare verified flights. New options will appear automatically."
                 : "Fetching current flights. The first verified option will appear immediately."
@@ -250,7 +250,7 @@ struct FlightSearchProgressCard: View {
         switch settings.language {
         case .russian: return "Продолжить поиск"
         case .turkish: return TurkishLocalization.phrase("Continue search")
-        case .indonesian, .english: return "Continue search"
+        case .indonesian, .malay, .english: return "Continue search"
         case .uzbek: return "Qidiruvni davom ettirish"
         case .uzbekCyrillic: return "Қидирувни давом эттириш"
         }

@@ -366,7 +366,7 @@ enum BookingCardCopy {
         switch language {
         case .russian: return "Ваш Booking ID"
         case .turkish: return TurkishLocalization.phrase("Your Booking ID")
-        case .indonesian, .english: return "Your Booking ID"
+        case .indonesian, .malay, .english: return "Your Booking ID"
         case .uzbek: return "Sizning Booking ID"
         case .uzbekCyrillic: return "Сизнинг Booking ID"
         }
@@ -376,7 +376,7 @@ enum BookingCardCopy {
         switch language {
         case .russian: return "Отпустите, чтобы перевернуть карточку"
         case .turkish: return TurkishLocalization.phrase("Release to flip the card")
-        case .indonesian, .english: return "Release to flip the card"
+        case .indonesian, .malay, .english: return "Release to flip the card"
         case .uzbek: return "Kartani aylantirish uchun qo‘yib yuboring"
         case .uzbekCyrillic: return "Картани айлантириш учун қўйиб юборинг"
         }
@@ -386,7 +386,7 @@ enum BookingCardCopy {
         switch language {
         case .russian: return "Нажмите, чтобы перевернуть карточку"
         case .turkish: return TurkishLocalization.phrase("Tap to flip the card")
-        case .indonesian, .english: return "Tap to flip the card"
+        case .indonesian, .malay, .english: return "Tap to flip the card"
         case .uzbek: return "Kartani aylantirish uchun bosing"
         case .uzbekCyrillic: return "Картани айлантириш учун босинг"
         }

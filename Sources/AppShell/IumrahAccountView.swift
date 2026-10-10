@@ -2776,7 +2776,7 @@ struct IumrahAccountView: View {
         case .russian: return ru
         case .indonesian: return IndonesianLocalization.phrase(en)
         case .turkish: return TurkishLocalization.phrase(en)
-        case .english: return en
+        case .english, .malay: return en
         case .uzbek: return uz
         case .uzbekCyrillic: return cyrl
         }
