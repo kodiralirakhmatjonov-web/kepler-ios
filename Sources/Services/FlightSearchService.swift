@@ -17,7 +17,7 @@ enum GeneratorSearchStage: Hashable {
         case (.starting, .uzbekCyrillic): return "Ақлли қидирув бошланмоқда"
         case (.checkingProvider(let name), .russian): return "Проверяем \(name)"
         case (.checkingProvider(let name), .turkish): return "\(name) kontrol ediliyor"
-        case (.checkingProvider(let name), .indonesian), (.checkingProvider(let name), .english): return "Checking \(name)"
+        case (.checkingProvider(let name), .indonesian), (.checkingProvider(let name), .malay), (.checkingProvider(let name), .english): return "Checking \(name)"
         case (.checkingProvider(let name), .uzbek): return "\(name) tekshirilmoqda"
         case (.checkingProvider(let name), .uzbekCyrillic): return "\(name) текширилмоқда"
         case (.checkingAirlines, .russian): return "Подбираем актуальные рейсы"

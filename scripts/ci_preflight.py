@@ -156,6 +156,14 @@ for path in (repo("Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
         check(data[:8] == png_header and len(data) == 24 and struct.unpack(">II", data[16:24]) == (1024, 1024),
               "Primary AppIcon must be an actual 1024x1024 PNG")
 
+# The original Malay guard only checked whether Malay existed somewhere in a
+# switch; it missed (.checkingProvider, .malay) in a tuple switch. Run the
+# stricter per-case language matrix audit before accepting the patch.
+result = subprocess.run([sys.executable, str(repo("scripts/ci_language_audit.py"))],
+                        cwd=ROOT, capture_output=True, text=True, check=False)
+check(result.returncode == 0,
+      "Language matrix audit failed:\n" + (result.stdout + result.stderr)[-8000:])
+
 for warning in warnings:
     print("WARNING:", warning)
 if errors:
