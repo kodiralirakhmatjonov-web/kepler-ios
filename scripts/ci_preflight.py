@@ -1,105 +1,167 @@
 #!/usr/bin/env python3
-"""Fast, dependency-free, non-signing checks before starting XcodeGen/TestFlight.
+"""Fast fail-closed iOS repository checks; a real Xcode build is still required.
 
-This is a guardrail, not a substitute for an actual Xcode build and device QA.
+No third-party dependencies. Run before XcodeGen on the macOS GitHub runner.
 """
+from __future__ import annotations
+
 from pathlib import Path
 import json
 import plistlib
 import re
 import shutil
+import struct
 import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-errors = []
+errors: list[str] = []
+warnings: list[str] = []
 
 
-def require(condition, message):
+def check(condition: bool, message: str) -> None:
     if not condition:
         errors.append(message)
 
 
-sources = sorted((ROOT / 'Sources').rglob('*.swift'))
-widgets = sorted((ROOT / 'WidgetExtension').rglob('*.swift'))
-require(bool(sources) and bool(widgets), 'Sources or widgets Swift files missing')
+def content(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"Unreadable file {path.relative_to(ROOT)}: {exc}")
+        return ""
 
-# Parse every Swift source (including excluded/legacy sources) before dependencies
-# are downloaded. -parse deliberately does not require UIKit or Apple SDKs.
-compiler = shutil.which('swiftc')
-require(compiler is not None, 'swiftc unavailable')
+
+def repo(path: str) -> Path:
+    return ROOT / path
+
+
+swift_files = sorted(repo("Sources").rglob("*.swift")) + sorted(repo("WidgetExtension").rglob("*.swift"))
+check(len(swift_files) >= 250, f"Unexpected number of Swift sources: {len(swift_files)}")
+compiler = shutil.which("swiftc")
+check(bool(compiler), "Swift compiler missing (run on macOS-26 Xcode runner)")
 if compiler:
-    result = subprocess.run(
-        [compiler, '-frontend', '-parse', *map(str, sources + widgets)],
-        cwd=ROOT, text=True, capture_output=True, check=False
-    )
-    require(result.returncode == 0, 'Swift syntax parse failed:\n' + result.stderr[-6000:])
+    # Parse in one invocation; this tests syntax, not symbol/type resolution.
+    result = subprocess.run([compiler, "-frontend", "-parse", *map(str, swift_files)],
+                            text=True, capture_output=True, check=False)
+    check(result.returncode == 0, "Swift parse failed:\n" + result.stderr[-8000:])
 
-settings_file = ROOT / 'Sources/AppShell/AppSettingsStore.swift'
-settings = settings_file.read_text(encoding='utf-8') if settings_file.exists() else ''
-match = re.search(r'\benum\s+Language\s*:\s*String\s*,.*?\{(.*?)\n\s*var id:', settings, re.S)
-require(match is not None, 'AppSettingsStore.Language enum missing')
-if match:
-    case_values = dict(re.findall(r'\bcase\s+(\w+)\s*=\s*"([^"]+)"', match.group(1)))
-    expected = {
-        'russian': 'ru', 'english': 'en', 'uzbek': 'uz',
-        'uzbekCyrillic': 'uz-cyrl', 'turkish': 'tr', 'indonesian': 'id'
-    }
+settings = content(repo("Sources/AppShell/AppSettingsStore.swift"))
+enum = re.search(r"\benum\s+Language\s*:\s*String\s*,[^\{]*\{(.*?)\n\s*var id:", settings, re.S)
+check(bool(enum), "AppSettingsStore.Language enum is missing")
+expected = {
+    "russian": "ru", "english": "en", "turkish": "tr", "indonesian": "id",
+    "malay": "ms", "uzbek": "uz", "uzbekCyrillic": "uz-cyrl",
+}
+if enum:
+    cases = re.findall(r"\bcase\s+(\w+)\s*=\s*\"([^\"]+)\"", enum.group(1))
+    found = dict(cases)
+    check(len(found) == len(cases), "Duplicate Language enum case")
     for name, code in expected.items():
-        require(case_values.get(name) == code, f'Language.{name} absent or incorrect language code')
-    require(len(set(case_values.values())) == len(case_values), 'Duplicate language codes')
+        check(found.get(name) == code, f"Missing/mismatched Language.{name} = {code}")
+    check(len(set(found.values())) == len(found), "Duplicate Language raw values")
+    check('case .malay: return "ms_MY"' in settings, "Missing Malay locale ms_MY")
 
-for name in ['TurkishLocalization', 'IndonesianLocalization']:
-    p = ROOT / f'Sources/Core/{name}.swift'
-    require(p.is_file() and f'enum {name}' in p.read_text(encoding='utf-8'),
-            f'Missing {name} implementation')
+for type_name in ("TurkishLocalization", "IndonesianLocalization", "MalayLocalization"):
+    file = repo(f"Sources/Core/{type_name}.swift")
+    check(file.is_file(), f"Missing implementation {file.relative_to(ROOT)}")
+    if file.is_file():
+        check(bool(re.search(rf"\benum\s+{type_name}\s*\{{", content(file))),
+              f"Missing enum {type_name}")
+for name in ("Sources/AppShell/IumrahLanguageSelectionSheet.swift",
+             "Sources/Umrah Flow/Components/UmrahLanguagesSheet.swift"):
+    check(".malay" in content(repo(name)), f"Malay not connected to {name}")
 
-for name in ['Sources/AppShell/IumrahLanguageSelectionSheet.swift',
-             'Sources/Core/AppLocalization.swift']:
-    path = ROOT / name
-    require(path.exists() and '.indonesian' in path.read_text(encoding='utf-8'),
-            f'Indonesian language was not wired into {name}')
+# Detect newly added languages that would create nonexhaustive Swift switches.
+# A guardrail only; compiler semantic exhaustiveness remains the authority.
+check_count = 0
+missing_switches = []
+for file in swift_files:
+    source = content(file)
+    for match in re.finditer(r"\bswitch\s+[^\n\{]{1,150}\s*\{", source):
+        i, depth = match.end(), 1
+        while i < len(source) and depth:
+            if source[i] == "{":
+                depth += 1
+            elif source[i] == "}":
+                depth -= 1
+            i += 1
+        block = source[match.end():i-1]
+        # The same family of branches must handle all app languages, unless
+        # the switch intentionally has an explicit default or unknown case.
+        if re.search(r"\bcase\b[^\n]*\.indonesian\b", block) and re.search(r"\bcase\b[^\n]*\.english\b", block):
+            check_count += 1
+            if not re.search(r"\bcase\b[^\n]*\.malay\b", block) and not re.search(r"\b(?:default|@unknown default)\s*:", block):
+                missing_switches.append(f"{file.relative_to(ROOT)}:{source.count(chr(10), 0, match.start())+1}")
+check(not missing_switches, "Language switches missing Malay:\n" + "\n".join(missing_switches[:40]))
 
-p = ROOT / 'Resources/Info.plist'
-try:
-    with p.open('rb') as f:
-        info = plistlib.load(f)
-    require(info.get('CFBundleIdentifier') == '$(PRODUCT_BUNDLE_IDENTIFIER)',
-            'Unexpected app bundle identifier in Info.plist')
-except (OSError, ValueError, TypeError) as exc:
-    errors.append(f'Invalid Info.plist: {exc}')
+for p in (repo("Resources/Info.plist"), repo("WidgetExtension/Info.plist"),
+          repo("Resources/iUmra.entitlements"), repo("WidgetExtension/iUmraWidgets.entitlements")):
+    try:
+        with p.open("rb") as stream:
+            info = plistlib.load(stream)
+        check(isinstance(info, dict), f"Not a plist dictionary: {p}")
+        if p.name == "Info.plist":
+            check(info.get("CFBundleIdentifier") == "$(PRODUCT_BUNDLE_IDENTIFIER)",
+                  f"Bundle identity changed in {p.relative_to(ROOT)}")
+    except (OSError, TypeError, ValueError) as exc:
+        errors.append(f"Invalid plist {p.relative_to(ROOT)}: {exc}")
 
-for base in (ROOT / 'Resources/Assets.xcassets', ROOT / 'WidgetExtension/Assets.xcassets'):
-    require(base.is_dir(), f'Missing asset catalogue: {base}')
-    if not base.is_dir():
+project = content(repo("project.yml"))
+for bundle_id in ("com.iumrah.app", "com.iumrah.app.widgets"):
+    check(f"PRODUCT_BUNDLE_IDENTIFIER: {bundle_id}" in project, f"Missing bundle ID {bundle_id}")
+for locale in ("en", "ru", "uz", "uz-Cyrl", "tr", "id", "ms"):
+    check(repo(f"Resources/{locale}.lproj").is_dir(), f"Missing localization Resources/{locale}.lproj")
+
+png_header = b"\x89PNG\r\n\x1a\n"
+asset_count = 0
+for folder in (repo("Resources/Assets.xcassets"), repo("WidgetExtension/Assets.xcassets")):
+    check(folder.is_dir(), f"Asset catalogue missing: {folder.relative_to(ROOT)}")
+    if not folder.is_dir():
         continue
-    for contents in base.rglob('Contents.json'):
+    for contents in folder.rglob("Contents.json"):
+        asset_count += 1
         try:
-            content = json.loads(contents.read_text(encoding='utf-8'))
-        except (OSError, ValueError) as exc:
-            errors.append(f'Invalid asset JSON: {contents}: {exc}')
+            meta = json.loads(content(contents))
+            check(isinstance(meta, dict), f"Unexpected asset JSON: {contents.relative_to(ROOT)}")
+        except ValueError as exc:
+            errors.append(f"Invalid asset JSON {contents.relative_to(ROOT)}: {exc}")
             continue
-        files = [entry['filename'] for key in ('images', 'data')
-                 for entry in content.get(key, [])
-                 if isinstance(entry, dict) and entry.get('filename')]
-        for filename in files:
-            asset = contents.parent / filename
-            require(asset.is_file(), f'Missing asset referenced by {contents}: {filename}')
-            if asset.is_file() and asset.suffix.lower() == '.png':
-                require(asset.open('rb').read(8) == b'\x89PNG\r\n\x1a\n',
-                        f'Image declared as PNG has wrong file format: {asset}')
-        if contents.parent.name.endswith('.imageset'):
-            declared = set(files)
-            for asset in contents.parent.iterdir():
-                if asset.is_file() and asset.name != 'Contents.json' and asset.name not in declared:
-                    # The legacy ZIP patch bot copies files but cannot delete
-                    # obsolete files; these actool notices are non-fatal.
-                    print(f'WARNING: unassigned image asset: {asset}')
+        if not isinstance(meta, dict):
+            continue
+        declared = set()
+        for key in ("images", "data", "colors"):
+            for entry in meta.get(key, []):
+                if not isinstance(entry, dict):
+                    continue
+                filename = entry.get("filename")
+                if not filename:
+                    continue
+                declared.add(filename)
+                p = contents.parent / filename
+                check(p.is_file(), f"Missing asset {p.relative_to(ROOT)}")
+                if p.is_file() and p.suffix.lower() == ".png":
+                    check(p.open("rb").read(8) == png_header, f"PNG has invalid header: {p.relative_to(ROOT)}")
+                if p.is_file() and p.suffix.lower() in (".jpg", ".jpeg"):
+                    check(p.open("rb").read(3) == b"\xff\xd8\xff", f"JPEG has invalid header: {p.relative_to(ROOT)}")
+        if contents.parent.name.endswith(".imageset"):
+            for entry in contents.parent.iterdir():
+                if entry.is_file() and entry.name not in declared and entry.name != "Contents.json":
+                    warnings.append(f"Unassigned asset: {entry.relative_to(ROOT)}")
 
+for path in (repo("Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"),):
+    check(path.is_file(), "Missing primary 1024x1024 icon")
+    if path.is_file():
+        data = path.open("rb").read(24)
+        check(data[:8] == png_header and len(data) == 24 and struct.unpack(">II", data[16:24]) == (1024, 1024),
+              "Primary AppIcon must be an actual 1024x1024 PNG")
+
+for warning in warnings:
+    print("WARNING:", warning)
 if errors:
-    print('Repository preflight FAILED:')
-    for e in errors:
-        print(' - ' + e)
+    print("PREFLIGHT FAILED:")
+    for error in errors:
+        print(" -", error)
     sys.exit(1)
-
-print(f'Preflight PASS: {len(sources)} app Swift + {len(widgets)} widget Swift files, language registry, plists, asset catalogues.')
+print(f"PREFLIGHT PASS: {len(swift_files)} Swift files parsed, {check_count} language switches checked, "
+      f"{asset_count} assets and plists validated. Real Xcode compile still required.")

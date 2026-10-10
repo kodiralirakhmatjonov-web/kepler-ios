@@ -1,0 +1,12 @@
+Corrects missing MalayLocalization symbol from previous Malay patch.
+Adds a stronger source/resource preflight (Swift syntax, seven languages,
+nonexhaustive Malay switches, plists, assets and bundle IDs).
+
+IMPORTANT: This is incremental. First apply the earlier
+  iumrah-beta-update-20261010-malay-build-fix.zip
+if you have not yet applied it, otherwise preflight will fail.
+
+Crucial: separately install the manual workflow ZIP (the normal update bot
+ignores .github/workflows), or no pre-commit Xcode compilation will occur.
+
+Cannot verify signed archive/TestFlight without running GitHub Actions macOS.
